@@ -1,0 +1,79 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CloudXeus Orders API",
+    "version": "1.0.0",
+    "description": "Provides order status and details for CloudXeus customer orders."
+  },
+  "servers": [
+    { "url": "https://fn-cloudxeus-dev-eus-01.azurewebsites.net/api" }
+  ],
+  "paths": {
+    "/orders": {
+      "get": {
+        "operationId": "list_orders",
+        "summary": "List all orders",
+        "description": "Returns all CloudXeus customer orders, including status and total for each.",
+        "responses": {
+          "200": {
+            "description": "A list of orders.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Order" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{order_id}": {
+      "get": {
+        "operationId": "get_order_by_id",
+        "summary": "Get a single order",
+        "description": "Returns the status and details of one CloudXeus order, looked up by its order ID.",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "description": "The CloudXeus order ID, for example 1001.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The order details.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Order" }
+              }
+            }
+          },
+          "404": {
+            "description": "No order exists with the given ID."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Order": {
+        "type": "object",
+        "properties": {
+          "order_id": { "type": "string", "description": "Unique order identifier." },
+          "customer": { "type": "string", "description": "Customer name." },
+          "status": {
+            "type": "string",
+            "description": "Order status.",
+            "enum": ["processing", "shipped", "delivered"]
+          },
+          "total": { "type": "number", "description": "Order total in USD." }
+        }
+      }
+    }
+  }
+}
