@@ -1,0 +1,20 @@
+{
+  "name": "triage_result",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "category": {
+        "type": "string",
+        "enum": ["policy_question", "service_issue"],
+        "description": "The type of customer support request."
+      },
+      "refund_related": {
+        "type": "boolean",
+        "description": "True if the request involves a refund, billing dispute, cancellation refund, or repayment concern."
+      }
+    },
+    "required": ["category", "refund_related"],
+    "additionalProperties": false
+  }
+}

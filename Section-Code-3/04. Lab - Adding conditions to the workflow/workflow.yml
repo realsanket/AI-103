@@ -1,0 +1,46 @@
+kind: workflow
+trigger:
+  kind: OnConversationStart
+  id: trigger_wf
+  actions:
+    - kind: InvokeAzureAgent
+      id: node-Intake
+      agent:
+        name: wf-IntakeAgent
+      conversationId: =System.ConversationId
+      input:
+        messages: =System.LastMessage.Text
+      output:
+        autoSend: false
+        responseObject: Local.Triage
+    - kind: ConditionGroup
+      id: node-RouteByTriage
+      displayName: Route based on intake classification
+      conditions:
+        - condition: =Local.Triage.category = "policy_question"
+          id: route_policy_question
+          actions:
+            - kind: InvokeAzureAgent
+              id: node-Knowledge
+              agent:
+                name: wf-KnowledgeAgent
+              conversationId: =System.ConversationId
+              input:
+                messages: =System.LastMessage.Text
+              output:
+                autoSend: true
+      elseActions:
+        - kind: InvokeAzureAgent
+          id: node-Ticket
+          agent:
+            name: wf-TicketAgent
+          conversationId: =System.ConversationId
+          input:
+            messages: =System.LastMessage.Text
+          output:
+            autoSend: true
+    - kind: EndConversation
+      id: node-EndConversation
+id: ""
+name: wf-Triage
+description: ""
