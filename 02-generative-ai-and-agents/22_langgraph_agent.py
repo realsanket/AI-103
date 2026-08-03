@@ -1,8 +1,8 @@
-"""LangGraph stateful agent — CloudXeus policy Q&A backed by FAISS + PDFs.
+"""LangGraph stateful agent — Northwind policy Q&A backed by FAISS + PDFs.
 
 Shows LangGraph's core primitives: `StateGraph`, `MessagesState`, nodes,
-conditional edges. RAG uses a local FAISS index over the CloudXeus policy
-PDFs in `_shared/sample_data/cloudxeus_policies/`.
+conditional edges. RAG uses a local FAISS index over the Northwind policy
+PDFs in `_shared/sample_data/northwind_policies/`.
 
 Not production RAG — for production, index in Azure AI Search (see Domain 5).
 This lesson is about the *graph orchestration* pattern.
@@ -34,9 +34,9 @@ def _clients() -> tuple[ChatOpenAI, OpenAIEmbeddings]:
 
 def _build_vector_store(embeddings: OpenAIEmbeddings) -> FAISS:
     docs = []
-    for pdf in sorted((SAMPLE_DATA / "cloudxeus_policies").glob("*.pdf")):
+    for pdf in sorted((SAMPLE_DATA / "northwind_policies").glob("*.pdf")):
         docs.extend(PyPDFLoader(str(pdf)).load())
-    print(f"Loaded {len(docs)} pages across CloudXeus policies.")
+    print(f"Loaded {len(docs)} pages across Northwind policies.")
     chunks = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50).split_documents(docs)
     print(f"Split into {len(chunks)} chunks. Building vector store...")
     return FAISS.from_documents(chunks, embeddings)
@@ -47,8 +47,8 @@ def main() -> None:
     vector_store = _build_vector_store(embeddings)
 
     @tool
-    def search_cloudxeus_policies(query: str) -> str:
-        """Search CloudXeus policy documents (AUP, refund, SLA)."""
+    def search_northwind_policies(query: str) -> str:
+        """Search Northwind policy documents (AUP, refund, SLA)."""
         hits = vector_store.similarity_search(query, k=3)
         if not hits:
             return "No relevant policy information found."
@@ -57,14 +57,14 @@ def main() -> None:
             for i, d in enumerate(hits, 1)
         )
 
-    tools = [search_cloudxeus_policies]
+    tools = [search_northwind_policies]
     model_with_tools = model.bind_tools(tools)
 
     def call_model(state: MessagesState) -> dict:
         system = {
             "role": "system",
             "content": (
-                "You are the CloudXeus policy assistant. Answer using search_cloudxeus_policies. "
+                "You are the Northwind policy assistant. Answer using search_northwind_policies. "
                 "Ground answers in retrieved excerpts. Say so if you cannot find the answer."
             ),
         }
@@ -85,9 +85,9 @@ def main() -> None:
     print("Agent ready.\n")
 
     for question in [
-        "What is the refund window for a CloudXeus Pro subscription?",
-        "What uptime does CloudXeus guarantee for Enterprise customers?",
-        "Can I mine cryptocurrency on CloudXeus compute resources?",
+        "What is the refund window for a Northwind Pro subscription?",
+        "What uptime does Northwind guarantee for Enterprise customers?",
+        "Can I mine cryptocurrency on Northwind compute resources?",
     ]:
         print(f"Q: {question}")
         result = graph.invoke({"messages": [{"role": "user", "content": question}]})

@@ -11,7 +11,7 @@ from pathlib import Path
 
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "cloudxeus-support"
+AGENT_NAME = "northwind-support"
 
 _OCR_TEXT = Path(__file__).parent / "data" / "malicious_ocr_sample.txt"
 

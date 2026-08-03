@@ -22,11 +22,11 @@ async def _run() -> None:
     agent = Agent(
         chat_client=chat_client,
         instructions=(
-            "You are CloudXeus operations assistant. Be concise. "
+            "You are Northwind operations assistant. Be concise. "
             "If you need current info, ask the user for it — you have no tools yet."
         ),
     )
-    result = await agent.run("Give me a one-line summary of CloudXeus's mission.")
+    result = await agent.run("Give me a one-line summary of Northwind's mission.")
     print(result.messages[-1].content)
 
 

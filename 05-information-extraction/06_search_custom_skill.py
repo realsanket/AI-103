@@ -11,7 +11,7 @@ import json
 
 
 def transform(record_data: dict) -> dict:
-    """Toy transform: normalize a CloudXeus product code + flag SLA tier."""
+    """Toy transform: normalize a Northwind product code + flag SLA tier."""
     text = record_data.get("text", "")
     upper = text.upper()
     tier = next((t for t in ("BRONZE", "SILVER", "GOLD", "PLATINUM") if t in upper), None)

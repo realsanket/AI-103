@@ -1,8 +1,8 @@
-# CloudXeus Technology Services — Technical Support FAQ
+# Northwind Technology Services — Technical Support FAQ
 
 ## How do I contact technical support?
 Support is available through the Customer Portal (Support > New
-Ticket), by email at support@cloudxeus.com, or by phone for Priority
+Ticket), by email at support@northwind.com, or by phone for Priority
 and Enterprise plan customers. The support line operates 24/7.
 
 ## What are the support response times?
@@ -12,7 +12,7 @@ Response times depend on your support plan:
 - Enterprise: 1 hour, 24/7 with a dedicated account engineer
 
 ## My virtual machine is not responding. What should I do?
-First, check the CloudXeus Status Page at status.cloudxeus.com for
+First, check the Northwind Status Page at status.northwind.com for
 any ongoing incidents in your region. If no incident is reported,
 try restarting the VM from the Customer Portal under Compute >
 Virtual Machines > Restart. If the VM remains unresponsive after a
@@ -25,14 +25,14 @@ you no longer have access to that email, contact support with your
 account number for identity verification.
 
 ## How do I restore data from a backup?
-CloudXeus retains automated daily backups for 30 days on all hosting
+Northwind retains automated daily backups for 30 days on all hosting
 plans. To restore, open the Customer Portal and go to Storage >
 Backups, select the snapshot date, and choose "Restore." Restores to
 a new location are recommended to avoid overwriting current data.
 Enterprise customers can request point-in-time restores within the
 last 7 days.
 
-## Does CloudXeus support multi-factor authentication?
+## Does Northwind support multi-factor authentication?
 Yes. MFA is available for all Customer Portal accounts and is
 mandatory for administrator roles. Supported methods are
 authenticator apps (TOTP) and hardware security keys (FIDO2).

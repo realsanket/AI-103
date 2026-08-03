@@ -7,7 +7,7 @@ Response Completeness evaluator, but wired inline so you can see the mechanics.
 from _shared.config import settings
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "cloudxeus-support-rag-agent"
+AGENT_NAME = "northwind-support-rag-agent"
 _AGENT_REF = {"type": "agent_reference", "name": AGENT_NAME}
 
 _QUESTION = (

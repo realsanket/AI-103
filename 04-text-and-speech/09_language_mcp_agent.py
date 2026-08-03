@@ -8,7 +8,7 @@ from azure.ai.projects.models import McpTool, PromptAgentDefinition
 from _shared.config import settings
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "cloudxeus-language-mcp-agent"
+AGENT_NAME = "northwind-language-mcp-agent"
 
 
 def main() -> None:

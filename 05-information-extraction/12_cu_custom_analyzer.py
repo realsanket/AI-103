@@ -1,16 +1,16 @@
 """Custom Content Understanding analyzer via `baseAnalyzerId: prebuilt-document`.
 
-Defines a CloudXeus-specific schema (ticket_id, sla_tier, breach_penalty)
+Defines a Northwind-specific schema (ticket_id, sla_tier, breach_penalty)
 and applies it to a scanned support notice.
 """
 import os
 
 from _shared.cu_client import analyze, create_analyzer
 
-ANALYZER_ID = "cloudxeus-support-notice"
+ANALYZER_ID = "northwind-support-notice"
 
 _DEFINITION = {
-    "description": "Extract CloudXeus support-notice fields.",
+    "description": "Extract Northwind support-notice fields.",
     "baseAnalyzerId": "prebuilt-document",
     "fieldSchema": {
         "fields": {

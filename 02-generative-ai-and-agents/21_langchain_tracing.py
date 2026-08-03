@@ -16,7 +16,7 @@ _SCOPE = "https://cognitiveservices.azure.com/.default"
 
 @tool
 def get_order_status(order_id: str) -> str:
-    """Get the current status of a CloudXeus order by order ID."""
+    """Get the current status of a Northwind order by order ID."""
     return {"ORD-001": "Dispatched.", "ORD-002": "Processing.", "ORD-003": "Delivered."}.get(
         order_id, f"Order {order_id} not found."
     )
@@ -24,7 +24,7 @@ def get_order_status(order_id: str) -> str:
 
 @tool
 def get_inventory(product_id: str) -> str:
-    """Check the available inventory for a CloudXeus product by product ID."""
+    """Check the available inventory for a Northwind product by product ID."""
     return {"PRD-A1": "142 units.", "PRD-B2": "0 units.", "PRD-C3": "37 units."}.get(
         product_id, f"Product {product_id} not found."
     )
@@ -44,22 +44,22 @@ def main() -> None:
 
     tracer = AzureAIOpenTelemetryTracer(
         connection_string=s.app_insights_connection_string,
-        name="CloudXeus LangChain Ops Agent",
-        agent_id="cloudxeus-langchain-ops-agent",
+        name="Northwind LangChain Ops Agent",
+        agent_id="northwind-langchain-ops-agent",
         enable_content_recording=True,
     )
 
     agent = create_agent(
         model=model,
         tools=[get_order_status, get_inventory],
-        system_prompt="You are a helpful CloudXeus operations assistant. Use tools when needed.",
+        system_prompt="You are a helpful Northwind operations assistant. Use tools when needed.",
     ).with_config({"callbacks": [tracer]})
 
     r = agent.invoke(
         {"messages": [{"role": "user", "content": "Status of ORD-002 and stock of PRD-A1?"}]}
     )
     print(r["messages"][-1].content)
-    print("\n→ Look in Application Insights for traces tagged agent_id=cloudxeus-langchain-ops-agent")
+    print("\n→ Look in Application Insights for traces tagged agent_id=northwind-langchain-ops-agent")
 
 
 if __name__ == "__main__":

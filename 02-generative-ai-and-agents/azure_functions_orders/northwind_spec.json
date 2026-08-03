@@ -1,19 +1,19 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "CloudXeus Orders API",
+    "title": "Northwind Orders API",
     "version": "1.0.0",
-    "description": "Provides order status and details for CloudXeus customer orders."
+    "description": "Provides order status and details for Northwind customer orders."
   },
   "servers": [
-    { "url": "https://fn-cloudxeus-dev-eus-01.azurewebsites.net/api" }
+    { "url": "https://fn-northwind-dev-eus-01.azurewebsites.net/api" }
   ],
   "paths": {
     "/orders": {
       "get": {
         "operationId": "list_orders",
         "summary": "List all orders",
-        "description": "Returns all CloudXeus customer orders, including status and total for each.",
+        "description": "Returns all Northwind customer orders, including status and total for each.",
         "responses": {
           "200": {
             "description": "A list of orders.",
@@ -33,13 +33,13 @@
       "get": {
         "operationId": "get_order_by_id",
         "summary": "Get a single order",
-        "description": "Returns the status and details of one CloudXeus order, looked up by its order ID.",
+        "description": "Returns the status and details of one Northwind order, looked up by its order ID.",
         "parameters": [
           {
             "name": "order_id",
             "in": "path",
             "required": true,
-            "description": "The CloudXeus order ID, for example 1001.",
+            "description": "The Northwind order ID, for example 1001.",
             "schema": { "type": "string" }
           }
         ],

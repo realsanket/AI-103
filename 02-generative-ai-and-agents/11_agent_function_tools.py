@@ -59,7 +59,7 @@ def main() -> None:
         definition=PromptAgentDefinition(
             model=settings().default_model,
             instructions=(
-                "You are the CloudXeus IT support assistant. "
+                "You are the Northwind IT support assistant. "
                 "Call tools when you need company-specific information. "
                 "Otherwise answer in your own words."
             ),

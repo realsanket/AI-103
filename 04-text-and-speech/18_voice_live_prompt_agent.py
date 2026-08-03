@@ -18,7 +18,7 @@ from _shared.config import SAMPLE_DATA, settings
 
 _SCOPE = "https://cognitiveservices.azure.com/.default"
 
-AGENT_NAME = "cloudxeus-support"
+AGENT_NAME = "northwind-support"
 
 
 async def _run() -> None:
@@ -29,7 +29,7 @@ async def _run() -> None:
     )
     headers = {"Authorization": f"Bearer {token}"}
 
-    audio_bytes = (SAMPLE_DATA / "audio" / "cloudxeus_support_message.wav").read_bytes()
+    audio_bytes = (SAMPLE_DATA / "audio" / "northwind_support_message.wav").read_bytes()
     b64_audio = base64.b64encode(audio_bytes).decode("ascii")
 
     async with websockets.connect(url, extra_headers=headers) as ws:

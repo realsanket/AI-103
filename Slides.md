@@ -1,6 +1,6 @@
 # AI-103: Developing AI Apps and Agents on Azure
 
-Source: `Slides.pdf` (267 slides). Instructor: Alan Rodrigues, CloudXeus.
+Source: `Slides.pdf` (267 slides). Instructor: Alan Rodrigues, Northwind.
 
 ---
 
@@ -418,7 +418,7 @@ Source: `Slides.pdf` (267 slides). Instructor: Alan Rodrigues, CloudXeus.
 - **Generative** — general model (GPT-5.4) instructed via prompt. Flexible, schema-free, multi-task per call.
 
 **Tasks**
-- **Entity Extraction** — Azure Language NER (prebuilt/custom) vs GPT prompt (any field, incl. concepts no prebuilt saw, e.g. "CloudXeus SLA tier + breach penalty").
+- **Entity Extraction** — Azure Language NER (prebuilt/custom) vs GPT prompt (any field, incl. concepts no prebuilt saw, e.g. "Northwind SLA tier + breach penalty").
 - **Topics + Summaries** — Azure Language dedicated feature (conversation, call-center variants) vs GPT via prompt wording.
 - **Structured JSON Output** — "respond in JSON" is advisory only. **Structured Outputs** on Responses API (`text.format`, `type: "json_schema"`, `strict: true`) constrain token generation itself. Mechanically guaranteed schema match.
 - **Sentiment + Tone** — Azure Language sentiment (pos/neg/neutral/mixed) + opinion mining (aspect-linked). Tone (formality/emotion/urgency) = generative only. Generative advantage: single-call multi-return. Discriminative: benchmarked confidence scores.
@@ -692,7 +692,7 @@ Source: `Slides.pdf` (267 slides). Instructor: Alan Rodrigues, CloudXeus.
 - Agent returns grounded response, often with citations.
 
 **Runtime Flow**
-- User Q ("Does CloudXeus provide weekend support?") → agent evaluates → AI Search tool → search returns passages/fields → agent adds to reasoning context → conversational grounded answer.
+- User Q ("Does Northwind provide weekend support?") → agent evaluates → AI Search tool → search returns passages/fields → agent adds to reasoning context → conversational grounded answer.
 
 **Agent Tool vs Manual RAG**
 - Manual: app code calls Search → builds prompt → calls model.

@@ -1,6 +1,6 @@
 """Content Understanding — domain-specific `prebuilt-invoice` analyzer.
 
-Reads a sample CloudXeus invoice, extracts vendor/amount/line items, then
+Reads a sample Northwind invoice, extracts vendor/amount/line items, then
 prints the structured field dump the agent can consume.
 """
 from _shared.config import SAMPLE_DATA
@@ -10,7 +10,7 @@ from _shared.cu_client import analyze
 # route takes a URL, not raw bytes for `analyzers/{id}:analyze`. If you want
 # a fully local demo, use the ContentUnderstandingClient SDK's begin_analyze_binary.
 # We keep the file path here for reference in the docs.
-_INVOICE_LOCAL = SAMPLE_DATA / "invoices" / "cloudxeus_sample_invoice.pdf"
+_INVOICE_LOCAL = SAMPLE_DATA / "invoices" / "northwind_sample_invoice.pdf"
 
 
 def main() -> None:

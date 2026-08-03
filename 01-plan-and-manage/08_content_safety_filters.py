@@ -11,7 +11,7 @@ from _shared.content_safety_client import content_safety_client
 from _shared.foundry_client import project_client
 from azure.ai.contentsafety.models import AnalyzeImageOptions, ImageData
 
-AGENT_NAME = "cloudxeus-support"
+AGENT_NAME = "northwind-support"
 
 
 def _text_moderation_via_agent() -> None:

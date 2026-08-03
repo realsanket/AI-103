@@ -9,16 +9,16 @@ from azure.ai.projects.models import PromptAgentDefinition
 from _shared.config import settings
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "cloudxeus-support-rag-agent"
+AGENT_NAME = "northwind-support-rag-agent"
 
 _SYSTEM_PROMPT = """
-You are a customer support assistant for CloudXeus Technology Services.
+You are a customer support assistant for Northwind Technology Services.
 
 Answer the customer's question using ONLY the provided sources.
 After your answer, cite the source URL you used.
 If the sources do not contain the answer, say:
 "I don't have that information in the available knowledge base."
-Then suggest contacting support@cloudxeus.com.
+Then suggest contacting support@northwind.com.
 
 Never invent policies, prices, refund rules, or timelines.
 """

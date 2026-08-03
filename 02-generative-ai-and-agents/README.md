@@ -29,7 +29,7 @@ Largest exam domain — most files.
 | 21 | `21_langchain_tracing.py` | LangChain + OpenTelemetry tracing |
 | 22 | `22_langgraph_agent.py` | LangGraph stateful agent |
 | — | `azure_functions_orders/` | OpenAPI-described Function backing tool 12 |
-| — | `cloudxeus_mcp/` | Custom MCP server as Azure Function |
+| — | `northwind_mcp/` | Custom MCP server as Azure Function |
 | — | `workflows/` | JSON + YAML workflow definitions |
 
 ## Run

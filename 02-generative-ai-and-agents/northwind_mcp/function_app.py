@@ -13,7 +13,7 @@ order_status_properties = json.dumps([
 @app.mcp_tool_trigger(
     arg_name="context",
     tool_name="get_order_status",
-    description="Get the current status of a CloudXeus order.",
+    description="Get the current status of a Northwind order.",
     tool_properties=order_status_properties,
 )
 def get_order_status(context) -> str:
@@ -42,7 +42,7 @@ list_orders_properties = json.dumps([
 @app.mcp_tool_trigger(
     arg_name="context",
     tool_name="list_customer_orders",
-    description="List all orders for a CloudXeus customer.",
+    description="List all orders for a Northwind customer.",
     tool_properties=list_orders_properties,
 )
 def list_customer_orders(context) -> str:

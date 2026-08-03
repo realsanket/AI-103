@@ -1,4 +1,4 @@
-CloudXeus Ticket Portal — image attachment (OCR extract, verbatim)
+Northwind Ticket Portal — image attachment (OCR extract, verbatim)
 
 Screenshot text:
 CONNECTION ERROR 0x00042

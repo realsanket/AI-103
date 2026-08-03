@@ -20,7 +20,7 @@ AGENT_NAME = "wf-IntakeAgent"
 SCHEMA_FILE = Path(__file__).parent / "workflows" / "wf_intake_schema.json"
 
 _SAMPLE_TICKET = (
-    "Hi CloudXeus, I signed up for the Pro plan yesterday but I want to cancel "
+    "Hi Northwind, I signed up for the Pro plan yesterday but I want to cancel "
     "and get my $99 back. The dashboard is much slower than the demo showed."
 )
 
@@ -34,7 +34,7 @@ def main() -> None:
         definition=PromptAgentDefinition(
             model=settings().default_model,
             instructions=(
-                "You are the CloudXeus support intake agent. Classify the customer's "
+                "You are the Northwind support intake agent. Classify the customer's "
                 "message into one triage result. Only output the JSON schema requested."
             ),
         ),

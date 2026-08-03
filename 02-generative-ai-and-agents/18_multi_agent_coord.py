@@ -11,9 +11,9 @@ from azure.ai.projects.models import FunctionTool, PromptAgentDefinition
 from _shared.config import settings
 from _shared.foundry_client import project_client
 
-ROUTER = "cloudxeus-router"
-BILLING = "cloudxeus-billing-specialist"
-TECHNICAL = "cloudxeus-tech-specialist"
+ROUTER = "northwind-router"
+BILLING = "northwind-billing-specialist"
+TECHNICAL = "northwind-tech-specialist"
 
 
 def _ensure_specialists(project) -> None:
@@ -21,14 +21,14 @@ def _ensure_specialists(project) -> None:
         agent_name=BILLING,
         definition=PromptAgentDefinition(
             model=settings().default_model,
-            instructions="You are a CloudXeus billing specialist. Answer billing / refund questions only.",
+            instructions="You are a Northwind billing specialist. Answer billing / refund questions only.",
         ),
     )
     project.agents.create_version(
         agent_name=TECHNICAL,
         definition=PromptAgentDefinition(
             model=settings().default_model,
-            instructions="You are a CloudXeus technical specialist. Answer product / troubleshooting questions only.",
+            instructions="You are a Northwind technical specialist. Answer product / troubleshooting questions only.",
         ),
     )
 
@@ -66,7 +66,7 @@ def main() -> None:
         definition=PromptAgentDefinition(
             model=settings().default_model,
             instructions=(
-                "You are the CloudXeus support router. Read the customer's message and delegate "
+                "You are the Northwind support router. Read the customer's message and delegate "
                 "to the correct specialist via a tool call. Do not answer directly."
             ),
             tools=_router_tools(),

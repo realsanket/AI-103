@@ -17,14 +17,14 @@ def _run_agent_trace() -> dict:
     client = openai_client()
     r = client.responses.create(
         model=settings().default_model,
-        instructions="You are a CloudXeus support agent. Answer briefly.",
+        instructions="You are a Northwind support agent. Answer briefly.",
         input="What is the refund window for a Pro plan? If you don't know, say so.",
     )
     return {
         "query": "What is the refund window for a Pro plan?",
         "response": r.output_text,
         "tool_calls": [],  # populate if you drove function calls
-        "system_message": "You are a CloudXeus support agent. Answer briefly.",
+        "system_message": "You are a Northwind support agent. Answer briefly.",
     }
 
 

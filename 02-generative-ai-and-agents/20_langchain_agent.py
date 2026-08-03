@@ -11,7 +11,7 @@ _SCOPE = "https://cognitiveservices.azure.com/.default"
 
 @tool
 def get_order_status(order_id: str) -> str:
-    """Get the current status of a CloudXeus order by order ID."""
+    """Get the current status of a Northwind order by order ID."""
     orders = {
         "ORD-001": "Dispatched — arriving tomorrow.",
         "ORD-002": "Processing — not yet shipped.",
@@ -22,7 +22,7 @@ def get_order_status(order_id: str) -> str:
 
 @tool
 def get_inventory(product_id: str) -> str:
-    """Check the available inventory for a CloudXeus product by product ID."""
+    """Check the available inventory for a Northwind product by product ID."""
     inventory = {"PRD-A1": "142 units in stock.", "PRD-B2": "0 units — out of stock.", "PRD-C3": "37 units in stock."}
     return inventory.get(product_id, f"Product {product_id} not found.")
 
@@ -39,7 +39,7 @@ def main() -> None:
         model=model,
         tools=[get_order_status, get_inventory],
         system_prompt=(
-            "You are a helpful CloudXeus operations assistant. "
+            "You are a helpful Northwind operations assistant. "
             "Use the available tools to answer questions accurately."
         ),
     )

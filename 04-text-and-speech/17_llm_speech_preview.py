@@ -28,7 +28,7 @@ def main() -> None:
             "definition": (
                 None,
                 '{"model":"mai-transcribe","locales":["en-US"],'
-                '"prompt":"CloudXeus product names include Connect, Sentinel, Ledger. '
+                '"prompt":"Northwind product names include Connect, Sentinel, Ledger. '
                 'Use exact spellings."}',
                 "application/json",
             ),

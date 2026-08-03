@@ -9,7 +9,7 @@ from azure.search.documents.models import VectorizableTextQuery
 from _shared.foundry_client import project_client
 from _shared.search_client import search_client
 
-AGENT_NAME = "cloudxeus-support-rag-agent"
+AGENT_NAME = "northwind-support-rag-agent"
 
 
 def _retrieve(question: str, top: int = 3) -> str:
@@ -39,7 +39,7 @@ def _retrieve(question: str, top: int = 3) -> str:
 def ask(question: str) -> str:
     sources = _retrieve(question)
     prompt = (
-        "You are a customer support agent for CloudXeus Technology Services.\n"
+        "You are a customer support agent for Northwind Technology Services.\n"
         "Answer using only the sources provided below. If the sources do not contain "
         "enough information, say so.\n\n"
         f"Sources:\n{sources}\n\n"

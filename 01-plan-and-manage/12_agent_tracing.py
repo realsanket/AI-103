@@ -11,7 +11,7 @@ from _shared.tracing import setup_tracing
 
 
 def main() -> None:
-    tracer = setup_tracing("cloudxeus-tracing-demo")
+    tracer = setup_tracing("northwind-tracing-demo")
     client = openai_client()
 
     with tracer.start_as_current_span("demo.responses_create") as span:

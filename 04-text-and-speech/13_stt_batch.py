@@ -25,7 +25,7 @@ def _headers() -> dict:
 
 def _submit(container_sas_url: str) -> str:
     body = {
-        "displayName": "cloudxeus-support-calls-batch",
+        "displayName": "northwind-support-calls-batch",
         "description": "Weekly call archive transcription",
         "locale": "en-US",
         "contentContainerUrl": container_sas_url,

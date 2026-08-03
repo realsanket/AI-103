@@ -8,7 +8,7 @@ here (not inside a domain folder) because both Domain 2 (agents) and Domain 5
 
 def get_password_reset_steps() -> str:
     return (
-        "1. Go to https://accounts.cloudxeus.internal/reset\n"
+        "1. Go to https://accounts.northwind.internal/reset\n"
         "2. Enter your corporate email.\n"
         "3. Follow the link sent to your inbox (valid 15 min).\n"
         "4. Set a new password meeting the 12+ char + symbol policy."
@@ -18,7 +18,7 @@ def get_password_reset_steps() -> str:
 def get_vpn_troubleshooting_steps() -> str:
     return (
         "1. Confirm you are on Wi-Fi that permits UDP 443.\n"
-        "2. Quit and relaunch the CloudXeus VPN client.\n"
+        "2. Quit and relaunch the Northwind VPN client.\n"
         "3. Switch cluster to 'eu-west-b' if 'eu-west-a' times out.\n"
         "4. If MFA prompt loops, sign out of the client and sign back in.\n"
         "5. Still failing? Open a P2 ticket with ITSM."

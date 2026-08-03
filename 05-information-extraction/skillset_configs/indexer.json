@@ -1,9 +1,9 @@
 {
-  "name": "ixr-cloudxeus-documents-enriched",
-  "description": "Indexer that enriches CloudXeus PDF documents with OCR, merged content, language, and key phrases.",
-  "dataSourceName": "ds-cloudxeus-documents",
-  "targetIndexName": "idx-cloudxeus-documents-enriched",
-  "skillsetName": "skl-cloudxeus-document-enrichment",
+  "name": "ixr-northwind-documents-enriched",
+  "description": "Indexer that enriches Northwind PDF documents with OCR, merged content, language, and key phrases.",
+  "dataSourceName": "ds-northwind-documents",
+  "targetIndexName": "idx-northwind-documents-enriched",
+  "skillsetName": "skl-northwind-document-enrichment",
   "schedule": null,
   "parameters": {
     "configuration": {

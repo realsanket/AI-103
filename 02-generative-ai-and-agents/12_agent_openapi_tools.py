@@ -15,16 +15,16 @@ from azure.ai.projects.models import OpenApiAnonymousAuthDetails, OpenApiTool, P
 from _shared.config import settings
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "cloudxeus-orders-agent"
-SPEC_PATH = Path(__file__).parent / "azure_functions_orders" / "cloudxeus_spec.json"
+AGENT_NAME = "northwind-orders-agent"
+SPEC_PATH = Path(__file__).parent / "azure_functions_orders" / "northwind_spec.json"
 
 
 def main() -> None:
     spec = json.loads(SPEC_PATH.read_text())
     tool = OpenApiTool(
-        name="cloudxeus_orders",
+        name="northwind_orders",
         spec=spec,
-        description="Read CloudXeus customer orders.",
+        description="Read Northwind customer orders.",
         auth=OpenApiAnonymousAuthDetails(),
     )
     client = project_client()
@@ -33,7 +33,7 @@ def main() -> None:
         definition=PromptAgentDefinition(
             model=settings().default_model,
             instructions=(
-                "You are a CloudXeus operations assistant. Use the cloudxeus_orders "
+                "You are a Northwind operations assistant. Use the northwind_orders "
                 "tools to answer questions about order status. If asked about an order "
                 "you cannot find, say so — do not invent data."
             ),

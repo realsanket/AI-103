@@ -9,7 +9,7 @@ this script exercises the runtime side.
 """
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "cloudxeus-support-with-memory"
+AGENT_NAME = "northwind-support-with-memory"
 
 _USER_ID = "user-sarah-chen"
 _TURN_1 = "For the record: I'm allergic to dairy. Please note it on my account."

@@ -9,7 +9,7 @@ import base64
 from _shared.config import SAMPLE_DATA
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "cloudxeus-support"
+AGENT_NAME = "northwind-support"
 
 
 def main() -> None:

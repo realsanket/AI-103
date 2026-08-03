@@ -5,7 +5,7 @@ context for the follow-up. New conversation id = blank slate.
 """
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "cloudxeus-support-agent-conv"
+AGENT_NAME = "northwind-support-agent-conv"
 
 
 def _ref() -> dict:

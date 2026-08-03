@@ -59,7 +59,7 @@ def main() -> None:
         definition=PromptAgentDefinition(
             model=settings().default_model,
             instructions=(
-                "You are an IT support assistant for CloudXeus. "
+                "You are an IT support assistant for Northwind. "
                 "Help users with password resets, VPN issues, and software installation. "
                 "Give clear, step-by-step answers. Call your tools when you need company-specific "
                 "information. If the question is outside IT support, politely say so."

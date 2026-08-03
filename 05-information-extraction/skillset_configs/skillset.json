@@ -1,6 +1,6 @@
 {
-  "name": "skl-cloudxeus-document-enrichment",
-  "description": "Extract OCR text, merge content, detect language, and extract key phrases from CloudXeus documents.",
+  "name": "skl-northwind-document-enrichment",
+  "description": "Extract OCR text, merge content, detect language, and extract key phrases from Northwind documents.",
   "skills": [
     {
       "@odata.type": "#Microsoft.Skills.Vision.OcrSkill",

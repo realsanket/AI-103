@@ -1,6 +1,6 @@
-# CloudXeus MCP Server — Azure Function
+# Northwind MCP Server — Azure Function
 
-Hosts a custom MCP server exposing CloudXeus tools (order status, list customer
+Hosts a custom MCP server exposing Northwind tools (order status, list customer
 orders). Any MCP-aware agent — Foundry, Claude Desktop, Cursor — can attach to
 it and use the tools without hardcoding a schema.
 

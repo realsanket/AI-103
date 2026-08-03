@@ -8,9 +8,9 @@ from _shared.config import SAMPLE_DATA
 from _shared.cu_client import analyze
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "cloudxeus-support"
+AGENT_NAME = "northwind-support"
 
-_INVOICE_LOCAL = SAMPLE_DATA / "invoices" / "cloudxeus_sample_invoice.pdf"
+_INVOICE_LOCAL = SAMPLE_DATA / "invoices" / "northwind_sample_invoice.pdf"
 
 
 def _extract_fields() -> str:

@@ -8,14 +8,14 @@ import azure.cognitiveservices.speech as speechsdk
 from _shared.config import SAMPLE_DATA
 from _shared.speech_config import speech_config
 
-_OUTPUT = SAMPLE_DATA / "generated" / "cloudxeus_hd_announcement.wav"
+_OUTPUT = SAMPLE_DATA / "generated" / "northwind_hd_announcement.wav"
 
 _SSML = """
 <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis"
        xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">
   <voice name="en-US-AvaHDNeural">
     <mstts:express-as style="friendly">
-      Hello, and thank you for contacting <break time="200ms"/> CloudXeus.
+      Hello, and thank you for contacting <break time="200ms"/> Northwind.
     </mstts:express-as>
     <break time="400ms"/>
     <prosody rate="-5%">

@@ -1,8 +1,8 @@
-# CloudXeus Orders — Azure Function (OpenAPI tool backend)
+# Northwind Orders — Azure Function (OpenAPI tool backend)
 
 Backs lesson `12_agent_openapi_tools.py`.
 
-Serves two endpoints described by `cloudxeus_spec.json`:
+Serves two endpoints described by `northwind_spec.json`:
 
 - `GET /orders` — list orders
 - `GET /orders/{order_id}` — fetch by id
@@ -23,4 +23,4 @@ func start
 func azure functionapp publish <your-function-app-name>
 ```
 
-Then update the `servers.url` in `cloudxeus_spec.json` to your deployed URL.
+Then update the `servers.url` in `northwind_spec.json` to your deployed URL.

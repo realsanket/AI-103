@@ -44,7 +44,7 @@ def main() -> None:
         if status in ("succeeded", "completed"):
             download_url = job["result"]["videos"][0]["url"]
             data = httpx.get(download_url, timeout=120.0).content
-            out = SAMPLE_DATA / "generated" / "cloudxeus_video.mp4"
+            out = SAMPLE_DATA / "generated" / "northwind_video.mp4"
             Path(out).write_bytes(data)
             print(f"saved: {out}")
             return

@@ -4,9 +4,9 @@ import azure.cognitiveservices.speech as speechsdk
 from _shared.config import SAMPLE_DATA
 from _shared.speech_config import speech_config
 
-_OUTPUT = SAMPLE_DATA / "generated" / "cloudxeus_support_message.wav"
+_OUTPUT = SAMPLE_DATA / "generated" / "northwind_support_message.wav"
 _TEXT = (
-    "Hello, and thank you for contacting CloudXeus Technology Services. "
+    "Hello, and thank you for contacting Northwind Technology Services. "
     "Your support request has been received. One of our cloud support "
     "specialists will review the issue and contact you shortly."
 )
