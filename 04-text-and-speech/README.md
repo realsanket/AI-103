@@ -22,6 +22,7 @@
 | 16 | `16_speech_translation.py` | Speech translation (dedicated) |
 | 17 | `17_llm_speech_preview.py` | LLM Speech (preview) — file-based |
 | 18 | `18_voice_live_prompt_agent.py` | Voice Live — real-time speech-to-speech agent |
+| 19 | `19_custom_speech_model.py` | Custom Speech — use a trained custom model endpoint |
 
 ## Run
 

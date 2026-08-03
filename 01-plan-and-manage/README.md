@@ -14,8 +14,9 @@
 | 08 | `08_content_safety_filters.py` | Configure safety filters, guardrails, content moderation |
 | 09 | `09_prompt_shields_user.py` | Prompt Shields — user prompt attacks |
 | 10 | `10_prompt_shields_docs.py` | Prompt Shields — indirect (document) prompt injection |
-| 11 | `11_evaluator_groundedness.py` | Responsible AI instrumentation — evaluators |
-| 12 | `12_agent_tracing.py` | Auditing through trace logging, provenance metadata |
+| 11 | `11_evaluator_groundedness.py` | Responsible AI instrumentation — evaluators + self-critique |
+| 12 | `12_agent_tracing.py` | Observability — tracing, token analytics, safety signals, latency |
+| 13 | `13_rbac_role_policies.py` | Security — RBAC role assignments (list + assign) |
 
 ## Run
 

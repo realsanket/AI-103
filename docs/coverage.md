@@ -19,9 +19,9 @@ in this repo. Files listed relative to the repo root.
 
 ### Manage, monitor, secure
 - Quotas / scaling / rate limits / cost → `01-plan-and-manage/05_quotas_and_tpm.py`, `01-plan-and-manage/06_rate_limit_backoff.py`
-- Monitor model performance / drift / safety / grounding → `01-plan-and-manage/11_evaluator_groundedness.py`, `01-plan-and-manage/12_agent_tracing.py`, `02-generative-ai-and-agents/19_evaluator_task_adherence.py`
+- Monitor model performance / drift / safety / grounding → `01-plan-and-manage/11_evaluator_groundedness.py`, `01-plan-and-manage/12_agent_tracing.py` (tokens + latency + safety signals), `02-generative-ai-and-agents/19_evaluator_task_adherence.py`
 - Monitor data ingestion / search index health → `05-information-extraction/04_search_indexer_setup.py`
-- Security: managed identity / private networking / keyless / RBAC → `01-plan-and-manage/07_managed_identity_agent.py`, `_shared/openai_client.py` (bearer-token pattern)
+- Security: managed identity / private networking / keyless / RBAC → `01-plan-and-manage/07_managed_identity_agent.py`, `_shared/openai_client.py` (bearer-token pattern), `01-plan-and-manage/13_rbac_role_policies.py` (role assignments)
 
 ### Responsible AI
 - Safety filters / guardrails / risk detection / moderation → `01-plan-and-manage/08_content_safety_filters.py`, `01-plan-and-manage/09_prompt_shields_user.py`, `01-plan-and-manage/10_prompt_shields_docs.py`
@@ -87,7 +87,7 @@ in this repo. Files listed relative to the repo root.
 
 ### Speech solutions
 - STT + TTS for agentic interactions → `04-text-and-speech/11_stt_fast_file.py`, `04-text-and-speech/12_stt_real_time.py`, `04-text-and-speech/13_stt_batch.py`, `04-text-and-speech/14_tts_neural.py`, `04-text-and-speech/15_tts_ssml_hd.py`
-- Speech as an agent modality (incl. custom models) → `04-text-and-speech/18_voice_live_prompt_agent.py`, `04-text-and-speech/17_llm_speech_preview.py`
+- Speech as an agent modality (incl. custom models) → `04-text-and-speech/18_voice_live_prompt_agent.py`, `04-text-and-speech/17_llm_speech_preview.py`, `04-text-and-speech/19_custom_speech_model.py`
 - Multimodal reasoning from audio input → `04-text-and-speech/17_llm_speech_preview.py`, `04-text-and-speech/18_voice_live_prompt_agent.py`
 - Translate speech → `04-text-and-speech/16_speech_translation.py`
 
@@ -114,12 +114,12 @@ in this repo. Files listed relative to the repo root.
 
 | Domain | Bullets in AI-103.md | Files behind them |
 |---|---|---|
-| 1 — Plan & manage | ~20 | 12 lessons |
+| 1 — Plan & manage | ~20 | 13 lessons |
 | 2 — GenAI + agents | ~18 | 22 lessons |
 | 3 — Computer vision | ~12 | 9 lessons |
-| 4 — Text + speech | ~12 | 18 lessons |
+| 4 — Text + speech | ~12 | 19 lessons |
 | 5 — Info extraction | ~10 | 15 lessons |
-| **Total** | ~72 bullets | **76 files** |
+| **Total** | ~72 bullets | **78 files** |
 
 Every bullet has ≥1 file. Where multiple files cover the same bullet, they
 compare approaches (e.g. discriminative vs generative, or manual RAG vs

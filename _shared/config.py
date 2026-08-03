@@ -37,6 +37,7 @@ class Settings:
     speech_endpoint: str
     speech_mcp_url: str
     voice_live_endpoint: str
+    custom_speech_endpoint_id: str
     # Content Understanding
     cu_endpoint: str
     cu_api_version: str
@@ -48,6 +49,9 @@ class Settings:
     app_insights_connection_string: str
     # Content Safety
     content_safety_endpoint: str
+    # RBAC / resource identifiers
+    azure_subscription_id: str
+    azure_resource_group: str
 
 
 def _req(key: str) -> str:
@@ -88,6 +92,7 @@ def settings() -> Settings:
         speech_endpoint=_opt("SPEECH_ENDPOINT"),
         speech_mcp_url=_opt("SPEECH_MCP_URL"),
         voice_live_endpoint=_opt("VOICE_LIVE_ENDPOINT"),
+        custom_speech_endpoint_id=_opt("CUSTOM_SPEECH_ENDPOINT_ID"),
         cu_endpoint=_opt("CU_ENDPOINT"),
         cu_api_version=_opt("CU_API_VERSION", "2025-11-15-preview"),
         storage_account=_opt("STORAGE_ACCOUNT"),
@@ -95,6 +100,8 @@ def settings() -> Settings:
         storage_connection_string=_opt("STORAGE_CONNECTION_STRING"),
         app_insights_connection_string=_opt("APPLICATIONINSIGHTS_CONNECTION_STRING"),
         content_safety_endpoint=_opt("CONTENT_SAFETY_ENDPOINT"),
+        azure_subscription_id=_opt("AZURE_SUBSCRIPTION_ID"),
+        azure_resource_group=_opt("AZURE_RESOURCE_GROUP"),
     )
 
 
