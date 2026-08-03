@@ -1,0 +1,99 @@
+{
+  "name": "idx-cloudxeus-documents-enriched",
+  "fields": [
+    {
+      "name": "id",
+      "type": "Edm.String",
+      "key": true,
+      "retrievable": true,
+      "searchable": false,
+      "filterable": false,
+      "sortable": false,
+      "facetable": false
+    },
+    {
+      "name": "content",
+      "type": "Edm.String",
+      "key": false,
+      "retrievable": true,
+      "searchable": true,
+      "filterable": false,
+      "sortable": false,
+      "facetable": false,
+      "analyzer": "en.lucene"
+    },
+    {
+      "name": "merged_content",
+      "type": "Edm.String",
+      "key": false,
+      "retrievable": true,
+      "searchable": true,
+      "filterable": false,
+      "sortable": false,
+      "facetable": false,
+      "analyzer": "en.lucene"
+    },
+    {
+      "name": "language",
+      "type": "Edm.String",
+      "key": false,
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": false,
+      "facetable": true
+    },
+    {
+      "name": "key_phrases",
+      "type": "Collection(Edm.String)",
+      "key": false,
+      "retrievable": true,
+      "searchable": true,
+      "filterable": true,
+      "sortable": false,
+      "facetable": true,
+      "analyzer": "en.lucene"
+    },
+    {
+      "name": "metadata_storage_name",
+      "type": "Edm.String",
+      "key": false,
+      "retrievable": true,
+      "searchable": true,
+      "filterable": true,
+      "sortable": false,
+      "facetable": false,
+      "analyzer": "en.lucene"
+    },
+    {
+      "name": "metadata_storage_path",
+      "type": "Edm.String",
+      "key": false,
+      "retrievable": true,
+      "searchable": false,
+      "filterable": false,
+      "sortable": false,
+      "facetable": false
+    },
+    {
+      "name": "metadata_storage_content_type",
+      "type": "Edm.String",
+      "key": false,
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": false,
+      "facetable": true
+    },
+    {
+      "name": "metadata_storage_last_modified",
+      "type": "Edm.DateTimeOffset",
+      "key": false,
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": true,
+      "facetable": false
+    }
+  ]
+}

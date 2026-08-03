@@ -1,0 +1,58 @@
+{
+  "name": "ixr-cloudxeus-documents-enriched",
+  "description": "Indexer that enriches CloudXeus PDF documents with OCR, merged content, language, and key phrases.",
+  "dataSourceName": "ds-cloudxeus-documents",
+  "targetIndexName": "idx-cloudxeus-documents-enriched",
+  "skillsetName": "skl-cloudxeus-document-enrichment",
+  "schedule": null,
+  "parameters": {
+    "configuration": {
+      "dataToExtract": "contentAndMetadata",
+      "parsingMode": "default",
+      "imageAction": "generateNormalizedImages"
+    }
+  },
+  "fieldMappings": [
+    {
+      "sourceFieldName": "metadata_storage_path",
+      "targetFieldName": "id",
+      "mappingFunction": {
+        "name": "base64Encode"
+      }
+    },
+    {
+      "sourceFieldName": "content",
+      "targetFieldName": "content"
+    },
+    {
+      "sourceFieldName": "metadata_storage_name",
+      "targetFieldName": "metadata_storage_name"
+    },
+    {
+      "sourceFieldName": "metadata_storage_path",
+      "targetFieldName": "metadata_storage_path"
+    },
+    {
+      "sourceFieldName": "metadata_storage_content_type",
+      "targetFieldName": "metadata_storage_content_type"
+    },
+    {
+      "sourceFieldName": "metadata_storage_last_modified",
+      "targetFieldName": "metadata_storage_last_modified"
+    }
+  ],
+  "outputFieldMappings": [
+    {
+      "sourceFieldName": "/document/merged_content",
+      "targetFieldName": "merged_content"
+    },
+    {
+      "sourceFieldName": "/document/language",
+      "targetFieldName": "language"
+    },
+    {
+      "sourceFieldName": "/document/key_phrases",
+      "targetFieldName": "key_phrases"
+    }
+  ]
+}
