@@ -1,4 +1,4 @@
-# Run: uv run python 01-plan-and-manage/06_5_ephemeral_agent.py
+# Run: uv run python 01-plan-and-manage/10_5_agent_basics.py
 """Foundry Agent basics — ephemeral agent pattern via the Responses API.
 
 Three agent types in Foundry Agent Service:
@@ -14,8 +14,8 @@ Ephemeral agents ARE full Foundry agents. They get the same:
 The only difference: the definition ships with your code instead of being a
 persisted Foundry resource.
 
-For lessons that use agent_reference (L09-L12), create a northwind-support
-Prompt Agent in the Foundry portal first — see README for exact steps.
+Only L11 uses agent_reference (northwind-support-rag-agent). L09, L10, L12
+use the Content Safety API or openai_client() directly — no agent needed.
 """
 from _shared.config import settings
 from _shared.foundry_client import project_client
