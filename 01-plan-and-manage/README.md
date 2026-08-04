@@ -630,39 +630,61 @@ if __name__ == "__main__":
 
 # Lesson 07 — Managed Identity / Keyless Auth
 
-**Concept:** Smoke test for the entire auth chain. If this passes, all other lessons will authenticate correctly.
+**Concept:** Smoke test for the entire auth chain. Verifies `DefaultAzureCredential` → Foundry project endpoint → Responses API. If this passes, all other lessons authenticate the same way.
 
 ```
-❌ Hardcoded API key        ← never do this
+❌ Hardcoded API key        ← never do this — keys are secrets, rotate if leaked
         ↓
-✅ Managed Identity          ← VM / App Service gets Azure AD identity
+✅ DefaultAzureCredential   ← tries chain in order until one succeeds:
+     1. Env vars (AZURE_CLIENT_ID / SECRET / TENANT)  ← CI/CD service principal
+     2. Workload Identity                              ← AKS pods
+     3. Managed Identity                               ← Azure VMs / App Service / Functions
+     4. Azure CLI (az login)                           ← LOCAL DEV ← this fires here
+     5. Azure Developer CLI
+     6. VS Code credential
         ↓
-✅ DefaultAzureCredential    ← tries env vars → Workload Identity → Managed Identity → az login
+✅ Bearer token (Entra ID)  ← scope: cognitiveservices.azure.com/.default
         ↓
-✅ Bearer token via Entra   ← scope: https://cognitiveservices.azure.com/.default
+✅ Foundry project endpoint ← services.ai.azure.com/api/projects/<name>/openai/v1
 ```
 
-**`DefaultAzureCredential` credential chain order:**
-1. Environment variables (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`)
-2. Workload Identity (AKS)
-3. Managed Identity
-4. Azure CLI (`az login`) ← **this is what fires in local dev**
-5. Azure Developer CLI
-6. Visual Studio / VS Code
+**Two project OpenAI endpoints on the same Foundry resource:**
+
+```
+openai_client()                    → openai.azure.com/openai/v1/
+                                     direct Azure OpenAI (Chat Completions)
+
+project_client().get_openai_client() → services.ai.azure.com/api/projects/.../openai/v1/
+                                       project-scoped (Responses API, agent turns)
+```
+
+This file tests the **project-scoped path** (step 2) which is what agent-based lessons use.
 
 **Code:**
 
 ```python
 # 07_managed_identity_agent.py
+from _shared.config import settings
 from _shared.foundry_client import project_client
 
 
 def main() -> None:
     client = project_client()
-    agents = list(client.agents.list_versions())
-    print(f"auth OK. {len(agents)} agent version(s) visible.")
-    for a in agents[:10]:
-        print(f"  {a.name:<40} v{getattr(a, 'version', '?')}")
+
+    # 1 — list Foundry Hosted Agents (code-based container agents, not LLM agents)
+    agents = list(client.agents.list())
+    print(f"[1] Auth OK — {len(agents)} hosted agent(s) in project")
+
+    # 2 — Responses API via project-scoped endpoint
+    oc = client.get_openai_client()
+    print(f"\n[2] Project OpenAI endpoint: {oc.base_url}")
+    r = oc.responses.create(
+        model=settings().default_model,
+        input="Reply with exactly: auth chain OK",
+    )
+    print(f"[2] Response: {r.output_text}")
+
+    print("\nSmoke test passed.")
 
 
 if __name__ == "__main__":
@@ -670,14 +692,23 @@ if __name__ == "__main__":
 ```
 
 **Expected output:**
+
 ```
-auth OK. 3 agent version(s) visible.
-  northwind-support                        v1
-  northwind-triage                         v1
-  northwind-billing                        v2
+[1] Auth OK — 0 hosted agent(s) in project
+
+[2] Project OpenAI endpoint: https://<resource>.services.ai.azure.com/api/projects/<name>/openai/v1/
+[2] Response: auth chain OK
+
+Smoke test passed.
 ```
 
-**If this fails:** Run `az login` first, then check that your identity has the **Foundry User** role on the Foundry project.
+**If this fails:**
+
+| Error | Fix |
+|-------|-----|
+| `CredentialUnavailableError` | Run `az login` |
+| `401 PermissionDenied` | Assign **Foundry User** role on Foundry resource (see Lesson 13) |
+| `404 DeploymentNotFound` | `DEFAULT_MODEL` in `.env` must match deployment name, not model name |
 
 ---
 
