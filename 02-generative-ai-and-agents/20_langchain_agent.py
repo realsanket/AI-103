@@ -1,4 +1,19 @@
-"""LangChain agent using Foundry as the model backend."""
+"""LangChain agent using Foundry as the model backend.
+
+Beginner note:
+  Uses `create_agent()` (the modern LangChain agent constructor) with two
+  local `@tool`-decorated Python functions. Auth is keyless — `ChatOpenAI`
+  is pointed at the Foundry `openai/v1` endpoint with a bearer token from
+  `DefaultAzureCredential`, same shape as the plain OpenAI SDK.
+
+  Use this pattern when you already have LangChain chains/tools you want
+  to reuse. For a graph-shaped agent with conditional edges and stateful
+  routing, see L22 (LangGraph).
+
+What to watch:
+  The final assistant message answers both sub-questions (order + inventory)
+  after the model has invoked both tools.
+"""
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from langchain.agents import create_agent
 from langchain.tools import tool

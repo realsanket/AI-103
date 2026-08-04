@@ -14,7 +14,8 @@ from _shared.helpdesk_functions import (
 )
 
 AGENT_NAME = "IT-HelpDesk-Agent"
-AGENT_VERSION = "1"  # bump after each create_version run
+# Omitting `version` = Foundry uses the latest version — run L08 as many times
+# as you like without touching this file.
 
 _LOCAL_FUNCTIONS = {
     "get_password_reset_steps": lambda **_: get_password_reset_steps(),
@@ -29,7 +30,7 @@ def _run_local(name: str, arguments: dict) -> str:
 
 
 def _agent_ref() -> dict:
-    return {"type": "agent_reference", "name": AGENT_NAME, "version": AGENT_VERSION}
+    return {"type": "agent_reference", "name": AGENT_NAME}
 
 
 def main() -> None:

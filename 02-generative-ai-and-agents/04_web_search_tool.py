@@ -1,4 +1,15 @@
-"""Built-in Web Search tool — model retrieves current info before answering."""
+"""Built-in Web Search tool — model retrieves current info before answering.
+
+Beginner note:
+  Add `{"type": "web_search"}` to `tools=` and the model can fetch fresh
+  results from Bing during a Responses API call. Useful for anything the
+  training cutoff can't cover: news, prices, regulation updates, releases.
+
+What to watch:
+  The output usually contains inline citation URLs. `tool_choice="auto"`
+  means the model decides IF to search — for simple prompts it may skip.
+  Force it with `tool_choice="required"` when you're testing.
+"""
 from _shared.openai_client import openai_client
 from _shared.config import settings
 
