@@ -59,26 +59,48 @@ check response.model to see which was chosen
 
 # Deployment Types
 
-## The four types
+> **MS Docs source:** `.context/azure-ai-docs/articles/foundry/foundry-models/concepts/deployment-types.md`
 
-| Type | Billing | Data residency | Best for |
-|------|---------|---------------|---------|
-| **Global Standard** | Pay-per-token | No guarantee (Microsoft-managed) | Default; first access to new models |
-| **Regional Standard** | Pay-per-token | Strict (stays in region) | Compliance, data sovereignty |
-| **PTU** (Provisioned Throughput) | Reserved capacity (hourly) | Regional | Predictable throughput, no 429s |
-| **Serverless (MaaS)** | Pay-per-token | Varies | Non-OpenAI models (Llama, Mistral, Phi) |
+## Standard deployments — 10 types (pay-per-token OR PTU × Global/DataZone/Regional)
 
-## Decision tree
+| Type | SKU code | Data processing | Billing | Best for |
+|------|----------|----------------|---------|---------|
+| **Instant (preview)** | N/A | Any region | Pay-per-token | Prototyping — no deployment needed |
+| **Global Standard** | `GlobalStandard` | Any region | Pay-per-token | Default; highest quota; new models first |
+| **Global Provisioned** | `GlobalProvisionedManaged` | Any region | PTU (reserved) | Predictable high-throughput, global routing |
+| **Global Batch** | `GlobalBatch` | Any region | 50% off, 24hr async | Large async jobs |
+| **Data Zone Standard** | `DataZoneStandard` | EU / US / APAC zone | Pay-per-token | Zone compliance + higher quota than regional |
+| **Data Zone Provisioned** | `DataZoneProvisionedManaged` | EU / US / APAC zone | PTU (reserved) | Zone compliance + guaranteed throughput |
+| **Data Zone Batch** | `DataZoneBatch` | EU / US / APAC zone | 50% off, 24hr async | Large async jobs within data zone |
+| **Standard (Regional)** | `Standard` | Single region | Pay-per-token | Strict regional compliance, low volume |
+| **Regional Provisioned** | `ProvisionedManaged` | Single region | PTU (reserved) | Regional compliance + guaranteed throughput |
+| **Developer** | `DeveloperTier` | Any region | Pay-per-token | Fine-tuned model evaluation only; 24hr lifetime |
+
+## Managed Compute (preview — separate category)
+
+For OSS models not covered by Standard deployments (Hugging Face, NVIDIA NIMs, Databricks, industry models):
 
 ```
-Need data to stay in one region?     → Regional Standard or PTU
-Getting too many 429 errors?         → PTU (reserved throughput)
-Want the newest model first?         → Global Standard
-Using Llama / Mistral / Phi?         → Serverless (MaaS)
-Default / dev / testing?             → Global Standard
+Billing:   Hourly per GPU SKU (A100 80GB / H100 80GB / H200 141GB / MI300X)
+Scaling:   Auto-scale + scale-to-zero (billing stops when idle)
+Auth:      Same Foundry endpoint, same Entra ID / API key
+Route:     <endpoint>/managed-deployments/<deployment-name>/
 ```
 
-Memory: **Global = first + cheap; Regional = compliant; PTU = guaranteed; Serverless = non-OpenAI.**
+## Decision tree (updated)
+
+```
+Just prototyping / trying a model?    → Instant (no deployment required)
+No data residency requirement?        → Global Standard (highest quota)
+EU / US / APAC zone compliance?       → Data Zone Standard or Data Zone Provisioned
+Strict single-region requirement?     → Standard (Regional) or Regional Provisioned
+Predictable throughput, no 429s?      → any Provisioned type (pick by data zone need)
+Large batch job, not time-sensitive?  → Global Batch or Data Zone Batch (50% cheaper)
+Fine-tuned model evaluation?          → Developer (24hr lifetime, no SLA)
+OSS model (Llama, HuggingFace, NIM)?  → Managed Compute (hourly GPU)
+```
+
+Memory: **Global = first + cheap; Data Zone = EU/US/APAC compliance; Regional = strict; PTU = guaranteed; Batch = async 50% off; Managed Compute = OSS hourly GPU.**
 
 ### PTU exam trap
 
@@ -110,12 +132,30 @@ PTU reserves *throughput* (tokens/minute capacity), NOT a fixed number of tokens
 
 For OpenAI SDK: use `get_bearer_token_provider(DefaultAzureCredential(), scope)` — never pass a raw key.
 
-## Key RBAC roles for AI-103
+## Foundry RBAC roles (source: `foundry/concepts/rbac-foundry.md`)
+
+| Role | Create projects | Build/develop | Assign roles | Publish agents | Interact with agents |
+|------|:--------------:|:-------------:|:------------:|:--------------:|:--------------------:|
+| **Foundry Agent Consumer** | ✘ | ✘ | ✘ | ✘ | ✔ |
+| **Foundry User** | ✘ | ✔ | ✘ | ✘ | ✔ |
+| **Foundry Project Manager** | ✘ | ✔ | ✔ (Foundry User only) | ✔ | ✔ |
+| **Foundry Account Owner** | ✔ | ✘ | ✔ | ✘ | ✘ |
+| **Foundry Owner** | ✔ | ✔ | ✔ | ✔ | ✔ |
+
+Azure built-in **Owner** / **Contributor** still grant control-plane access but NOT data-plane (no build/develop, no agent endpoints). Key rule: data-plane needs a Foundry role.
+
+### Agent-scope assignments
+
+Assign at per-agent scope (not just project scope) to grant endpoint access to one agent only:
+```
+/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/
+  accounts/<account>/projects/<project>/agents/<agentName>
+```
+
+### AI Search roles (still needed for search scenarios)
 
 | Role | What it allows |
 |------|---------------|
-| **Azure AI Developer** | Create and manage AI resources, agents, deployments |
-| **Cognitive Services OpenAI User** | Call Responses API / Chat Completions |
 | **Search Index Data Reader** | Query an AI Search index |
 | **Search Index Data Contributor** | Write/update documents in AI Search index |
 
@@ -174,14 +214,37 @@ Application
       └── Search index health ─────────────────→ Indexer run logs
 ```
 
-## Evaluators quick reference
+## Evaluators — 7 categories, 30+ built-in (source: `foundry/concepts/built-in-evaluators.md`)
 
-| Evaluator | Inputs | Measures |
-|-----------|--------|---------|
-| **Response Completeness** | question, answer, checklist | Did answer address all required points? |
-| **Groundedness** | answer, source documents | Did answer stick to provided sources? |
-| **Task Adherence** | agent trace, goal | Did agent follow its defined task? |
-| **Tool Call Accuracy** | tool calls made, expected tools | Did agent call the right tools correctly? |
+### Key evaluators for AI-103 exam
+
+| Evaluator | Category | Inputs | Measures |
+|-----------|----------|--------|---------|
+| **Groundedness** | RAG | answer, source docs | Grounded in sources? Score 1–5 (model-based) |
+| **Groundedness Pro** | RAG | answer, source docs | Binary pass/fail; no model deployment needed |
+| **Response Completeness** | RAG | question, answer, ground truth | Covered required points? |
+| **Task Adherence** | Agent | agent trace, task definition | Followed task per system instructions? |
+| **Tool Call Accuracy** | Agent | tool calls, expected calls | Right tool with right args? |
+| **Task Completion** | Agent | agent trace, task | Completed end-to-end? |
+| **Intent Resolution** | Agent | conversation, user intent | Correctly identified and addressed intent? |
+
+### All 7 evaluator categories
+
+```
+1. General purpose      Coherence, Fluency
+2. Textual similarity   F1, BLEU, GLEU, ROUGE, METEOR (translation / overlap)
+3. RAG                  Groundedness, Groundedness Pro, Relevance, Retrieval, Response Completeness
+4. Risk & safety        Hate/Unfairness, Sexual, Violence, Self-Harm, Protected Materials,
+                        Indirect Attack (XPIA), Code Vulnerability, Prohibited Actions,
+                        Sensitive Data Leakage, Ungrounded Attributes
+5. Agent                Task Adherence, Task Completion, Customer Satisfaction, Intent Resolution,
+                        Task Navigation Efficiency, Tool Call Accuracy, Tool Selection,
+                        Tool Input Accuracy, Tool Output Utilization, Tool Call Success, Quality Grader
+6. Rubric               Custom weighted criteria, LLM-as-judge, normalized 0–1 score
+7. Azure OpenAI Graders Model Labeler, String Checker, Text Similarity, Model Scorer
+```
+
+Evaluation levels: `turn` (single response, default) or `conversation` (full multi-turn). Cannot mix levels in one run.
 
 ---
 
@@ -240,6 +303,58 @@ WITH Prompt Shields (docs): attack detected, flagged or blocked
 
 ---
 
+# Guardrails (source: `foundry/guardrails/guardrails-overview.md`)
+
+A **guardrail** = named collection of controls applied to one or many models and/or agents in a project.
+
+## 4 intervention points
+
+| Point | Applies to | Notes |
+|-------|-----------|-------|
+| **User input** | Models + Agents | Prompt sent to model/agent |
+| **Tool call** (preview) | Agents only | Action + data agent proposes to send to tool |
+| **Tool response** (preview) | Agents only | Content returned from tool to agent |
+| **Output** | Models + Agents | Final completion returned to user |
+
+## Risk categories (12 total)
+
+```
+Content risks (severity Off/Low/Medium/High):
+  Hate | Sexual | Self-harm | Violence
+
+Injection / attack:
+  User prompt attacks | Indirect attacks | Spotlighting (preview, models only)
+
+Compliance:
+  Protected material (code) | Protected material (text)
+  Groundedness (preview, models only)
+  PII (preview)
+  Task Adherence (preview)
+```
+
+## Severity levels — NOT the same as Content Safety 0–7
+
+| Level | Behavior |
+|-------|---------|
+| **Off** | Disabled (approved customers only) |
+| **Low** | Flag low severity and above |
+| **Medium** | Flag medium severity and above |
+| **High** | Flag only most severe |
+
+## Guardrails vs Content Safety (exam trap)
+
+| | Guardrails | Content Safety (direct API) |
+|--|-----------|---------------------------|
+| Scope | Applied at model/agent deployment level | Called directly in app code |
+| Intervention points | 4 (input, tool call, tool response, output) | Input + output only |
+| Severity scale | Off / Low / Medium / High | 0–7 per category |
+| Agent-specific controls | Yes (tool call/response, network egress) | No |
+| Network egress | Yes (hosted agents, preview) | No |
+
+Memory: **Guardrails = deployment-level policy; Content Safety = API-level call.**
+
+---
+
 # CI/CD for Foundry Projects
 
 ```
@@ -262,11 +377,15 @@ Workflow YAML lives in `02-generative-ai-and-agents/workflows/wf_triage.yml`. Po
 
 | Trap | Truth |
 |------|-------|
-| "Global Standard guarantees data stays in my region" | ❌ — Regional Standard guarantees that |
+| "Global Standard guarantees data stays in my region" | ❌ — Data Zone Standard stays in EU/US/APAC zone; Regional Standard stays in one region |
 | "PTU means I pre-buy tokens" | ❌ — PTU reserves throughput capacity; tokens still billed per use |
 | "Content Safety catches prompt injection" | ❌ — Prompt Shields does injection defense; Content Safety does harmful content moderation |
 | "DefaultAzureCredential always uses managed identity" | ❌ — It tries a chain; in local dev it uses `az login` (Azure CLI) |
 | "Response Completeness evaluator checks groundedness" | ❌ — Completeness = did it cover required points; Groundedness = did it stay within sources |
+| "Foundry User = Azure AI Developer role" | ❌ — Foundry now uses its own 5-role hierarchy; Azure AI Developer is old terminology |
+| "Guardrails severity is 0–7 like Content Safety" | ❌ — Guardrails severity = Off/Low/Medium/High; Content Safety uses 0–7 |
+| "Data Zone = single region" | ❌ — Data Zone = EU or US or APAC zone (multiple regions within the zone) |
+| "Managed Compute deployment bills per token" | ❌ — Managed Compute bills hourly per GPU SKU, not per token |
 
 ---
 
@@ -274,10 +393,12 @@ Workflow YAML lives in `02-generative-ai-and-agents/workflows/wf_triage.yml`. Po
 
 ```
 Question about CHOOSING a model?     → LLM/SLM/multimodal/Foundry Tools table
-Question about DEPLOYING a model?    → Global/Regional/PTU/Serverless table
+Question about DEPLOYING a model?    → 10-type table: Global/DataZone/Regional × pay-per-token/PTU/Batch
+Question about OSS models?           → Managed Compute (hourly GPU, not pay-per-token)
 Question about CREDENTIALS?          → DefaultAzureCredential + Managed Identity
 Question about RATE LIMITS?          → TPM/RPM/PTU + tenacity backoff
-Question about MONITORING?           → OpenTelemetry spans + evaluators
-Question about SAFETY?               → Content Safety (moderation) vs Prompt Shields (injection)
-Question about GOVERNANCE?           → RBAC roles + approval workflows + tracing
+Question about MONITORING?           → OpenTelemetry spans + 7-category evaluators
+Question about SAFETY filters?       → Content Safety API (0-7) vs Guardrails (Off/Low/Medium/High)
+Question about INJECTION defense?    → Prompt Shields (user prompt) / Prompt Shields (docs/indirect)
+Question about RBAC?                 → 5 Foundry roles: Consumer < User < Project Manager < Account Owner < Owner
 ```

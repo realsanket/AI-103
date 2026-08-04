@@ -45,29 +45,53 @@ Memory: **Responses API = one call for everything; `conversation_id` keeps threa
 
 # Tool Taxonomy
 
-## The 6 tool types
+## The 7 tool types (source: `foundry/agents/concepts/tool-catalog.md`)
 
 ```
 Agent Tools
 │
-├── 🌐 Web Search        → live internet results (Bing)
-├── 📁 File Search       → semantic search over uploaded files (Foundry managed)
-├── 🐍 Code Interpreter  → isolated Python sandbox, executes code
-├── ⚙️  Function          → your own Python function (app executes it)
-├── 📋 OpenAPI           → any REST API described by an OpenAPI 3.x spec
-└── 🔌 MCP               → Model Context Protocol server (tools + resources + prompts)
+├── Built-in (service executes)
+│     ├── Web Search        → live internet results (Bing)
+│     ├── File Search       → semantic search over uploaded files (Foundry managed)
+│     ├── Code Interpreter  → isolated Python sandbox, executes code
+│     └── Function          → your own Python function (YOUR app executes it)
+│
+└── Custom (you host)
+      ├── OpenAPI           → any REST API described by an OpenAPI 3.x spec
+      ├── MCP               → Model Context Protocol server (tools + resources + prompts)
+      └── A2A (preview)     → Agent-to-Agent; connect to other agents via A2A endpoints
 ```
 
 ## Tool comparison
 
-| Tool | Who executes | Data lives | Config |
-|------|-------------|-----------|--------|
-| Web Search | Bing API | Internet | `{"type": "bing_grounding"}` |
-| File Search | Foundry | Managed blob | `{"type": "file_search", "vector_store_ids": [...]}` |
-| Code Interpreter | Foundry sandbox | Ephemeral | `{"type": "code_interpreter"}` |
-| Function | **Your app** | Anywhere | JSON schema describing args |
-| OpenAPI | **Your backend** | Your service | OpenAPI 3.0/3.1 spec JSON |
-| MCP | MCP server | MCP server | Server URL + auth |
+| Tool | Category | Who executes | Config |
+|------|----------|-------------|--------|
+| Web Search | Built-in | Bing API | `{"type": "bing_grounding"}` |
+| File Search | Built-in | Foundry | `{"type": "file_search", "vector_store_ids": [...]}` |
+| Code Interpreter | Built-in | Foundry sandbox | `{"type": "code_interpreter"}` |
+| Function | Built-in | **Your app** | JSON schema describing args |
+| OpenAPI | Custom | **Your backend** | OpenAPI 3.0/3.1 spec JSON |
+| MCP | Custom | MCP server | Server URL + auth |
+| A2A (preview) | Custom | Target agent | A2A-compatible endpoint |
+
+## Toolbox — recommended tool management layer
+
+```
+Without Toolbox:  each agent wires its own tools → duplicated auth, no governance
+With Toolbox:     one MCP-compatible endpoint → agents consume approved tools centrally
+
+Lifecycle: Build → Discover (tool search) → Consume (single endpoint) → Govern (guardrails, auth)
+```
+
+```python
+toolbox = project.toolboxes.create_toolbox_version(
+    name="web-search-toolbox",
+    tools=[WebSearchTool()],
+)
+# Attach toolbox to agent as MCPTool — exposes all toolbox tools automatically
+```
+
+Memory: **Toolbox = centralized tool shelf; agents consume via MCP endpoint.**
 
 ### Function calling loop
 
@@ -142,37 +166,47 @@ graph.add_node("tools", ToolNode(tools))
 
 # Memory Types
 
-## The three layers
+## Short-term vs long-term
 
 ```
-Agent Memory
-│
-├── Conversation Thread (session-scoped)
-│     └── pass conversation_id to Responses API
-│         lost when session ends
-│
-├── Session Context (in-memory RAM)
-│     └── variables in your running process
-│         lost when process restarts
-│
-└── Foundry Memory (cross-session persistent)
-      └── enable on AIProjectClient
-          stored in Foundry project
-          survives restarts and new sessions
-          use: extract → consolidate → retrieve
+Short-term: session conversation context → managed by orchestration framework
+Long-term:  Foundry Memory (cross-session persistent, source: foundry/agents/concepts/what-is-memory.md)
 ```
 
-## Foundry Memory API pattern
+## Foundry Memory — 3 phases
 
-```python
-client = AIProjectClient(...)
-# enable memory on the project
-# memory.extract()    → pull key facts from conversation
-# memory.consolidate() → deduplicate + summarize stored facts
-# memory.retrieve()   → fetch relevant memories for current query
+```
+Extraction     → system pulls key info from conversation (preferences, facts, context)
+      ↓
+Consolidation  → LLM merges duplicates, resolves conflicts (e.g. new allergy overrides old)
+      ↓
+Retrieval      → search memory store for relevant items before/during conversation
 ```
 
-Memory: **Thread = RAM; Foundry Memory = disk.**
+## 3 long-term memory types
+
+| Type | What it stores | When to retrieve |
+|------|---------------|-----------------|
+| **User Profile Memory** | Durable preferences, language, product defaults | At conversation start (stable personalization) |
+| **Chat Summary Memory** | Distilled summaries of prior conversation topics | Per turn (continuity context) |
+| **Procedural Memory** | Reusable how-to routines from prior interactions | When user asks for a recurring workflow |
+
+## Usage modes
+
+| Mode | How | When |
+|------|-----|------|
+| **Memory Search Tool** | Attach tool to Prompt Agent | Recommended; agent reads/writes automatically |
+| **Memory Store APIs** | Low-level CRUD on memory items | Full control; direct lifecycle management |
+
+## Quotas
+
+Max scopes per store: 100 · Max memories per scope: 10,000 · Search/Update: 1,000 req/min
+
+## Security
+
+Memory stores are vulnerable to prompt injection (attacker stores malicious instructions). Mitigate with Content Safety + Prompt Shields on all memory inputs/outputs.
+
+Memory: **User Profile = who; Chat Summary = what happened; Procedural = how to do it.**
 
 ---
 
@@ -255,14 +289,31 @@ Orchestrator Agent
 
 # Evaluators
 
-## Quick reference table
+## RAG evaluators (key 3)
 
-| Evaluator | Required inputs | What it scores |
-|-----------|----------------|---------------|
-| **Response Completeness** | question, answer, checklist | Coverage of required points |
-| **Groundedness** | answer, source docs | Answer stays within sources |
-| **Task Adherence** | agent trace, task definition | Agent followed its goal |
-| **Tool Call Accuracy** | tool calls, expected calls | Right tool called with right args |
+| Evaluator | Inputs | What it scores |
+|-----------|--------|---------------|
+| **Groundedness** | answer, source docs | Grounded in sources? Score 1–5 (model-based) |
+| **Groundedness Pro** | answer, source docs | Binary pass/fail; no model deployment needed |
+| **Response Completeness** | question, answer, ground truth | Covered required points? |
+
+## Agent evaluators — all 11 (source: `foundry/concepts/built-in-evaluators.md`)
+
+| Evaluator | What it scores |
+|-----------|---------------|
+| **Task Adherence** | Agent follows task per system instructions |
+| **Task Completion** | Agent completed task end-to-end |
+| **Intent Resolution** | Agent correctly identified and addressed user intent |
+| **Customer Satisfaction** | Holistic satisfaction: helpfulness, clarity, tone, resolution |
+| **Task Navigation Efficiency** | Steps match optimal/expected path |
+| **Tool Call Accuracy** | Right tool + right args (overall quality) |
+| **Tool Selection** | Most appropriate tool chosen |
+| **Tool Input Accuracy** | All params correct: grounded, type, format, complete |
+| **Tool Output Utilization** | Tool output correctly used in response/next calls |
+| **Tool Call Success** | All tool calls executed without technical failures |
+| **Quality Grader** | Multi-dimension single evaluator (relevance, abstention, completeness, groundedness, context coverage) |
+
+Combine for comprehensive coverage: `Tool Call Accuracy + Task Adherence + Intent Resolution + Rubric + Risk&Safety`
 
 ## Self-critique loop pattern (`11_evaluator_groundedness.py`)
 
@@ -360,6 +411,9 @@ Without it: spans go to stdout. With it: spans appear in Application Insights �
 | "LangGraph works without MessagesState" | ❌ — `MessagesState` is required as state schema for tool-calling |
 | "MCP connects M×N apps and tools" | ❌ — MCP reduces to M+N (that's the benefit) |
 | "Model Router always uses the cheapest model" | ❌ — It selects the *best* model for each prompt; may use expensive one |
+| "Toolbox is just another MCP server" | ❌ — Toolbox is a managed layer on top of MCP; exposes multiple tools via one endpoint with centralized auth/governance |
+| "A2A is the same as OpenAPI tool" | ❌ — A2A = agent-to-agent communication; OpenAPI = external REST API |
+| "Foundry Memory stores conversation history" | ❌ — Memory stores distilled long-term knowledge (user profile, summaries, procedures); raw history = conversation thread |
 
 ---
 

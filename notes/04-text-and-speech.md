@@ -7,6 +7,8 @@
 | Language model text analysis | Entity extraction, sentiment/tone, translation, domain customization |
 | Speech solutions | STT/TTS for agents, custom speech models, multimodal audio, speech translation |
 
+> **MS Docs source:** `.context/azure-ai-docs/articles/foundry/` (Language/Speech MCP: `foundry/mcp/`) · `.context/azure-ai-docs/articles/ai-services/` (Language, Speech services)
+
 ---
 
 # Azure AI Language
