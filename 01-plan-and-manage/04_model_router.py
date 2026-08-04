@@ -1,9 +1,21 @@
 # Run: uv run python 01-plan-and-manage/04_model_router.py
-"""Model Router — one endpoint, router picks the underlying model per prompt.
+"""Model Router — one deployment, router picks the underlying model per prompt.
 
-Deploy `model-router` from the catalog once, then call it like any chat model.
-Model router uses Chat Completions API (not Responses API).
-The `model` field on the response reveals which underlying model was picked.
+Beginner note:
+  Instead of hard-coding "use gpt-5-mini here, gpt-4.1 there", you deploy a
+  single `model-router` from the catalog. Send any prompt to it; the router
+  decides which underlying model handles it (cheap nano for trivia, frontier
+  for hard reasoning). You still see which model actually ran — the response's
+  `model` field reveals it.
+
+Two gotchas that will bite you:
+  1. Model router uses **Chat Completions** (`chat.completions.create`), NOT
+     the Responses API. Calling `responses.create` returns 400.
+  2. You need the `Foundry User` role on the Foundry resource — otherwise 401.
+
+What to watch:
+  Each prompt line prints `[picked: <model>]` showing which model the router
+  chose. Trivial prompts go to nano/mini; complex ones to full-size models.
 """
 from _shared.openai_client import openai_client
 from _shared.config import settings

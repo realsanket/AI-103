@@ -1,8 +1,23 @@
 # Run: uv run python 01-plan-and-manage/05_quotas_and_tpm.py
-"""List Cognitive Services quotas — TPM allocation + rate-limit status.
+"""List quotas — how much throughput each deployment has, and what's used.
 
-Uses CognitiveServicesManagementClient (management-plane SDK).
-Account name and location are derived from FOUNDRY_ENDPOINT — no extra env vars needed.
+Beginner note:
+  Quota answers "how fast can I send tokens?". Two numbers matter:
+    - TPM  (tokens per minute) — the per-deployment throughput budget.
+    - RPM  (requests per minute) — request-count limit.
+  Blow past either and you get HTTP 429 (Too Many Requests). Lesson 06 shows
+  the retry pattern. This file just shows what your current limits look like.
+
+  For pay-per-token SKUs, `capacity=99` on a deployment means 99K TPM.
+  For PTU SKUs, `capacity=1` means one Provisioned Throughput Unit (different
+  unit entirely — reserved capacity, no 429s, higher fixed cost).
+
+Prereqs in .env:
+  AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP, FOUNDRY_ENDPOINT.
+
+What to watch:
+  Each deployment row shows model / SKU / capacity. Usage table shows
+  consumed/limit per quota bucket (per model family, per region).
 """
 from urllib.parse import urlparse
 

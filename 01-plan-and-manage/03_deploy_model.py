@@ -1,11 +1,24 @@
 # Run: uv run python 01-plan-and-manage/03_deploy_model.py
-"""Deploy a standard Azure OpenAI model into a Foundry account.
+"""Deploy an Azure OpenAI model into your Foundry account (via SDK).
 
-Management-plane operation: AIProjectClient is data-plane only (inference,
-agents) — it has no deployment CRUD. Use CognitiveServicesManagementClient.
+Beginner note:
+  Azure has two "planes":
+    - Control plane = manage RESOURCES (create/delete deployments, set SKUs).
+    - Data plane    = USE resources (send prompts, get completions).
+  Deploying a model is control-plane, so you can't use AIProjectClient (which
+  is data-plane only — it has no `.deployments.create()`). You use
+  CognitiveServicesManagementClient from `azure-mgmt-cognitiveservices`.
 
-Requires AZURE_SUBSCRIPTION_ID + AZURE_RESOURCE_GROUP in .env.
-Account name is derived from FOUNDRY_ENDPOINT (the subdomain part).
+  Portal shortcut: Foundry portal → Models → pick one → Deploy. This file
+  does the same thing programmatically so you can script it in CI/CD.
+
+Prereqs in .env:
+  AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP, FOUNDRY_ENDPOINT.
+  Account name is derived from the FOUNDRY_ENDPOINT subdomain.
+
+What to watch:
+  Success prints `state: Succeeded`. If already deployed, the SDK just returns
+  the existing deployment idempotently.
 """
 from urllib.parse import urlparse
 

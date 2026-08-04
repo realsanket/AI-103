@@ -1,19 +1,25 @@
 # Run: uv run python 01-plan-and-manage/13_rbac_role_policies.py
-"""RBAC role-policy management for Azure AI resources.
+"""RBAC role management for a Foundry resource.
 
-The exam covers: managed identity, private networking, keyless credentials,
-and *role policies*. This file shows the role-policy piece:
-- List current role assignments on the AI resource.
-- Assign the `Cognitive Services OpenAI User` role to a managed identity.
+Beginner note:
+  Two independent permission planes in Azure:
+    - Control plane = manage RESOURCES (Owner, Contributor, Reader).
+    - Data plane    = USE the AI (call inference, build agents).
+  Owning a subscription gives you FULL control plane but ZERO data plane —
+  that's why fresh installs still hit `401 PermissionDenied` on inference.
 
-Requires: azure-mgmt-authorization (already in requirements.txt) and
-AZURE_SUBSCRIPTION_ID + AZURE_RESOURCE_GROUP in .env.
+  Foundry has its own 5-role hierarchy for the data plane. The one you need
+  for local dev is `Foundry User` (developer role: build + call inference).
 
-Common AI-103 roles:
-  Azure AI Developer              — create/manage AI resources
-  Cognitive Services OpenAI User  — call the Responses/Completions APIs
-  Search Index Data Reader        — query an AI Search index
-  Search Index Data Contributor   — write to an AI Search index
+This file:
+  - Lists current role assignments at your resource-group scope.
+  - Has a commented `assign_role(...)` to grant Foundry User to a managed
+    identity for keyless production workloads.
+
+Do NOT use for Foundry: `Cognitive Services OpenAI User` (wrong platform) or
+`Azure AI Developer` (Azure ML / Foundry hubs, not Foundry projects).
+
+Prereqs in .env: AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP.
 """
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.authorization import AuthorizationManagementClient

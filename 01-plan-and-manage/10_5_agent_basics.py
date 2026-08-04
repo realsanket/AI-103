@@ -2,9 +2,9 @@
 """Foundry Agent basics — ephemeral agent pattern via the Responses API.
 
 Three agent types in Foundry Agent Service:
-  1. Ephemeral   — definition lives in your code, no portal, no persistence     ← this file
-  2. Prompt      — registered in Foundry portal, called via agent_reference      ← L09-L12 use this
-  3. Hosted      — your code in a container, Foundry manages the endpoint        ← Domain 2
+  1. Ephemeral   — definition lives in your code, no portal, no persistence     ← this file + L11
+  2. Prompt      — registered in Foundry portal, called via agent_reference     ← Domain 2
+  3. Hosted      — your code in a container, Foundry manages the endpoint       ← Domain 2
 
 Ephemeral agents ARE full Foundry agents. They get the same:
   - Foundry models from the catalog
@@ -14,8 +14,9 @@ Ephemeral agents ARE full Foundry agents. They get the same:
 The only difference: the definition ships with your code instead of being a
 persisted Foundry resource.
 
-Only L11 uses agent_reference (northwind-support-rag-agent). L09, L10, L12
-use the Content Safety API or openai_client() directly — no agent needed.
+L11 uses the ephemeral pattern shown here — you don't need to create anything
+in the Foundry portal to complete Domain 1. L08, L09, L10, L12 call the
+Content Safety API or openai_client() directly — no agent needed at all.
 """
 from _shared.config import settings
 from _shared.foundry_client import project_client

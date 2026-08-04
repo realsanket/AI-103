@@ -1,15 +1,33 @@
 # Run: uv run python 01-plan-and-manage/11_evaluator_groundedness.py
-"""Response Completeness / Groundedness evaluator loop.
+"""Response Completeness / Groundedness evaluator loop — DIY inline.
 
-Ask a grounded RAG agent → have a second call critique the answer against a
-completeness checklist → regenerate if MISSING. Same pattern as the built-in
-Response Completeness evaluator, but wired inline so you can see the mechanics.
+Beginner story:
+  1. An ephemeral agent (instructions live in this file — no portal setup)
+     answers a customer question.
+  2. A second Responses API call plays the role of an evaluator: it reads the
+     answer against a completeness checklist and returns COMPLETE or MISSING.
+  3. If MISSING, we regenerate the answer with the checklist in scope.
+
+This is the same pattern the built-in Response Completeness / Groundedness
+evaluators use — wired inline so you can see the mechanics.
+
+What to watch in the output:
+  - The verdict line (COMPLETE / MISSING).
+  - If regenerated, notice the second draft addresses the missing checklist items.
 """
 from _shared.config import settings
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "northwind-support-rag-agent"
-_AGENT_REF = {"type": "agent_reference", "name": AGENT_NAME}
+_AGENT_INSTRUCTIONS = (
+    "You are Northwind Support, a customer support agent for Northwind Inc. "
+    "Answer questions about refunds, subscriptions, and billing based on the "
+    "policy below. If a detail isn't in the policy, say so — do not invent.\n\n"
+    "Refund policy:\n"
+    "- Pro plan subscribers can request a refund within 30 days of the charge date.\n"
+    "- The window is measured from the charge date on the invoice, not the usage date.\n"
+    "- Refunds after 30 days are considered case-by-case by the billing team.\n"
+    "- Refunds are issued to the original payment method within 5–10 business days."
+)
 
 _QUESTION = (
     "I'm on the Pro plan and want a refund for my last subscription charge. "
@@ -35,14 +53,16 @@ def main() -> None:
     openai = project.get_openai_client()
     model = settings().default_model
 
+    # Step 1 — draft via ephemeral agent (instructions come from this file)
     draft = openai.responses.create(
         model=model,
+        instructions=_AGENT_INSTRUCTIONS,
         input=_QUESTION,
-        extra_body={"agent_reference": _AGENT_REF},
     )
     print("=== Draft ===")
     print(draft.output_text)
 
+    # Step 2 — critique the draft against the checklist
     critique = openai.responses.create(
         model=model,
         input=(
@@ -55,16 +75,17 @@ def main() -> None:
     print("\n=== Verdict ===")
     print(verdict)
 
+    # Step 3 — regenerate if MISSING (feed the checklist back to the agent)
     if "MISSING" in verdict.upper():
         improved = openai.responses.create(
             model=model,
+            instructions=_AGENT_INSTRUCTIONS,
             input=(
-                "Answer the customer question completely using the available knowledge base. "
-                "Cover eligibility, the refund window, how it's measured, what happens after, "
-                "and whether any requested details are unavailable. Do not invent policy details.\n\n"
+                "Answer the customer question completely. Cover eligibility, the refund "
+                "window, how it's measured, what happens after, and whether any details "
+                "are unavailable. Do not invent policy details.\n\n"
                 f"Customer question:\n{_QUESTION}"
             ),
-            extra_body={"agent_reference": _AGENT_REF},
         )
         print("\n=== Regenerated ===")
         print(improved.output_text)

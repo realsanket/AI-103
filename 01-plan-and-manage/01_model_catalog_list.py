@@ -1,5 +1,20 @@
 # Run: uv run python 01-plan-and-manage/01_model_catalog_list.py
-"""List available deployments — treat as your live "model catalog" reference."""
+"""List the deployments that exist in your Foundry project.
+
+Beginner note:
+  A "deployment" is a named copy of a model you can call. The MODEL is the
+  brains (gpt-5-mini, text-embedding-3-large); the DEPLOYMENT is the
+  addressable endpoint you send requests to. Same model can be deployed many
+  times under different names, quotas, and regions.
+
+  This is your live model catalog — every other lesson in this domain sends
+  requests to one of these deployment names.
+
+What to watch:
+  - `name` column = what you pass as the `model=` argument in later lessons.
+  - `model` column = the underlying model powering that deployment.
+  - `type` column = the SKU (GlobalStandard, DataZoneStandard, PTU, ...).
+"""
 from _shared.foundry_client import project_client
 
 

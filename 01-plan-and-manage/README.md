@@ -3,6 +3,172 @@
 > Run any lesson: `uv run python 01-plan-and-manage/<file>.py`
 > Prereqs: `.env` filled, `az login` completed. See root [README.md](../README.md).
 
+---
+
+## What this domain teaches you
+
+You'll walk the full lifecycle of putting an AI feature into production on
+Microsoft Foundry: **pick a model → deploy it → route traffic → manage
+throughput → authenticate keylessly → put safety controls in front → run an
+evaluator → wire observability → lock down access with RBAC**. Every lesson
+is a small runnable Python file plus the mental model behind it — no giant
+tutorials, no toy code. If you can complete Lesson 07 (the auth smoke test)
+you can run everything else in this repo.
+
+---
+
+## Foundry in 90 seconds
+
+New to Foundry or to AI generally? Read this once — it unlocks every diagram
+below.
+
+- **Foundry resource** — one Azure resource that hosts everything: models,
+  agents, tools, guardrails, RBAC, tracing. Created once per team/subscription.
+- **Foundry project** — a workspace inside the resource. One resource can hold
+  many projects (dev, staging, prod, or per-team). Deployments and agents live
+  in a project.
+- **Endpoint** — the URL you call. Same Foundry resource, **three subdomains**
+  for three SDK families:
+  `openai.azure.com` (OpenAI SDK — Chat Completions, Responses),
+  `services.ai.azure.com` (Foundry SDK — agents, projects),
+  `cognitiveservices.azure.com` (Language / Speech / Content Safety).
+- **Deployment** — a named copy of a model you can call. Model = the brains
+  (gpt-5-mini). Deployment = the addressable thing (`gpt-5-mini`,
+  `gpt-5-deploy`). API `model=` parameter takes the deployment NAME, not the
+  model name.
+- **Agent** — a model plus instructions plus (optionally) tools. Three flavors:
+  **ephemeral** (instructions in your code — Lesson 10.5),
+  **prompt** (registered in the portal — Domain 2),
+  **hosted** (your code in a container — Domain 2).
+
+---
+
+## Mental model of the 13 lessons
+
+The lessons build on each other. Skip around only after L07 passes.
+
+```
+L01 Catalog     — "what deployments exist in my project right now?"
+    ↓ know the names before you send prompts to them
+L02 Types       — "which SKU should I use? Global/DataZone/Regional × pay/PTU/batch"
+    ↓ pick a type
+L03 Deploy      — "create the deployment via SDK (management plane)"
+    ↓ now you have something callable
+L04 Router      — "one deployment routes traffic across models automatically"
+    ↓ or you can just call your deployment directly
+L05 Quotas      — "how much throughput does each deployment have? (TPM/RPM)"
+    ↓ know your limits
+L06 Retry       — "when you hit 429, retry with exponential backoff + jitter"
+    ↓ resilience layer done
+L07 Auth        — "DefaultAzureCredential smoke test — the auth chain"    ← ONE-TIME MUST-PASS
+    ↓ once this works, every later lesson authenticates the same way
+L08 Safety      — "Guardrails (deployment-level) vs Content Safety API (call-anywhere)"
+    ↓ block harmful content
+L09 Shields U   — "Prompt Shields: detect user jailbreak attempts"
+    ↓
+L10 Shields D   — "Prompt Shields: detect indirect injection hidden in documents"
+    ↓ prompts + documents both hardened
+L10.5 Agents    — "3 agent types explained; ephemeral pattern to unblock L11"
+    ↓
+L11 Evaluator   — "draft → critique → regenerate loop (like built-in Groundedness)"
+    ↓ prove your agent's output is good
+L12 Tracing     — "spans + token/latency/safety attributes → Application Insights"
+    ↓ know what's happening in production
+L13 RBAC        — "control plane vs data plane; 5-role Foundry hierarchy"
+    ↓ lock down access, ship
+```
+
+---
+
+## 30-Second Domain 1 Cheat Sheet
+
+Keep this open while you study — it's the map for every exam question in the
+domain.
+
+```
+Question about CHOOSING a model?     → LLM/SLM/multimodal/Foundry Tools table (L01)
+Question about DEPLOYING a model?    → 10-type table: Global/DataZone/Regional × pay/PTU/Batch (L02)
+Question about OSS models?           → Managed Compute (hourly GPU, not pay-per-token)
+Question about CREDENTIALS?          → DefaultAzureCredential + Managed Identity (L07)
+Question about RATE LIMITS?          → TPM/RPM/PTU + tenacity backoff (L05, L06)
+Question about MONITORING?           → OpenTelemetry spans + built-in evaluators (L11, L12)
+Question about SAFETY filters?       → Content Safety API (0–7) vs Guardrails (Safe/Low/Med/High) (L08)
+Question about INJECTION defense?    → Prompt Shields — user prompt vs docs/indirect (L09, L10)
+Question about AGENTS?               → Ephemeral vs Prompt vs Hosted (L10.5) — full detail in Domain 2
+Question about RBAC?                 → 5 Foundry roles: Consumer < User < Project Manager < Account Owner < Owner (L13)
+```
+
+---
+
+## Prereqs before you run anything
+
+Do these **in order**. Steps 1–3 are one-time; 4–5 you'll revisit as you go.
+
+1. **Azure subscription** with an active billing arrangement.
+2. **Foundry resource** created in a supported region (default: `eastus` — most
+   models available there first). Portal: [ai.azure.com](https://ai.azure.com)
+   → New resource → Foundry.
+3. **`az login`** completed locally. `DefaultAzureCredential` uses your Azure
+   CLI identity in local dev — no API keys anywhere in this repo.
+4. **`.env` filled** with your three subdomain URLs — `AZURE_OPENAI_ENDPOINT`,
+   `FOUNDRY_ENDPOINT`/`PROJECT_ENDPOINT`, `CONTENT_SAFETY_ENDPOINT`. See
+   [`.env.example`](../.env.example) for the layout.
+5. **`Foundry User` role** assigned to your `az login` identity on the Foundry
+   resource. Portal auto-assigns this if you created the resource; SDK/CLI
+   creation does not. Details in [Lesson 13](#lesson-13--rbac-role-policies).
+
+Sanity check: `uv run python 01-plan-and-manage/07_managed_identity_agent.py`
+should print `Smoke test passed.` If it does, everything else here will run.
+
+---
+
+## Glossary — every term used in this domain
+
+Skim this once; refer back whenever a term feels fuzzy.
+
+| Term | Beginner definition |
+|------|--------------------|
+| **LLM** | Large Language Model — general-purpose reasoning model (gpt-5, o4). |
+| **SLM** | Small Language Model — cheaper/faster/narrower (Phi-4, Llama 3.2). |
+| **Multimodal** | Model that accepts >1 input type — text + image + audio (gpt-4o). |
+| **Deployment** | A named callable copy of a model. `model=` in code takes this name. |
+| **SKU** | Sub-type of a deployment (GlobalStandard, PTU, Batch, ...). Controls billing + residency. |
+| **Endpoint** | The URL you POST to. Three subdomains for the same Foundry resource — see "Foundry in 90 seconds". |
+| **Project** | Workspace inside a Foundry resource. Deployments and agents live in a project. |
+| **Agent — ephemeral** | Instructions passed in each API call — no portal registration. Lightest weight. |
+| **Agent — prompt** | Registered in the Foundry portal, called by name via `agent_reference`. |
+| **Agent — hosted** | Your Python/Node code in a container Foundry runs for you (Domain 2). |
+| **Token** | The atomic unit models consume. Rough: 1 token ≈ 4 chars of English. |
+| **TPM** | Tokens Per Minute — throughput budget per deployment. Blow it → 429. |
+| **RPM** | Requests Per Minute — request-count budget. Blow it → 429. |
+| **PTU** | Provisioned Throughput Unit — reserved capacity (no 429s, hourly fixed cost). |
+| **429** | HTTP "Too Many Requests" — you hit TPM or RPM. Retry with backoff. |
+| **Guardrail** | Deployment-level policy: harm categories + prompt shields at 4 intervention points. Severity: Safe/Low/Medium/High. |
+| **Content Safety API** | Standalone HTTP API for the same detection — 0–7 severity. Call it wherever you want. |
+| **Prompt Shield** | Guardrail control that detects jailbreak attempts (user channel) or indirect injection (document channel). |
+| **Evaluator** | Rubric that scores model output (Groundedness, Response Completeness, Task Adherence, ...). Built-in or custom. |
+| **Span / Trace** | One unit of observability — a request's duration + attributes (tokens, latency, safety). Ships to App Insights via OpenTelemetry. |
+| **RBAC control plane** | Standard Azure roles (Owner, Contributor, Reader). Manage resources. Does NOT grant inference. |
+| **RBAC data plane** | Foundry roles (Consumer, User, Project Manager, Account Owner, Owner). Call inference, build agents. |
+| **DefaultAzureCredential** | Auth helper that tries env vars → managed identity → `az login` → VS Code, in order. Keyless in prod, `az login` in dev. |
+
+---
+
+## Common first-run failures
+
+Every one of these has bitten someone. When you see the symptom, jump to the lesson.
+
+| Symptom | Root cause | Fix |
+|---------|-----------|-----|
+| `401 PermissionDenied: Principal does not have access` | You have Owner on the sub but no data-plane role on the Foundry resource | Assign `Foundry User` — [Lesson 13](#lesson-13--rbac-role-policies) or [Lesson 04](#lesson-04--model-router) |
+| `404 DeploymentNotFound` | `DEFAULT_MODEL` in `.env` is the MODEL name, not the DEPLOYMENT name | Run [Lesson 01](#lesson-01--model-catalog-list) to see the real deployment names; update `.env` |
+| `openai.NotFoundError` on Responses API | Wrong subdomain — used `services.ai.azure.com` where `openai.azure.com` was needed (or vice versa) | Check `AZURE_OPENAI_ENDPOINT` vs `FOUNDRY_ENDPOINT` in `.env`; see [Lesson 06](#lesson-06--rate-limit-backoff) |
+| `CredentialUnavailableError` | Not logged in | `az login` |
+| Role assigned but still 401 | RBAC propagation takes ~1 minute | Wait, retry. If persistent, verify scope of assignment (resource vs project) |
+| `400 BadRequestError: The requested operation is unsupported` on model-router | Model router requires Chat Completions API, not Responses API | Use `chat.completions.create` — [Lesson 04](#lesson-04--model-router) |
+
+---
+
 ## Files
 
 | # | File | Syllabus bullet |
@@ -46,6 +212,10 @@
 ---
 
 # Lesson 01 — Model Catalog List
+
+**You'll learn:** what a deployment is; how to see what's already in your project; how to spot the deployment name you'll pass to every other lesson.
+**Prereqs:** `az login` done, `PROJECT_ENDPOINT` in `.env`.
+**Time:** ~5 min.
 
 **Concept:** Before choosing a model, list what's actually deployed in your project.
 
@@ -95,6 +265,10 @@ gpt-image-1                      gpt-image-1                  GlobalStandard
 ---
 
 # Lesson 02 — Deployment Types
+
+**You'll learn:** how to pick a SKU across two axes — how you pay (per-token / PTU / batch) × where inference runs (Global / Data Zone / Regional).
+**Prereqs:** none — this lesson is read-only reference.
+**Time:** ~5 min.
 
 ## What is an Azure region?
 
@@ -264,6 +438,10 @@ if __name__ == "__main__":
 
 # Lesson 03 — Deploy a Model
 
+**You'll learn:** deploy a model programmatically (control-plane); why `AIProjectClient` can't do this; how deployment name / model name / SKU / capacity fit together.
+**Prereqs:** `AZURE_SUBSCRIPTION_ID` + `AZURE_RESOURCE_GROUP` + `FOUNDRY_ENDPOINT` in `.env`; contributor-level access on the Foundry resource.
+**Time:** ~10 min (~1 min provisioning wait).
+
 **Concept:** Deployment is a **management-plane** operation — `AIProjectClient` is data-plane only (inference, agents) and has no deployment CRUD. Use `CognitiveServicesManagementClient` from `azure-mgmt-cognitiveservices`. The account name is the subdomain of your `FOUNDRY_ENDPOINT`.
 
 ```
@@ -338,6 +516,10 @@ sku:    GlobalStandard  capacity=1
 ---
 
 # Lesson 04 — Model Router
+
+**You'll learn:** deploy one router, let it pick the right underlying model per prompt; why Chat Completions is the only supported API for router; the RBAC role required for keyless inference.
+**Prereqs:** `model-router` deployment created; `Foundry User` role on the Foundry resource; `MODEL_ROUTER_DEPLOYMENT` in `.env`.
+**Time:** ~10 min.
 
 **Concept:** Deploy one `model-router` deployment. Router picks the best underlying model per prompt automatically. Check `response.model` to see which was chosen.
 
@@ -457,6 +639,10 @@ if __name__ == "__main__":
 
 # Lesson 05 — Quotas and TPM
 
+**You'll learn:** how to read your TPM / RPM / PTU per deployment and per region; what `capacity` means for pay-per-token vs PTU SKUs; where 429s come from.
+**Prereqs:** same as L03 (`AZURE_SUBSCRIPTION_ID` + `AZURE_RESOURCE_GROUP` + `FOUNDRY_ENDPOINT`).
+**Time:** ~5 min.
+
 **Concept:** Quotas control how fast you can consume tokens (TPM) and how many requests per minute (RPM).
 
 | Term | Meaning |
@@ -536,6 +722,10 @@ Usage quotas for this location:
 ---
 
 # Lesson 06 — Rate Limit Backoff
+
+**You'll learn:** retry only on transient errors (429, connection drops); why exponential + jitter beats fixed sleeps; which errors must NEVER be retried (404/400/401).
+**Prereqs:** `DEFAULT_MODEL` in `.env` must match a real deployment name (see L01); `AZURE_OPENAI_ENDPOINT` set.
+**Time:** ~10 min.
 
 **Concept:** When you hit 429, retry with exponential backoff + jitter. Never retry immediately.
 
@@ -631,6 +821,10 @@ if __name__ == "__main__":
 
 # Lesson 07 — Managed Identity / Keyless Auth
 
+**You'll learn:** `DefaultAzureCredential` chain (env → managed identity → `az login`); the two OpenAI endpoint subdomains on the same Foundry resource; why no API keys appear in this repo.
+**Prereqs:** `az login`, `Foundry User` role on the Foundry resource, `FOUNDRY_ENDPOINT` + `PROJECT_ENDPOINT` in `.env`.
+**Time:** ~5 min. **This is the one-time must-pass smoke test.**
+
 **Concept:** Smoke test for the entire auth chain. Verifies `DefaultAzureCredential` → Foundry project endpoint → Responses API. If this passes, all other lessons authenticate the same way.
 
 ```
@@ -714,6 +908,10 @@ Smoke test passed.
 ---
 
 # Lesson 08 — Content Safety Filters
+
+**You'll learn:** Guardrails (deployment-level, always-on) vs Content Safety API (call-anywhere); 4 harm categories × 4 severity levels; how a blocked request looks in the response.
+**Prereqs:** L07 auth passing; `CONTENT_SAFETY_ENDPOINT` in `.env`; a sample image at `_shared/data/images/support.png` (already in the repo).
+**Time:** ~10 min.
 
 Source: [guardrails-overview.md](../.context/azure-ai-docs/articles/foundry/guardrails/guardrails-overview.md) | [content-filter-severity-levels.md](../.context/azure-ai-docs/articles/foundry/openai/concepts/content-filter-severity-levels.md)
 
@@ -929,6 +1127,10 @@ filter result: {'hate': {'filtered': False, 'severity': 'safe'}, 'violence': {'f
 
 # Lesson 09 — Prompt Shields (User Prompt Attack)
 
+**You'll learn:** call `/text:shieldPrompt` directly; distinguish user-channel jailbreak attempts from harmful content; understand `attackDetected` (boolean, no severity).
+**Prereqs:** L07 auth passing; `CONTENT_SAFETY_ENDPOINT` in `.env`.
+**Time:** ~5 min.
+
 Source: [content-filter-prompt-shields.md](../.context/azure-ai-docs/articles/foundry/openai/concepts/content-filter-prompt-shields.md)
 
 **Concept:** User prompt attack = attacker IS the user. They craft a message that tries to override system instructions, bypass safety training, or force the model into a different persona (jailbreak).
@@ -1050,6 +1252,10 @@ if __name__ == "__main__":
 ---
 
 # Lesson 10 — Prompt Shields (Document / Indirect Injection)
+
+**You'll learn:** detect hidden instructions embedded in third-party content (OCR, RAG chunks, forwarded emails) that a user has passed to the model; per-document detection results.
+**Prereqs:** same as L09.
+**Time:** ~5 min.
 
 Source: [content-filter-prompt-shields.md](../.context/azure-ai-docs/articles/foundry/openai/concepts/content-filter-prompt-shields.md)
 
@@ -1174,11 +1380,18 @@ if __name__ == "__main__":
 
 ---
 
-# Lesson 10.5 — Foundry Agent Basics (Ephemeral + Prompt Agents)
+# Lesson 10.5 — Foundry Agent Basics (Ephemeral vs Prompt vs Hosted)
+
+**You'll learn:** the three agent types in Foundry; when to use each; how the Responses API + `previous_response_id` gives you multi-turn without resending history.
+**Prereqs:** L07 auth passing.
+**Time:** ~10 min.
 
 Source: [agents/overview.md](../.context/azure-ai-docs/articles/foundry/agents/overview.md) | [quickstarts/responses-api.md](../.context/azure-ai-docs/articles/foundry/agents/quickstarts/responses-api.md)
 
-**Run before Lesson 11.** L11 uses `agent_reference` — this lesson explains the concept and sets up the agent. L08–L10, L12 don't need this.
+**Run before Lesson 11.** L11 uses the **ephemeral** pattern shown here.
+Prompt Agents and Hosted Agents are introduced in this lesson but their full
+tooling / publishing story lives in Domain 2 — you don't need to create any
+portal agent to complete Domain 1.
 
 > **Full agent coverage is in Domain 2** (`02-generative-ai-and-agents/`):
 > tools, multi-agent orchestration, memory, publishing, hosted agents, CI/CD deployment.
@@ -1187,14 +1400,25 @@ Source: [agents/overview.md](../.context/azure-ai-docs/articles/foundry/agents/o
 ## Three agent types
 
 ```
-Ephemeral   — instructions live in code, no portal, no persistence  ← 10_5_agent_basics.py
-Prompt      — registered in Foundry portal, called via agent_reference  ← L11 needs this
+Ephemeral   — instructions live in code, no portal, no persistence  ← 10_5_agent_basics.py (this file)
+Prompt      — registered in Foundry portal, called via agent_reference  ← Domain 2
 Hosted      — your code in a container, Foundry manages endpoint    ← Domain 2
 ```
 
-All three use the **Responses API** as entry point. Difference: where the definition lives.
+All three use the **Responses API** as the entry point. The only difference
+is **where the agent definition lives**:
 
-## Ephemeral — no prerequisites
+| Type | Definition lives in | Portal setup needed? | Best for |
+|------|---------------------|---------------------|----------|
+| Ephemeral | The Python code that calls it | ✘ | Prototyping, single-purpose helpers, small scripts (this repo) |
+| Prompt | Foundry portal → Agents | ✔ (create in portal, then reference by name) | Shared agents across teams, portal-managed prompt versioning |
+| Hosted | A container image you deploy | ✔ + container build | Custom logic beyond a prompt — real code, own dependencies |
+
+L11 uses the **ephemeral** pattern from this lesson — you don't have to
+create anything in the portal to finish Domain 1. Prompt Agents (with
+`agent_reference`) and Hosted Agents are covered in Domain 2.
+
+## Ephemeral pattern in one glance
 
 ```python
 # single-turn
@@ -1204,27 +1428,6 @@ r = oc.responses.create(model=model, instructions="You are Northwind Support..."
 r1 = oc.responses.create(model=model, instructions=_SYSTEM, input="What's the refund policy?")
 r2 = oc.responses.create(model=model, instructions=_SYSTEM, input="Can I get a refund after 60 days?",
                           previous_response_id=r1.id)
-```
-
-## Prompt agent — create in portal for L11
-
-```
-Foundry portal → your project → Agents → + New agent
-  Name:         northwind-support-rag-agent
-  Model:        gpt-5-mini
-  Instructions: You are Northwind Support. Answer questions about refunds,
-                subscriptions, and billing.
-  Tools:        (none — add file search in Domain 2)
-→ Deploy / Publish
-```
-
-L11 then calls it via:
-
-```python
-r = oc.responses.create(
-    extra_body={"agent_reference": {"type": "agent_reference", "name": "northwind-support-rag-agent"}},
-    input="Am I eligible for a refund?",
-)
 ```
 
 ## Code
@@ -1263,15 +1466,19 @@ if __name__ == "__main__":
 **Key points:**
 
 - Ephemeral = no portal, no agent resource — definition ships with code
-- `agent_reference` = calls a registered Prompt Agent — instructions already stored in Foundry
-- `previous_response_id` = multi-turn without resending full history — Foundry stores context
-- Both use same project-scoped endpoint: `services.ai.azure.com/api/projects/.../openai/v1`
-- Ephemeral agents still get project guardrails, content filters, tracing — "ephemeral" = definition only
-- Exam trap: `agent_reference` ≠ ephemeral — same API, completely different registration model
+- `agent_reference` = calls a registered Prompt Agent — instructions already stored in Foundry (Domain 2)
+- `previous_response_id` = multi-turn without resending full history — Foundry stores context server-side
+- Both use the same project-scoped endpoint: `services.ai.azure.com/api/projects/.../openai/v1`
+- Ephemeral agents still get project guardrails, content filters, and tracing — "ephemeral" means the *definition* is ephemeral, not the enforcement layer
+- Exam trap: `agent_reference` ≠ ephemeral — same API surface, completely different registration model
 
 ---
 
 # Lesson 11 — Evaluator + Self-Critique Loop
+
+**You'll learn:** the draft → critique → regenerate loop that the built-in Response Completeness / Groundedness evaluators use internally; how to score model output against a checklist inline.
+**Prereqs:** L10.5 (uses the ephemeral agent pattern — no portal setup required).
+**Time:** ~10 min.
 
 **Concept:** Generate → Critique → Regenerate. The self-critique pattern mirrors the built-in Response Completeness evaluator.
 
@@ -1297,13 +1504,24 @@ Step 3: if MISSING → regenerate with critique as context
 
 **Code:**
 
+The agent is defined **in this file** (ephemeral). Refund policy lives in the
+`_AGENT_INSTRUCTIONS` string — Foundry stores nothing between runs.
+
 ```python
 # 11_evaluator_groundedness.py
 from _shared.config import settings
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "northwind-support-rag-agent"
-_AGENT_REF = {"type": "agent_reference", "name": AGENT_NAME}
+_AGENT_INSTRUCTIONS = (
+    "You are Northwind Support, a customer support agent for Northwind Inc. "
+    "Answer questions about refunds, subscriptions, and billing based on the "
+    "policy below. If a detail isn't in the policy, say so — do not invent.\n\n"
+    "Refund policy:\n"
+    "- Pro plan subscribers can request a refund within 30 days of the charge date.\n"
+    "- The window is measured from the charge date on the invoice, not the usage date.\n"
+    "- Refunds after 30 days are considered case-by-case by the billing team.\n"
+    "- Refunds are issued to the original payment method within 5–10 business days."
+)
 
 _QUESTION = (
     "I'm on the Pro plan and want a refund for my last subscription charge. "
@@ -1327,13 +1545,16 @@ def main() -> None:
     openai = project.get_openai_client()
     model = settings().default_model
 
+    # Step 1 — draft via ephemeral agent
     draft = openai.responses.create(
-        model=model, input=_QUESTION,
-        extra_body={"agent_reference": _AGENT_REF},
+        model=model,
+        instructions=_AGENT_INSTRUCTIONS,
+        input=_QUESTION,
     )
     print("=== Draft ===")
     print(draft.output_text)
 
+    # Step 2 — critique the draft against the checklist
     critique = openai.responses.create(
         model=model,
         input=(
@@ -1345,16 +1566,17 @@ def main() -> None:
     verdict = critique.output_text.strip()
     print("\n=== Verdict ===", verdict)
 
+    # Step 3 — regenerate if MISSING
     if "MISSING" in verdict.upper():
         improved = openai.responses.create(
             model=model,
+            instructions=_AGENT_INSTRUCTIONS,
             input=(
                 "Answer the customer question completely. Cover eligibility, the refund "
                 "window, how it's measured, what happens after, and whether any details "
                 "are unavailable. Do not invent policy details.\n\n"
                 f"Customer question:\n{_QUESTION}"
             ),
-            extra_body={"agent_reference": _AGENT_REF},
         )
         print("\n=== Regenerated ===")
         print(improved.output_text)
@@ -1364,9 +1586,19 @@ if __name__ == "__main__":
     main()
 ```
 
+**Why ephemeral?** Domain 1 shouldn't require you to create anything in the
+Foundry portal. The same self-critique loop works identically against a
+registered Prompt Agent — swap `instructions=_AGENT_INSTRUCTIONS` for
+`extra_body={"agent_reference": {"type": "agent_reference", "name": "<agent>"}}`
+when you've created one (Domain 2 covers that flow).
+
 ---
 
 # Lesson 12 — Agent Tracing (Observability)
+
+**You'll learn:** attach OpenTelemetry spans to model calls; capture tokens / latency / safety as span attributes; ship to Application Insights (or fall back to stdout for local dev).
+**Prereqs:** L07 auth passing; `APPLICATIONINSIGHTS_CONNECTION_STRING` in `.env` (optional — without it, spans print to stdout).
+**Time:** ~15 min.
 
 **Concept:** 4 observability axes: tracing, token analytics, safety signals, latency. All attached as span attributes and shipped to Application Insights (or stdout if no connection string).
 
@@ -1461,6 +1693,10 @@ if __name__ == "__main__":
 ---
 
 # Lesson 13 — RBAC Role Policies
+
+**You'll learn:** control plane vs data plane; the Foundry 5-role hierarchy; how to assign roles by CLI or portal; which built-in role names to AVOID (they look right, they aren't).
+**Prereqs:** `AZURE_SUBSCRIPTION_ID` + `AZURE_RESOURCE_GROUP` in `.env`; Owner or `User Access Administrator` role to actually create assignments.
+**Time:** ~10 min.
 
 **Concept:** Azure RBAC has two separate planes. Foundry has its own 5-role hierarchy for the data plane. Mismatching control-plane and data-plane roles is the most common auth failure when going keyless.
 
@@ -1743,16 +1979,5 @@ Approval workflow (human gate) for high-risk changes
 
 ---
 
-# 30-Second Domain 1 Trick
-
-```
-Question about CHOOSING a model?     → LLM/SLM/multimodal/Foundry Tools table
-Question about DEPLOYING a model?    → 10-type table: Global/DataZone/Regional × pay-per-token/PTU/Batch
-Question about OSS models?           → Managed Compute (hourly GPU, not pay-per-token)
-Question about CREDENTIALS?          → DefaultAzureCredential + Managed Identity
-Question about RATE LIMITS?          → TPM/RPM/PTU + tenacity backoff
-Question about MONITORING?           → OpenTelemetry spans + 7-category evaluators
-Question about SAFETY filters?       → Content Safety API (0-7) vs Guardrails (Off/Low/Medium/High)
-Question about INJECTION defense?    → Prompt Shields (user prompt) / Prompt Shields (docs/indirect)
-Question about RBAC?                 → 5 Foundry roles: Consumer < User < Project Manager < Account Owner < Owner
-```
+> The 30-second cheat sheet lives at the [top of this README](#30-second-domain-1-cheat-sheet)
+> — scroll up any time an exam question makes you second-guess which lesson covers it.

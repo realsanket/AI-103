@@ -1,9 +1,18 @@
 # Run: uv run python 01-plan-and-manage/02_deployment_types.py
 """Choose a deployment type — decision helper + cheatsheet.
 
-Prints a matrix comparing Global Standard / Standard Regional / Provisioned
-Throughput (PTU) / Serverless API. Same content as the slides, just runnable
-so you can pipe it into notes.
+Beginner note:
+  When you deploy a model, you pick a SKU. The SKU decides HOW you pay
+  (per-token vs reserved capacity vs batch) and WHERE inference runs
+  (any region / EU-US-APAC zone / one specific region). Nine common types,
+  plus Instant / Developer / Managed Compute for edge cases.
+
+  This file prints a compact matrix so you can eyeball the trade-offs
+  without leaving the terminal. See the README table for the full 10-row grid.
+
+What to watch:
+  Each block shows billing / residency / throughput / cost / when-to-use for
+  one deployment type. Beginner default is Global Standard.
 """
 
 _MATRIX = [
