@@ -24,7 +24,7 @@
 ## Run
 
 ```bash
-python 05-information-extraction/01_search_basic_query.py
+uv run python 05-information-extraction/01_search_basic_query.py
 ```
 
 ## Reference docs

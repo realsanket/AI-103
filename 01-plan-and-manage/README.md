@@ -21,7 +21,7 @@
 ## Run
 
 ```bash
-python 01-plan-and-manage/07_managed_identity_agent.py
+uv run python 01-plan-and-manage/07_managed_identity_agent.py
 ```
 
 Prereqs: `.env` filled, `az login` completed. See root [README.md](../README.md).

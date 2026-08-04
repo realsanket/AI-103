@@ -24,16 +24,28 @@ Study material (unchanged):
 ## First-time setup
 
 ```bash
-cp .env.example .env               # fill in your Foundry / Search / Speech / Language / CU endpoints
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-az login                           # DefaultAzureCredential picks this up
+cp .env.example .env    # fill in your Foundry / Search / Speech / Language / CU endpoints
+uv sync                 # creates .venv + installs all deps from uv.lock
+az login                # DefaultAzureCredential picks this up
 ```
 
 Every lesson runs with:
 
 ```bash
+uv run python 02-generative-ai-and-agents/01_first_api_call.py
+```
+
+Or activate the venv once and run directly:
+
+```bash
+source .venv/bin/activate
 python 02-generative-ai-and-agents/01_first_api_call.py
+```
+
+Add a dependency:
+
+```bash
+uv add <package>        # updates pyproject.toml + uv.lock
 ```
 
 No API keys live in any Python file. Auth is Entra bearer tokens via `DefaultAzureCredential`.

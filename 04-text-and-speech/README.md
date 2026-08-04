@@ -27,7 +27,7 @@
 ## Run
 
 ```bash
-python 04-text-and-speech/01_llm_ner.py
+uv run python 04-text-and-speech/01_llm_ner.py
 ```
 
 ## Reference docs

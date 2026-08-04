@@ -17,7 +17,7 @@
 ## Run
 
 ```bash
-python 03-computer-vision/02_image_generation.py
+uv run python 03-computer-vision/02_image_generation.py
 ```
 
 Outputs land in `_shared/sample_data/generated/`.

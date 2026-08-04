@@ -35,7 +35,7 @@ Largest exam domain — most files.
 ## Run
 
 ```bash
-python 02-generative-ai-and-agents/01_first_api_call.py
+uv run python 02-generative-ai-and-agents/01_first_api_call.py
 ```
 
 For agent files: run `08_prompt_agent_create.py` once (creates the agent version), then `09_prompt_agent_invoke.py` to talk to it.
