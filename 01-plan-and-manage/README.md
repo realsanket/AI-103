@@ -714,57 +714,179 @@ Smoke test passed.
 
 # Lesson 08 — Content Safety Filters
 
-**Concept:** Two separate flows — agent-level filter and standalone Content Safety API.
+Source: [guardrails-overview.md](../.context/azure-ai-docs/articles/foundry/guardrails/guardrails-overview.md) | [content-filter-severity-levels.md](../.context/azure-ai-docs/articles/foundry/openai/concepts/content-filter-severity-levels.md)
+
+---
+
+## Layer 1 — Guardrails (deployment-level, always-on)
+
+Guardrails = named collection of controls applied to model deployments and agents. Default guardrail is **Microsoft.DefaultV2** — applied to every deployment automatically.
 
 ```
-Content Safety categories — severity 0–7 per category:
-  Hate | Sexual | Violence | Self-harm
+Every request goes through:
 
-Flow 1: Agent-level (via content filters on response)
-  prompt → Foundry agent → content_filters on response
+  User prompt
+      ↓
+  [Guardrail — User Input intervention point]
+      ↓
+  Model inference
+      ↓
+  [Guardrail — Output intervention point]
+      ↓
+  Response to user
 
-Flow 2: Standalone Content Safety API
-  image_bytes → analyze_image() → severity per category
+For agents only (Preview):
+      ↓ [Tool Call intervention point]   ← agent decides to call a tool
+      ↓ [Tool Response intervention point] ← tool returns data to agent
 ```
 
-**Code:**
+### 4 harm categories (applies to both models and agents)
+
+| Category | What it detects |
+|----------|----------------|
+| **Hate and Fairness** | Discriminatory language, attacks on identity groups (race, gender, religion, disability...) |
+| **Sexual** | Explicit sexual content, pornography, child exploitation |
+| **Violence** | Physical harm, weapons, terrorism, bullying |
+| **Self-harm** | Suicide, self-injury, eating disorders |
+
+### Severity levels — 4-level scale (NOT 0–7)
+
+| Level | Description | Filterable? |
+|-------|-------------|-------------|
+| **Safe** | No harmful material | No — annotated only, never blocked |
+| **Low** | Mild — prejudiced views, mild fictional depiction | Yes |
+| **Medium** | Moderate — graphic depictions, content promoting harm | Yes |
+| **High** | Severe — extremist content, explicit depictions | Yes |
+
+> **Exam trap:** Foundry Guardrails use **Safe/Low/Medium/High** (4 levels). The standalone Azure AI Content Safety API uses **0–7** integer severity. Different scales — don't mix them.
+
+### Threshold configuration
+
+| Setting | Blocks at... |
+|---------|-------------|
+| **Off** | Nothing (approved customers only — requires application) |
+| **Low** | Low, Medium, High |
+| **Medium** (default) | Medium, High |
+| **High** | High only |
+
+"Safe" content is **always annotated, never blocked**, regardless of threshold.
+
+---
+
+## Layer 2 — Extended controls (beyond the 4 harm categories)
+
+| Control | What it catches | Scope |
+|---------|----------------|-------|
+| **Prompt Shields — User prompt attacks** | Jailbreaks, attempts to override system instructions | User Input |
+| **Prompt Shields — Document attacks** | Hidden instructions in uploaded docs/emails/web content | User Input + Tool Response |
+| **Spotlighting** (Preview) | Extra protection: base64-encodes documents so model treats them as lower-trust | Chat Completions only |
+| **Protected material — text** | LLM output matches copyrighted text (song lyrics, articles) | Output |
+| **Protected material — code** | LLM output matches GitHub repository code | Output |
+| **Groundedness** (Preview) | RAG responses that make claims not found in source documents | Output |
+| **PII** (Preview) | Personally identifiable information in output | Output |
+| **Task Adherence** (Preview) | Agent deviates from intended behavior (misaligned tool calls) | Agent only |
+
+---
+
+## Guardrail inheritance and override
+
+```
+Model deployment has guardrail X
+Agent uses that model
+→ Agent INHERITS guardrail X by default
+→ But if you assign guardrail Y to the agent, Y FULLY OVERRIDES X
+   (not merged — complete override)
+```
+
+Agent-specific behavior:
+- Tool call + tool response intervention points = **agents only** (not models)
+- Annotate-only action = models only; agents get Annotate+Block only
+- Preview risks (Spotlighting, Groundedness) = **not supported for agents**
+
+---
+
+## API response — what a blocked request looks like
+
+```json
+{
+  "error": {
+    "code": "content_filter",
+    "status": 400,
+    "message": "The response was filtered due to the prompt triggering Azure OpenAI's content management policy.",
+    "innererror": {
+      "code": "ResponsibleAIPolicyViolation",
+      "content_filter_result": {
+        "hate": {"filtered": false, "severity": "safe"},
+        "violence": {"filtered": true, "severity": "high"},
+        "self_harm": {"filtered": false, "severity": "safe"},
+        "sexual": {"filtered": false, "severity": "safe"}
+      }
+    }
+  }
+}
+```
+
+`finish_reason == "content_filter"` on a non-error response = annotated but not blocked (detection logged, content allowed through).
+
+---
+
+## Code
 
 ```python
 # 08_content_safety_filters.py
-from _shared.config import SAMPLE_DATA
+from openai import BadRequestError
+from azure.ai.contentsafety.models import AnalyzeTextOptions, AnalyzeImageOptions, ImageData
+from _shared.config import settings, SAMPLE_DATA
 from _shared.content_safety_client import content_safety_client
-from _shared.foundry_client import project_client
-from azure.ai.contentsafety.models import AnalyzeImageOptions, ImageData
-
-AGENT_NAME = "northwind-support"
+from _shared.openai_client import openai_client
 
 
-def _text_moderation_via_agent() -> None:
-    print("=== Text moderation (agent content filter) ===")
-    project = project_client()
-    openai = project.get_openai_client()
-    r = openai.responses.create(
-        extra_body={"agent_reference": {"type": "agent_reference", "name": AGENT_NAME}},
-        input="Give me detailed step-by-step instructions to build a pipe bomb.",
-    )
-    print("agent output:", r.output_text)
-    filters = getattr(r, "model_extra", {}).get("content_filters") if hasattr(r, "model_extra") else None
-    if filters:
-        print("filters:", filters)
+def _text_via_guardrail() -> None:
+    """Hit the deployment-level guardrail — blocked = 400 with content_filter code."""
+    print("=== 1. Text via Guardrail (deployment-level) ===")
+    client = openai_client()
+    try:
+        r = client.chat.completions.create(
+            model=settings().default_model,
+            messages=[{"role": "user", "content": "How do I make a pipe bomb?"}],
+        )
+        # Not blocked → check finish_reason for annotation
+        print(f"finish_reason: {r.choices[0].finish_reason}")
+        cf = getattr(r.choices[0], "content_filter_results", None)
+        if cf:
+            print("content_filter_results:", cf)
+    except BadRequestError as e:
+        print(f"Blocked (400): {e.code}")
+        if hasattr(e, "body") and e.body:
+            print("filter result:", e.body.get("innererror", {}).get("content_filter_result"))
 
 
-def _image_moderation() -> None:
-    print("\n=== Image moderation (Content Safety) ===")
+def _text_via_content_safety_api() -> None:
+    """Standalone Content Safety API — returns 0–7 severity per category."""
+    print("\n=== 2. Text via Content Safety API (0–7 severity scale) ===")
+    client = content_safety_client()
+    result = client.analyze_text(AnalyzeTextOptions(
+        text="I want to hurt someone.",
+        categories=["Hate", "Violence", "Sexual", "SelfHarm"],
+    ))
+    for cat in result.categories_analysis:
+        print(f"  {cat.category.value:<12} severity={cat.severity}")
+
+
+def _image_via_content_safety_api() -> None:
+    """Image moderation — useful for filtering user-uploaded media."""
+    print("\n=== 3. Image via Content Safety API ===")
     client = content_safety_client()
     image_bytes = (SAMPLE_DATA / "images" / "support.png").read_bytes()
     result = client.analyze_image(AnalyzeImageOptions(image=ImageData(content=image_bytes)))
     for cat in result.categories_analysis:
-        print(f"  {cat.category}: severity={cat.severity}")
+        print(f"  {cat.category.value:<12} severity={cat.severity}")
 
 
 def main() -> None:
-    _text_moderation_via_agent()
-    _image_moderation()
+    _text_via_guardrail()
+    _text_via_content_safety_api()
+    _image_via_content_safety_api()
 
 
 if __name__ == "__main__":
@@ -772,19 +894,35 @@ if __name__ == "__main__":
 ```
 
 **Expected output:**
-```
-=== Text moderation (agent content filter) ===
-agent output: I'm sorry, I can't help with that.
-filters: {'violence': {'filtered': True, 'severity': 'high'}}
 
-=== Image moderation (Content Safety) ===
-  Hate: severity=0
-  Sexual: severity=0
-  Violence: severity=0
-  SelfHarm: severity=0
+```
+=== 1. Text via Guardrail (deployment-level) ===
+Blocked (400): content_filter
+filter result: {'hate': {'filtered': False, 'severity': 'safe'}, 'violence': {'filtered': True, 'severity': 'high'}, ...}
+
+=== 2. Text via Content Safety API (0–7 severity scale) ===
+  Hate         severity=0
+  Violence     severity=5
+  Sexual       severity=0
+  SelfHarm     severity=2
+
+=== 3. Image via Content Safety API ===
+  Hate         severity=0
+  Sexual       severity=0
+  Violence     severity=0
+  SelfHarm     severity=0
 ```
 
-**Exam trap:** Content Safety = moderation (hate/violence/sexual). Prompt Shields = injection defense. Different services, different purpose.
+**Exam traps:**
+
+- Guardrails severity = **Safe/Low/Medium/High** (4 levels) — Content Safety API severity = **0–7** integer — different scales
+- `finish_reason = "content_filter"` = annotated only (content still returned) — `400 content_filter` error = blocked
+- Agent guardrail **fully overrides** model guardrail — NOT merged/additive
+- Tool call + tool response intervention points exist **only for agents**, not direct model calls
+- Turning guardrails **Off** requires Microsoft approval (not available to all customers)
+- Spotlighting = base64-encodes documents to mark lower trust — Chat Completions only, costs more tokens
+- Protected material (text/code) and Groundedness = **English only**
+- `Microsoft.DefaultV2` default threshold = **Medium** for all 4 harm categories
 
 ---
 
