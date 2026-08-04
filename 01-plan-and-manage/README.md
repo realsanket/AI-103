@@ -395,6 +395,8 @@ Or: **Portal → Foundry resource → Access Control (IAM) → Add role assignme
 
 Wait ~1 min for RBAC propagation before retrying.
 
+**API note:** Model router uses **Chat Completions** (`chat.completions.create`), NOT the Responses API. Calling `responses.create` with a model-router deployment returns `400 BadRequestError: The requested operation is unsupported`.
+
 **Code:**
 
 ```python
@@ -413,10 +415,14 @@ def main() -> None:
     client = openai_client()
     router = settings().model_router_deployment
     for prompt in _PROMPTS:
-        r = client.responses.create(model=router, input=prompt)
-        picked = getattr(r, "model", "?")
+        r = client.chat.completions.create(
+            model=router,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        picked = r.model or "?"
+        content = r.choices[0].message.content or ""
         print(f"[picked: {picked}]  prompt: {prompt[:60]}")
-        print(f"  → {r.output_text[:120]}\n")
+        print(f"  → {content[:120]}\n")
 
 
 if __name__ == "__main__":
@@ -437,10 +443,14 @@ if __name__ == "__main__":
 ```
 
 **Key points:**
-- Model Router selects *best fit*, NOT always cheapest — exam knows this distinction
-- `response.model` reveals actual model used (useful for cost attribution)
-- Control plane roles (Owner, Contributor) do NOT grant inference access — data-plane needs its own role
-- Foundry 5-role hierarchy: Consumer < User < Project Manager < Account Owner < Owner — `Cognitive Services OpenAI User` sits outside this hierarchy, granted separately
+
+- Model router uses **Chat Completions API only** — `responses.create` returns `400 BadRequestError: The requested operation is unsupported`
+- `r.model` on the Chat Completions response reveals which underlying model was picked (exam question: how do you know which model ran?)
+- Routing modes: **Balanced** (default, cost+quality), **Quality** (critical tasks), **Cost** (high-volume, budget)
+- Router markup applies to input tokens on top of the underlying model's pricing — NOT always cheapest
+- Don't deploy the underlying models separately — router manages them independently
+- Content filter set on the router applies to all underlying models; don't set per-model filters
+- If using Agent service tools, only OpenAI models are used for routing (not Claude etc.)
 
 ---
 
