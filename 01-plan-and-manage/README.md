@@ -95,24 +95,118 @@ gpt-image-1                      gpt-image-1                  GlobalStandard
 
 # Lesson 02 — Deployment Types
 
-**Concept:** 10 deployment types in two pay dimensions × three data-residency tiers.
+## What is an Azure region?
 
-| Type | SKU | Data | Billing |
-|------|-----|------|---------|
-| **Instant (preview)** | N/A | Any | Pay-per-token |
-| **Global Standard** | `GlobalStandard` | Any | Pay-per-token |
-| **Global Provisioned** | `GlobalProvisionedManaged` | Any | PTU reserved |
-| **Global Batch** | `GlobalBatch` | Any | 50% off, 24hr async |
+A **region** is a physical datacenter location (e.g. `eastus` = Virginia, `westeurope` = Netherlands). Microsoft groups regions into **geographies** (US, EU, Asia Pacific).
+
+```
+Azure geography: United States
+  ├── eastus         (Virginia)
+  ├── eastus2        (Virginia — second datacenter cluster)
+  ├── westus         (California)
+  ├── westus2        (Washington)
+  └── centralus      (Iowa)
+
+Azure geography: Europe
+  ├── westeurope     (Netherlands)
+  ├── northeurope    (Ireland)
+  ├── swedencentral  (Sweden)
+  └── francecentral  (France)
+
+Azure geography: Asia Pacific
+  ├── australiaeast  (New South Wales)
+  ├── japaneast      (Tokyo)
+  └── southeastasia  (Singapore)
+```
+
+**Why regions matter for AI:**
+
+| Concern | What it means |
+|---------|--------------|
+| **Data residency** | Some laws (GDPR, financial regs) require data to stay inside a country/zone |
+| **Latency** | Closer region = lower round-trip time for your app |
+| **Model availability** | New models deploy to `eastus` first, then roll out globally |
+| **Quota** | Each region has its own TPM/PTU quota — if one is full, try another |
+
+**Data Zone = a group of regions**, not one region:
+- **EU Data Zone** = France, Germany, Netherlands, Sweden, Switzerland, Norway, Italy, Poland, Spain
+- **US Data Zone** = all US regions
+- **APAC Data Zone** = Australia, Japan, Korea, Singapore, India
+
+If a law says "data must stay in the EU", you pick **Data Zone Standard (EU)** — not Regional Standard. Regional Standard means one specific city.
+
+---
+
+**Mental model first:** Every type is a combination of two choices:
+
+```
+Choice 1 — HOW DO YOU PAY?
+  ├── Pay-per-token   → pay only for what you use (variable cost)
+  ├── PTU (reserved)  → pay fixed hourly rate for guaranteed capacity (no 429s)
+  └── Batch           → submit a file, get results in ≤24hr at 50% discount
+
+Choice 2 — WHERE DOES YOUR DATA GO?
+  ├── Global          → inference can run in any Azure region (highest quota, new models first)
+  ├── Data Zone       → inference stays inside EU, US, or APAC zone (zone compliance)
+  └── Regional        → inference stays in one specific Azure region (strictest compliance)
+```
+
+**Those two choices combine into 9 types + 1 special:**
+
+```
+                  Pay-per-token      PTU (reserved)      Batch (async)
+                ┌──────────────────┬──────────────────┬──────────────────┐
+  Global        │ Global Standard  │ Global           │ Global Batch     │
+                │ (default, most   │ Provisioned      │ (50% off, 24hr)  │
+                │  common)         │                  │                  │
+                ├──────────────────┼──────────────────┼──────────────────┤
+  Data Zone     │ DataZone         │ DataZone         │ DataZone Batch   │
+  (EU/US/APAC)  │ Standard         │ Provisioned      │ (50% off, 24hr)  │
+                ├──────────────────┼──────────────────┼──────────────────┤
+  Regional      │ Standard         │ Regional         │ (no batch tier)  │
+  (one region)  │ (Regional)       │ Provisioned      │                  │
+                └──────────────────┴──────────────────┴──────────────────┘
+
+  + Instant (preview) = no deployment at all, just call and get charged
+  + Developer = only for testing fine-tuned models, 24hr auto-expiry, no SLA
+```
+
+**Decision flow:**
+
+```
+Need to try a model right now, no setup?      → Instant (no deployment needed)
+
+Need data inside EU, US, or APAC zone?
+  ├── Yes → Data Zone Standard / Provisioned / Batch
+  └── No  → Is single-region compliance required?
+              ├── Yes → Standard (Regional) or Regional Provisioned
+              └── No  → Global Standard (default)
+
+Getting 429 errors / need predictable latency? → Any Provisioned type
+Have large batch jobs, not time-sensitive?      → Batch (50% cheaper)
+Testing a fine-tuned model?                     → Developer (24hr lifetime)
+Using OSS model (Llama, HuggingFace, NIM)?      → Managed Compute (hourly GPU)
+```
+
+**Full reference table:**
+
+| Type | SKU code | Data | Billing |
+|------|----------|------|---------|
+| **Instant (preview)** | N/A | Any region | Pay-per-token |
+| **Global Standard** | `GlobalStandard` | Any region | Pay-per-token |
+| **Global Provisioned** | `GlobalProvisionedManaged` | Any region | PTU reserved |
+| **Global Batch** | `GlobalBatch` | Any region | 50% off, 24hr async |
 | **Data Zone Standard** | `DataZoneStandard` | EU/US/APAC zone | Pay-per-token |
 | **Data Zone Provisioned** | `DataZoneProvisionedManaged` | EU/US/APAC zone | PTU reserved |
 | **Data Zone Batch** | `DataZoneBatch` | EU/US/APAC zone | 50% off, 24hr |
 | **Standard (Regional)** | `Standard` | Single region | Pay-per-token |
 | **Regional Provisioned** | `ProvisionedManaged` | Single region | PTU reserved |
-| **Developer** | `DeveloperTier` | Any | Pay-per-token, 24hr lifetime |
+| **Developer** | `DeveloperTier` | Any region | Pay-per-token, 24hr lifetime |
+| **Managed Compute** | per GPU SKU | Global | Hourly per GPU (A100/H100/H200) |
 
-**Managed Compute (separate):** Hourly per GPU SKU — for OSS models (Hugging Face, NIMs).
+**PTU exam trap:** PTU reserves *throughput capacity* (tokens/minute rate), NOT a fixed token bucket. You still pay per token consumed — the benefit is no 429 rate-limit errors and lower latency variance.
 
-Memory: **PTU reserves throughput capacity, NOT a fixed number of tokens. You still pay per token.**
+**Data Zone exam trap:** Data Zone ≠ single region. EU Data Zone = multiple regions within the EU boundary. Use Regional Standard if you need one specific region.
 
 **Code:**
 
