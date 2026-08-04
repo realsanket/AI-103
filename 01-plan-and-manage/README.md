@@ -338,17 +338,62 @@ sku:    GlobalStandard  capacity=1
 
 # Lesson 04 — Model Router
 
-**Concept:** Deploy one `model-router` endpoint. The router picks the best underlying model per prompt automatically. Check `response.model` to see which model was chosen.
+**Concept:** Deploy one `model-router` deployment. Router picks the best underlying model per prompt automatically. Check `response.model` to see which was chosen.
 
 ```
 deploy model-router deployment
         ↓
 send any prompt
         ↓
-router picks best model automatically
+router picks best model automatically (cost vs capability tradeoff)
         ↓
-check response.model to see which was chosen
+check response.model → reveals which model handled the request
 ```
+
+**Prerequisites — two things must exist before running:**
+
+**1. The `model-router` deployment**
+
+Go to Foundry portal → Models → search `model-router` → Deploy. Name it `model-router` (matches `MODEL_ROUTER_DEPLOYMENT` in `.env`).
+
+**2. RBAC: `Foundry User` role on your Foundry resource**
+
+Keyless auth (`DefaultAzureCredential` via `az login`) needs an explicit role — owning the subscription is NOT enough for data-plane inference calls.
+
+```
+Azure RBAC layer separation:
+  Control plane  → manage resources (create/delete/list deployments) → Owner / Contributor
+  Data plane     → call inference APIs, build agents                 → Foundry User  ← this one
+  Data plane     → call agent endpoints only (least privilege)       → Foundry Agent Consumer
+```
+
+> **Common mistake:** `Cognitive Services OpenAI User` and `Azure AI Developer` look relevant but are wrong for Foundry. Per official docs: *"Don't assign built-in roles that start with Cognitive Services — they don't apply to Foundry scenarios."* `Azure AI Developer` is scoped to Azure ML workspaces, not Foundry projects.
+
+Without the right role: `401 PermissionDenied: Principal does not have access to API/Operation`
+
+> **Auto-assign note:** If you created the Foundry resource from the portal while holding Owner on the subscription, `Foundry User` was auto-assigned to you. If you created it via SDK/CLI, it was NOT — you must assign manually.
+
+Assign once:
+
+```bash
+# your object ID
+az ad signed-in-user show --query id -o tsv
+
+# your Foundry resource scope
+az cognitiveservices account show \
+  --name <foundry-account> --resource-group <rg> \
+  --query id -o tsv
+
+# assign Foundry User (role ID: 53ca6127-db72-4b80-b1b0-d745d6d5456d)
+az role assignment create \
+  --role "53ca6127-db72-4b80-b1b0-d745d6d5456d" \
+  --assignee <your-object-id> \
+  --scope <resource-id>
+```
+
+Or: **Portal → Foundry resource → Access Control (IAM) → Add role assignment → Foundry User → your account**.
+
+Wait ~1 min for RBAC propagation before retrying.
 
 **Code:**
 
@@ -379,6 +424,7 @@ if __name__ == "__main__":
 ```
 
 **Expected output:**
+
 ```
 [picked: gpt-4.1-nano]  prompt: What is 2 + 2?
   → 4
@@ -390,7 +436,11 @@ if __name__ == "__main__":
   → A Byzantine-fault-tolerant consensus protocol requires...
 ```
 
-**Exam trap:** Model Router selects the *best* model for each prompt — NOT always the cheapest.
+**Key points:**
+- Model Router selects *best fit*, NOT always cheapest — exam knows this distinction
+- `response.model` reveals actual model used (useful for cost attribution)
+- Control plane roles (Owner, Contributor) do NOT grant inference access — data-plane needs its own role
+- Foundry 5-role hierarchy: Consumer < User < Project Manager < Account Owner < Owner — `Cognitive Services OpenAI User` sits outside this hierarchy, granted separately
 
 ---
 
@@ -941,19 +991,142 @@ if __name__ == "__main__":
 
 # Lesson 13 — RBAC Role Policies
 
-**Concept:** List and assign Foundry RBAC roles programmatically. Used in CI/CD to grant least-privilege access.
+**Concept:** Azure RBAC has two separate planes. Foundry has its own 5-role hierarchy for the data plane. Mismatching control-plane and data-plane roles is the most common auth failure when going keyless.
 
-**Foundry RBAC roles ([rbac-foundry.md](../.context/azure-ai-docs/articles/foundry/concepts/rbac-foundry.md)):**
+Source: [rbac-foundry.md](../.context/azure-ai-docs/articles/foundry/concepts/rbac-foundry.md)
 
-| Role | Create projects | Build/develop | Publish agents | Interact with agents |
-|------|:--------------:|:-------------:|:--------------:|:--------------------:|
-| **Foundry Agent Consumer** | ✘ | ✘ | ✘ | ✔ |
-| **Foundry User** | ✘ | ✔ | ✘ | ✔ |
-| **Foundry Project Manager** | ✘ | ✔ | ✔ | ✔ |
-| **Foundry Account Owner** | ✔ | ✘ | ✘ | ✘ |
-| **Foundry Owner** | ✔ | ✔ | ✔ | ✔ |
+---
 
-**Code:**
+## Control plane vs data plane
+
+```
+Control plane  ─ managing Azure resources (create/delete/configure)
+  Roles: Owner, Contributor, Reader   ← standard Azure roles
+  Example ops: create a Foundry resource, deploy a model, read resource config
+
+Data plane  ─ using the AI capabilities (inference, build agents, call endpoints)
+  Roles: Foundry 5-role hierarchy     ← Foundry-specific roles
+  Example ops: call Responses API, create an agent, interact with agent endpoint
+```
+
+**Critical:** `Owner` and `Contributor` grant full control-plane access but **zero** data-plane access. A subscription Owner who creates a Foundry resource still gets a `401 PermissionDenied` calling inference unless they also have a Foundry role.
+
+**Auto-assign exception:** If you create the Foundry resource from the **portal** while holding Owner, `Foundry User` is auto-assigned to your user principal. If you create it via **SDK or CLI**, it is NOT auto-assigned — you must do it manually.
+
+---
+
+## Foundry 5-role hierarchy
+
+| Role | Description | Create projects | Create accounts | Build/develop (inference) | Assign roles | Manage models | Publish agents | Interact with agents |
+|------|-------------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Foundry Agent Consumer** | Least-privilege: call agent endpoints only | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ |
+| **Foundry User** | Developer: build + test agents, call inference APIs | ✘ | ✘ | ✔ | ✘ | ✘ | ✘ | ✔ |
+| **Foundry Project Manager** | Lead dev: create projects, invite members | ✘ | ✘ | ✔ | ✔ (Foundry User only) | ✘ | ✔ | ✔ |
+| **Foundry Account Owner** | Manager: deploy models, manage resource | ✔ | ✔ | ✘ | ✔ (limited) | ✔ | ✘ | ✘ |
+| **Foundry Owner** | Full access including data actions | ✔ | ✔ | ✔ | ✔ (limited) | ✔ | ✔ | ✔ |
+
+**Foundry User** = "reader on control plane" + "full data actions". The reader part lets you list deployments; data actions is what allows inference calls.
+
+---
+
+## What NOT to use
+
+| Role | Why wrong |
+|------|-----------|
+| `Cognitive Services OpenAI User` | For direct AI Services API access, NOT Foundry scenarios |
+| `Azure AI Developer` | Scoped to Azure ML workspaces and Foundry hubs, NOT Foundry projects |
+| `Contributor` | Control plane only — zero inference access |
+
+---
+
+## Scope hierarchy
+
+```
+Subscription
+  └── Resource Group
+        └── Foundry resource  ← assign Foundry Account Owner, Foundry Project Manager here
+              └── Foundry project  ← assign Foundry User, Foundry Agent Consumer here
+                    └── Agent  ← assign Foundry Agent Consumer here for per-agent control
+```
+
+Assign at the **narrowest scope** that covers what the principal needs. A developer on one project shouldn't have resource-level access.
+
+---
+
+## Enterprise access isolation patterns
+
+**No isolation** (small team, everyone builds):
+- Grant all users **Foundry Owner** on resource scope
+
+**Partial isolation** (leads create, devs build):
+- Admin → **Foundry Account Owner** on resource scope
+- Devs + leads → **Foundry Project Manager** on resource scope
+
+**Full isolation** (enterprise, clear separation):
+- Admin → **Foundry Account Owner** on resource scope
+- Developer → **Reader** on resource scope + **Foundry User** on project scope
+- Lead → **Foundry Project Manager** on resource scope
+- App / service principal → **Foundry Agent Consumer** on project scope (or agent scope)
+
+---
+
+## How to assign
+
+**Azure CLI (recommended for CI/CD):**
+
+```bash
+# Get your object ID
+az ad signed-in-user show --query id -o tsv
+
+# Get Foundry resource scope
+az cognitiveservices account show \
+  --name <foundry-account> --resource-group <rg> \
+  --query id -o tsv
+
+# Assign Foundry User (use role ID — name may vary by region)
+az role assignment create \
+  --role "53ca6127-db72-4b80-b1b0-d745d6d5456d" \
+  --assignee <object-id> \
+  --scope <resource-id>
+```
+
+**Portal:** Foundry resource → Access Control (IAM) → Add role assignment → search "Foundry User" → assign to your principal.
+
+**Foundry portal:** Admin page → Operate → Admin → select project → Add user.
+
+Wait ~1 min for RBAC propagation after assignment.
+
+---
+
+## Entra groups (scale approach)
+
+Instead of assigning roles to individuals, assign to a Security group:
+
+```
+Azure Portal → Groups → New group (Security) → add members
+→ Foundry resource → IAM → assign "Foundry User" to the group
+```
+
+All group members inherit the role. New dev joins team → add to group, not a new role assignment.
+
+---
+
+## Agent-scope assignments (per-agent control)
+
+Assign at a specific agent scope to give access to ONE agent without granting project-wide access:
+
+```bash
+az role assignment create \
+  --role "eed3b665-ab3a-47b6-8f48-c9382fb1dad6" \
+  --assignee <principal-id> \
+  --scope "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<account>/projects/<project>/agents/<agent>"
+```
+
+Useful for: external apps, contractors, partner services — call one agent endpoint, nothing else.
+
+---
+
+## Code
 
 ```python
 # 13_rbac_role_policies.py
@@ -961,10 +1134,14 @@ from azure.identity import DefaultAzureCredential
 from azure.mgmt.authorization import AuthorizationManagementClient
 from _shared.config import settings
 
-# Stable role definition IDs (same across all subscriptions)
+# Stable role definition IDs — same across all Azure subscriptions
 _ROLES = {
-    "Azure AI Developer": "64702f94-c441-49e6-a78b-ef80e0188fee",
-    "Cognitive Services OpenAI User": "5e0bd9bd-7b93-4f28-af87-19fc36ad61bd",
+    # Foundry roles — assign on Foundry resource or project scope
+    "Foundry Agent Consumer": "eed3b665-ab3a-47b6-8f48-c9382fb1dad6",
+    "Foundry User": "53ca6127-db72-4b80-b1b0-d745d6d5456d",
+    "Foundry Project Manager": "cb8ef501-606a-4895-b6ca-1c5c7e8c6f1e",
+    "Foundry Account Owner": "b9b44f4a-5a96-4534-b6dd-c635c5d6e6fc",
+    # AI Search roles — assign on Search resource scope (not Foundry)
     "Search Index Data Reader": "1407120a-92aa-4202-b7e9-c0e197c71c8f",
     "Search Index Data Contributor": "8ebe5a00-799e-43f5-93ac-243d3dce84a7",
 }
@@ -1007,10 +1184,10 @@ def main() -> None:
 
     list_assignments(auth_client, scope)
 
-    # To grant a role to a managed identity, uncomment:
+    # To grant Foundry User to a managed identity, uncomment:
     # assign_role(auth_client, scope,
     #             principal_id="<managed-identity-object-id>",
-    #             role_name="Cognitive Services OpenAI User")
+    #             role_name="Foundry User")
 
 
 if __name__ == "__main__":
@@ -1018,13 +1195,22 @@ if __name__ == "__main__":
 ```
 
 **Expected output:**
+
 ```
 Role assignments on scope:
   /subscriptions/xxx.../resourceGroups/ai-103-rg
 
-  principal=aaa-bbb-ccc  role=64702f94-c441-49e6-a78b-ef80e0188fee
-  principal=ddd-eee-fff  role=5e0bd9bd-7b93-4f28-af87-19fc36ad61bd
+  principal=aaa-bbb-ccc  role=53ca6127-db72-4b80-b1b0-d745d6d5456d
+  principal=ddd-eee-fff  role=eed3b665-ab3a-47b6-8f48-c9382fb1dad6
 ```
+
+**Exam traps:**
+
+- `Owner` ≠ inference access — control plane and data plane are separate
+- Auto-assign only happens when creating resource from portal, not SDK/CLI
+- `Cognitive Services OpenAI User` and `Azure AI Developer` are wrong for Foundry
+- Agent-scope assignments only affect agent endpoint access — not broader project permissions
+- Fine-tuning requires both data + control plane: assign **Foundry Owner** (both) or **Foundry User** (data) + **Foundry Account Owner** (control)
 
 ---
 
