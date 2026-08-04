@@ -301,55 +301,64 @@ print(response.model)            # underlying model actually used (Model Router 
 
 ## Tool catalog — what agents can call
 
-Foundry's tool catalog has **~10 built-in tools** (executed by Foundry) plus
-**3 custom-plug-in tool types** (executed by you or by a third-party server).
+Foundry's tool catalog has **12 built-in tools** (Foundry executes) plus
+**3 custom tool types** and **Toolbox** as the recommended packaging layer.
 Source: [`agents/concepts/tool-catalog.md`](../.context/azure-ai-docs/articles/foundry/agents/concepts/tool-catalog.md).
 
+**Built-in tools (Foundry executes):**
+
+| Tool | Description |
+|------|-------------|
+| **Web Search** | Real-time public-web results with inline citations. Recommended default; for advanced tuning see [Bing tools](../.context/azure-ai-docs/articles/foundry/agents/how-to/tools/bing-tools.md). |
+| **Code Interpreter** | Write + run Python in a sandbox — math, plotting, CSV crunching. |
+| **Custom Code Interpreter** (preview) | Code Interpreter with custom Python packages + Container Apps environment. |
+| **File Search** | Semantic search over uploaded files (Foundry-managed vector store). |
+| **Azure AI Search** | Plug in an existing AI Search index (skillsets, hybrid, filters). |
+| **Azure Functions** | Call your Azure Functions from an agent (distinct from OpenAPI — targets Functions specifically). |
+| **Function calling** | Your JSON schema; YOUR APP executes the function. |
+| **Image Generation** (preview) | Generate images (DALL·E / GPT-Image) inline in conversation. |
+| **Browser Automation** (preview) | Drive a real browser via natural-language prompts. |
+| **Computer Use** (preview) | Mouse / keyboard / screen automation. |
+| **Microsoft Fabric** (preview) | Query a Microsoft Fabric data agent. |
+| **SharePoint** (preview) | Chat with private SharePoint documents. |
+
+**Custom tools (external execution):**
+
+| Tool | Description |
+|------|-------------|
+| **MCP** | Model Context Protocol server (tools + resources + prompts). |
+| **OpenAPI** | Any REST API described by an OpenAPI 3.0 or 3.1 spec. |
+| **A2A** (preview) | Agent-to-Agent — connect to other agent endpoints. |
+
+The tool types this domain covers in code: **Web Search** (L04, L10),
+**Code Interpreter** (L05), **File Search** (L06), **Function calling**
+(L08, L09, L11, L18), **OpenAPI** (L12), **MCP** (via `northwind_mcp/` —
+optional add-on), **A2A** conceptually only.
+
+### Toolbox — the recommended packaging layer
+
+Per official docs: **"The recommended way to make tools available to agents
+is through a Toolbox."** A Toolbox bundles multiple tools and exposes them
+via a single MCP endpoint — one place for auth, versioning, governance;
+tools update without touching agent code.
+
 ```
-Agent Tools
-│
-├── Built-in (Foundry executes)
-│     ├── Web Search              → live internet results (Bing Grounding)
-│     ├── File Search             → semantic search over uploaded files (Foundry-managed vector store)
-│     ├── Code Interpreter        → isolated Python sandbox
-│     ├── Function                → your JSON schema; YOUR APP runs the function
-│     ├── Azure AI Search         → plug in a full AI Search index (with skillsets)
-│     ├── Bing Custom Search      → Bing scoped to allowlisted domains
-│     ├── Fabric                  → Microsoft Fabric datasets
-│     ├── SharePoint              → SharePoint document libraries
-│     ├── Image Generation        → generate images via DALL·E/GPT-Image
-│     ├── Browser Automation      → drive a real browser (preview)
-│     └── Computer Use            → mouse/keyboard/screen automation (preview)
-│
-└── Custom (external execution)
-      ├── OpenAPI                 → any REST API described by an OpenAPI 3.x spec
-      ├── MCP                     → Model Context Protocol server (tools + resources + prompts)
-      └── A2A (preview)           → Agent-to-Agent; connect to other agent endpoints
-```
-
-The 7 tool types this domain covers in code: **Web Search** (L04, L10),
-**File Search** (L06), **Code Interpreter** (L05), **Function** (L08, L09,
-L11, L18), **OpenAPI** (L12), **MCP** (via `northwind_mcp/` — optional
-add-on), **A2A** conceptually only.
-
-### Toolbox (management layer)
-
-```
-Without Toolbox:  each agent wires its own tools → duplicated auth, no governance
-With Toolbox:     one MCP-compatible endpoint    → agents consume approved tools centrally
-
-Lifecycle: Build → Discover → Consume (single endpoint) → Govern (guardrails, auth)
+Direct-attach (fine for prototypes):  agent.tools = [WebSearchTool(), ...]
+Toolbox (production path):            agent.tools = [MCPTool(toolbox_endpoint)]
 ```
 
 ```python
 toolbox = project.toolboxes.create_toolbox_version(
     name="web-search-toolbox",
+    description="Toolbox with the web search tool",
     tools=[WebSearchTool()],
 )
-# Attach toolbox to agent as MCPTool — all its tools exposed automatically
+# Toolbox exposes an MCP-compatible endpoint:
+#   {PROJECT_ENDPOINT}/toolboxes/{toolbox.name}/versions/{toolbox.version}/mcp?api-version=v1
+# Attach that endpoint to any agent as an MCPTool.
 ```
 
-**Memory:** *Toolbox = centralized tool shelf; agents consume via one MCP endpoint.*
+**Memory:** *Toolbox = curated bundle → one MCP endpoint → attach once, share across agents.*
 
 ### Function-calling loop (used in L09, L11, L18)
 
@@ -465,25 +474,41 @@ User query
 
 ## Workflows — deterministic orchestration
 
-Workflows are YAML-defined graphs of nodes that Foundry runs. Use them when
-the process must be predictable, auditable, and easy to visualize in the
-portal designer.
+> ⚠️ **DEPRECATION** — Microsoft Foundry is **retiring workflows on
+> December 1, 2026**. For NEW work, use **Microsoft Agent Framework
+> workflows** ([`/agent-framework/user-guide/workflows/`](https://learn.microsoft.com/agent-framework/user-guide/workflows/orchestrations/overview)).
+> The lessons here (L15, L16) still work today; treat the YAML as
+> knowledge that transfers to the Agent Framework, not the long-term
+> platform. Source: [`agents/concepts/workflow.md`](../.context/azure-ai-docs/articles/foundry/agents/concepts/workflow.md).
 
-Source: [`agents/concepts/workflow.md`](../.context/azure-ai-docs/articles/foundry/agents/concepts/workflow.md).
+Workflows are UI-built (or YAML-editable) graphs Foundry runs deterministically.
+Use them for compliance-sensitive, repeatable, auditable orchestrations.
 
-**Node types (current YAML):**
+**Node types — portal UI names:**
 
-| Node kind | Purpose |
-|-----------|---------|
-| `OnConversationStart` | Trigger — fires when a user starts talking to the workflow |
-| `InvokeAzureAgent` | Call a registered Prompt Agent by name; capture its output into a local variable |
-| `ConditionGroup` | Branch based on evaluated conditions (`Local.X.field == "value"`) |
-| `EndConversation` | Terminal — closes the workflow's turn |
+| Node | Purpose |
+|------|---------|
+| **Agent** | Invoke an agent (registered Prompt Agent by name). |
+| **Logic** | Control flow — `if/else`, `go to`, `for each`. |
+| **Data transformation** | Set / parse variables (e.g. capture an agent's structured output into `Local.X`). |
+| **Basic chat** | Send a message or ask the user a question mid-workflow. |
 
-> **Migration note:** the older YAML "step/conditional/end" wording is being
-> phased out. New work should use the current node model above, and if you're
-> greenfielding a workflow programmatically, consider **Microsoft Agent
-> Framework workflows** (Python SDK, same runtime under the hood).
+**Node types — underlying YAML kinds (what you see when editing the file):**
+
+| YAML `kind` | Portal equivalent |
+|-------------|-------------------|
+| `OnConversationStart` | Trigger (workflow entry point) |
+| `InvokeAzureAgent` | Agent node |
+| `ConditionGroup` | Logic node (if/else branching) |
+| `EndConversation` | Terminal |
+
+**Workflow patterns (portal templates):**
+
+| Pattern | When |
+|---------|------|
+| **Sequential** | Result of agent A feeds into agent B, in a fixed order. Pipelines. |
+| **Group chat** | Dynamic handoff between agents based on context or rules. Escalation, fallback. |
+| **Human in the loop** | Wait for user input mid-workflow. Approvals, clarifying questions. |
 
 **Workflow vs agent-as-tool:**
 
@@ -491,8 +516,9 @@ Source: [`agents/concepts/workflow.md`](../.context/azure-ai-docs/articles/found
 |--|-----------------|--------------------|
 | Control flow | Deterministic, predefined | Dynamic, model decides |
 | Branching | Explicit conditions | Model judgment |
-| Human gates | Built-in approval | Custom logic |
+| Human gates | Built-in approval / basic chat | Custom logic |
 | Best for | Compliance, known process | Flexible, exploratory |
+| Hosted-agent support | ✘ (portal designer only supports Prompt Agents) | ✓ (any agent) |
 
 ---
 
@@ -1539,6 +1565,10 @@ def main() -> None:
 **Prereqs:** L15 has been run (creates `wf-IntakeAgent`).
 **Time:** ~10 min.
 
+> ⚠️ Foundry workflows retire **December 1, 2026**. The pattern still holds
+> and the code still works — just knowing you'll want to migrate to
+> Microsoft Agent Framework workflows for anything long-lived.
+
 **Concept:** Workflows are node graphs Foundry executes deterministically:
 
 ```
@@ -1625,14 +1655,17 @@ portal Agents playground.
 
 # Lesson 17 — Hosted Agent (Microsoft Agent Framework)
 
-**You'll learn:** build an agent with the `agent-framework` SDK using `FoundryChatClient` — the same code runs locally and inside a Foundry-managed container.
-**Prereqs:** `pip install agent-framework agent-framework-foundry`; `PROJECT_ENDPOINT` set in `.env`.
+**You'll learn:** build an agent with the `agent-framework-foundry` SDK using `FoundryChatClient` — the same code runs locally and inside a Foundry-managed container.
+**Prereqs:** `pip install agent-framework-foundry aiohttp`; `PROJECT_ENDPOINT` set in `.env`.
 **Time:** ~10 min.
 
-**Concept:** Hosted agents = your Python code, Foundry-managed runtime.
-The `agent-framework` SDK gives you `Agent` and chat clients (`FoundryChatClient`
-uses `DefaultAzureCredential` under the hood). Same code portable across
-local dev and Foundry container hosting — that's the value prop.
+**Concept:** Hosted agents = your Python code, Foundry-managed runtime. Per
+official docs this is the **recommended** path for anything beyond a Prompt
+Agent (including the workflow replacement — see Workflows deprecation note
+above). The SDK gives you `Agent` and chat clients (`FoundryChatClient` uses
+`DefaultAzureCredential` under the hood). Same code portable across local dev
+and Foundry container hosting — that's the value prop. `agent_framework`
+itself is pulled in as a dependency of `agent-framework-foundry`.
 
 **Code:**
 
@@ -2039,8 +2072,10 @@ def main() -> None:
 | "A2A is the same as OpenAPI tool" | ❌ — A2A = agent-to-agent protocol; OpenAPI = REST API |
 | "Foundry Memory stores conversation history" | ❌ — Memory stores distilled long-term knowledge (profile / summaries / procedures). Raw history = conversation |
 | "Prompt Agent version is stable" | ❌ — Every `create_version` bumps it. Omit `version` in `agent_reference` to get latest |
-| "There are only 7 built-in tools" | ❌ — ~10 built-in tools today (Web / File / Code / Function + Azure AI Search / Bing Custom / Fabric / SharePoint / Image Gen / Browser / Computer Use) plus 3 custom (OpenAPI, MCP, A2A) |
-| "Workflow YAML uses `step` and `end`" | ❌ — Current node model: `OnConversationStart`, `InvokeAzureAgent`, `ConditionGroup`, `EndConversation` |
+| "There are only 7 built-in tools" | ❌ — **12 built-in tools** today (Web Search, Code Interpreter, Custom Code Interpreter, File Search, Azure AI Search, Azure Functions, Function calling, Image Generation, Browser Automation, Computer Use, Fabric, SharePoint) plus **3 custom** (MCP, OpenAPI, A2A) plus **Toolbox** as the recommended packaging layer |
+| "Workflow YAML uses `step` and `end`" | ❌ — Portal node model: Agent / Logic / Data transformation / Basic chat. YAML kinds: `OnConversationStart`, `InvokeAzureAgent`, `ConditionGroup`, `EndConversation` |
+| "Foundry workflows are the recommended long-term orchestration" | ❌ — **Retiring December 1, 2026.** New work → Microsoft Agent Framework workflows |
+| "Tools attach directly to agents in production" | ❌ — Direct-attach is fine for prototypes; **Toolbox is the recommended path** for production (one MCP endpoint, centralized auth) |
 
 ---
 
