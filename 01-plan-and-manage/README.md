@@ -469,38 +469,68 @@ if __name__ == "__main__":
 
 ```python
 # 05_quotas_and_tpm.py
-import os
+from urllib.parse import urlparse
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.cognitiveservices import CognitiveServicesManagementClient
+from _shared.config import settings
+
+
+def _account_name(endpoint: str) -> str:
+    return (urlparse(endpoint).hostname or "").split(".")[0]
 
 
 def main() -> None:
-    sub = os.environ.get("AZURE_SUBSCRIPTION_ID")
-    rg = os.environ.get("AZURE_RESOURCE_GROUP")
-    account = os.environ.get("AZURE_FOUNDRY_ACCOUNT")
-    if not (sub and rg and account):
-        raise SystemExit(
-            "Set AZURE_SUBSCRIPTION_ID / AZURE_RESOURCE_GROUP / AZURE_FOUNDRY_ACCOUNT in .env."
-        )
+    s = settings()
+    account = _account_name(s.foundry_endpoint)
+    client = CognitiveServicesManagementClient(DefaultAzureCredential(), s.azure_subscription_id)
 
-    client = CognitiveServicesManagementClient(DefaultAzureCredential(), sub)
+    # Location derived from account — no hardcoding
+    acct = client.accounts.get(s.azure_resource_group, account)
+    location = acct.location
 
-    # List deployments with capacity (TPM allocation)
-    for d in client.deployments.list(rg, account):
-        cap = d.sku.capacity if d.sku else None
-        print(f"{d.name:<32}  model={d.properties.model.name:<20}  capacity={cap}")
+    print(f"Account: {account}  location: {location}\n")
 
-    # List usages (current consumption vs limit)
-    print("\nUsages:")
-    for u in client.usages.list(location="eastus", filter="name/value eq 'gpt-4.1-mini'"):
-        print(f"  {u.name.value}: {u.current_value}/{u.limit} ({u.unit})")
+    print("Deployments (capacity = TPM in thousands for pay-per-token):")
+    for d in client.deployments.list(s.azure_resource_group, account):
+        model = d.properties.model.name if d.properties and d.properties.model else "?"
+        capacity = d.sku.capacity if d.sku else "?"
+        sku_name = d.sku.name if d.sku else "?"
+        print(f"  {d.name:<32}  model={model:<20}  sku={sku_name:<20}  capacity={capacity}")
+
+    print("\nUsage quotas for this location:")
+    for u in client.usages.list(location):
+        if u.current_value or u.limit:
+            name = u.name.value if u.name else "?"
+            print(f"  {name:<48}  {u.current_value}/{u.limit} {u.unit}")
 
 
 if __name__ == "__main__":
     main()
 ```
 
-**Note:** Requires `AZURE_FOUNDRY_ACCOUNT` (the resource name, not endpoint) set in `.env`.
+**Expected output:**
+
+```
+Account: ai-103-exam-prep  location: eastus
+
+Deployments (capacity = TPM in thousands for pay-per-token):
+  gpt-5-mini                        model=gpt-5-mini            sku=GlobalStandard        capacity=99
+  text-embedding-3-large            model=text-embedding-3-large  sku=GlobalStandard      capacity=150
+  model-router                      model=model-router          sku=GlobalStandard        capacity=260
+
+Usage quotas for this location:
+  OpenAI.GlobalStandard.gpt-5-mini                  99.0/1000.0 Count
+  OpenAI.GlobalStandard.ModelRouter                 260.0/1000.0 Count
+  ...
+```
+
+**Key points:**
+
+- `capacity` on a deployment = TPM in thousands for pay-per-token SKUs (capacity=99 → 99K TPM)
+- `capacity` for PTU = number of PTUs reserved (different unit entirely)
+- `usages.list(location)` shows quota consumed vs limit across ALL deployments in that region
+- `current_value > 0` = you have an active deployment consuming quota
+- `HTTP 429` = exceeded TPM or RPM — back off with exponential retry (see Lesson 06)
 
 ---
 
@@ -520,11 +550,21 @@ wait 4s → 8s → 16s → up to 60s
 fail after 6 attempts
 ```
 
+**`.env` required:** `DEFAULT_MODEL` must be the **deployment name**, not the model name.
+
+```
+# deployment name = what you named it in Foundry portal
+# model name      = the underlying model (e.g. gpt-5-mini)
+# They often match — but not always (e.g. gpt-5-deploy has model=gpt-5)
+DEFAULT_MODEL=gpt-5-mini
+```
+
 **Code:**
 
 ```python
 # 06_rate_limit_backoff.py
-from openai import APIStatusError, RateLimitError
+import logging
+from openai import APIConnectionError, RateLimitError
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -532,17 +572,17 @@ from tenacity import (
     wait_random_exponential,
     before_sleep_log,
 )
-import logging
 from _shared.config import settings
 from _shared.openai_client import openai_client
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 log = logging.getLogger("backoff")
 
-
+# Only retry transient errors (429, connection drops).
+# Never retry 404/400/401 — those are bugs, not transient failures.
 @retry(
     reraise=True,
-    retry=retry_if_exception_type((RateLimitError, APIStatusError)),
+    retry=retry_if_exception_type((RateLimitError, APIConnectionError)),
     wait=wait_random_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(6),
     before_sleep=before_sleep_log(log, logging.WARNING),
@@ -562,10 +602,24 @@ if __name__ == "__main__":
     main()
 ```
 
+**Expected output:**
+
+```
+[req 0] The number 0 is the only integer that is neither positive nor negative.
+[req 1] The number 1 is the multiplicative identity.
+[req 2] Two is the only even prime number.
+[req 3] Three is the first odd prime number.
+[req 4] Four is the smallest composite number.
+```
+
 **Key points:**
-- `wait_random_exponential` adds jitter — avoids thundering herd when many clients retry simultaneously
-- `stop_after_attempt(6)` — give up after 6 tries, don't loop forever
-- `before_sleep_log` — logs each retry so you can see the backoff in action
+
+- `model` param = **deployment name** (not model name) — mismatch gives `404 DeploymentNotFound`, which looks like a retry-able error but isn't
+- Only retry `RateLimitError` (429) and `APIConnectionError` (transient network) — never retry `404`, `400`, `401`
+- `wait_random_exponential` adds jitter — prevents thundering herd when many clients retry simultaneously
+- `stop_after_attempt(6)` — give up after 6 tries
+- `reraise=True` — re-raises the last exception after all attempts exhausted
+- `before_sleep_log` — logs each retry with wait time for observability
 
 ---
 

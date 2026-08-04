@@ -4,7 +4,9 @@
 Retry only on rate-limit / transient errors. Respect the `Retry-After` header
 when the service tells you when to come back.
 """
-from openai import APIStatusError, RateLimitError
+import logging
+
+from openai import APIConnectionError, RateLimitError
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -12,18 +14,18 @@ from tenacity import (
     wait_random_exponential,
     before_sleep_log,
 )
-import logging
 
 from _shared.config import settings
 from _shared.openai_client import openai_client
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 log = logging.getLogger("backoff")
 
-
+# Only retry transient errors (429, connection drops).
+# Never retry 404/400/401 — those are bugs, not transient failures.
 @retry(
     reraise=True,
-    retry=retry_if_exception_type((RateLimitError, APIStatusError)),
+    retry=retry_if_exception_type((RateLimitError, APIConnectionError)),
     wait=wait_random_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(6),
     before_sleep=before_sleep_log(log, logging.WARNING),
