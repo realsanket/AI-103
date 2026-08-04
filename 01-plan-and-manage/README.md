@@ -263,39 +263,76 @@ if __name__ == "__main__":
 
 # Lesson 03 — Deploy a Model
 
-**Concept:** Programmatic deployment via `AIProjectClient`. Used in CI/CD pipelines; for one-off creates use the Foundry portal.
+**Concept:** Deployment is a **management-plane** operation — `AIProjectClient` is data-plane only (inference, agents) and has no deployment CRUD. Use `CognitiveServicesManagementClient` from `azure-mgmt-cognitiveservices`. The account name is the subdomain of your `FOUNDRY_ENDPOINT`.
+
+```
+FOUNDRY_ENDPOINT = https://vscode-mvp.services.ai.azure.com
+                                 ^^^^^^^^^^  ← account_name
+```
 
 **Code:**
 
 ```python
 # 03_deploy_model.py
+from urllib.parse import urlparse
+from azure.identity import DefaultAzureCredential
+from azure.mgmt.cognitiveservices import CognitiveServicesManagementClient
+from azure.mgmt.cognitiveservices.models import (
+    Deployment, DeploymentModel, DeploymentProperties, Sku,
+)
 from _shared.config import settings
-from _shared.foundry_client import project_client
+
+
+def _account_name(endpoint: str) -> str:
+    return (urlparse(endpoint).hostname or "").split(".")[0]
 
 
 def main() -> None:
-    client = project_client()
-    deployment_name = f"{settings().default_model}-deploy"
-    try:
-        d = client.deployments.begin_deploy(
-            name=deployment_name,
-            model=settings().default_model,
-            deployment_type="GlobalStandard",
-            capacity=100,  # TPM in thousands
-        ).result()
-        print(f"deployed: {d.name} → {d.model}")
-    except AttributeError:
-        # Fallback: SDK version doesn't expose begin_deploy
-        print(
-            "Use the Foundry portal or `az cognitiveservices account deployment create`."
-        )
+    s = settings()
+    account = _account_name(s.foundry_endpoint)
+    deployment_name = f"{s.default_model}-deploy"
+
+    client = CognitiveServicesManagementClient(
+        DefaultAzureCredential(), s.azure_subscription_id
+    )
+
+    d = client.deployments.begin_create_or_update(
+        resource_group_name=s.azure_resource_group,
+        account_name=account,
+        deployment_name=deployment_name,
+        deployment=Deployment(
+            sku=Sku(name="GlobalStandard", capacity=1),
+            properties=DeploymentProperties(
+                model=DeploymentModel(
+                    format="OpenAI",
+                    name=s.default_model,
+                    version="2024-11-20",
+                ),
+            ),
+        ),
+    ).result()
+
+    print(f"state:  {d.properties.provisioning_state}")
+    print(f"model:  {d.properties.model.name}  v{d.properties.model.version}")
+    print(f"sku:    {d.sku.name}  capacity={d.sku.capacity}")
 
 
 if __name__ == "__main__":
     main()
 ```
 
-**Key point:** `deployment_type="GlobalStandard"` maps to the `GlobalStandard` SKU code. Use `"ProvisionedManaged"` for PTU.
+**Expected output:**
+```
+state:  Succeeded
+model:  gpt-4o  v2024-11-20
+sku:    GlobalStandard  capacity=1
+```
+
+**Key points:**
+- `Sku(name=...)` maps to deployment type: `GlobalStandard`, `DataZoneStandard`, `Standard` (regional), `ProvisionedManaged` (PTU)
+- `capacity=1` = 1K TPM for pay-per-token; = 1 PTU for provisioned
+- `version="2024-11-20"` — pin a specific version or omit to get the current default
+- Exam trap: don't confuse **Guardrails** (deployment-level policy, Off/Low/Medium/High) with **Content Safety** (separate API, 0–7 severity scale)
 
 ---
 
