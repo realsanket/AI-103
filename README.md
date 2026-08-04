@@ -21,34 +21,92 @@ Study material (unchanged):
 - `other-notes-link.md` — external resources.
 - `.context/azure-ai-docs/` — cloned official Azure docs, linked from every domain README.
 
-## First-time setup
+## Setup
+
+### Prerequisites
+
+| Tool | Install | Why |
+|------|---------|-----|
+| [uv](https://docs.astral.sh/uv/getting-started/installation/) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` | Package manager |
+| [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) | `brew install azure-cli` | `az login` for DefaultAzureCredential |
+| Python 3.12+ | managed by uv automatically | — |
+
+### 1. Install dependencies
 
 ```bash
-cp .env.example .env    # fill in your Foundry / Search / Speech / Language / CU endpoints
-uv sync                 # creates .venv + installs all deps from uv.lock
-az login                # DefaultAzureCredential picks this up
+uv sync
 ```
 
-Every lesson runs with:
+Creates `.venv/` and installs all packages from `uv.lock`. No manual venv creation needed.
+
+**VS Code**: after `uv sync`, select the interpreter: `Cmd+Shift+P` → *Python: Select Interpreter* → pick `.venv/bin/python`.
+
+### 2. Create Azure resources
+
+Minimum resources needed before any lesson runs:
+
+| Resource | Portal path | Notes |
+|----------|-------------|-------|
+| **Microsoft Foundry project** | [ai.azure.com](https://ai.azure.com) → New project | Gives you `PROJECT_ENDPOINT` |
+| **Model deployments** | Foundry portal → Models | Deploy `gpt-4.1-mini`, `gpt-image-1`, `text-embedding-3-large` |
+| **Azure AI Search** | Azure portal → Create AI Search | For Domain 5 lessons |
+| **Azure AI Language** | Azure portal → Create Language | For Domain 4 lessons |
+| **Azure AI Speech** | Azure portal → Create Speech | For Domain 4 speech lessons |
+| **Azure Content Safety** | Azure portal → Create Content Safety | For Domain 1 safety lessons |
+| **Azure Blob Storage** | Azure portal → Create Storage Account | For RAG ingestion + batch STT |
+
+Domains 1–2 only need Foundry. Add other resources as you reach those domain lessons.
+
+### 3. Configure `.env`
+
+```bash
+cp .env.example .env
+```
+
+Fill in values — **no secrets, only endpoints and names**. Auth is `az login`, not API keys.
+
+| Variable | Where to find it |
+|----------|-----------------|
+| `FOUNDRY_ENDPOINT` | Foundry portal → your project → *Overview* → Endpoint |
+| `PROJECT_ENDPOINT` | same page — the `/api/projects/<name>` URL |
+| `DEFAULT_MODEL` | name of your `gpt-4.1-mini` deployment |
+| `SEARCH_ENDPOINT` | Azure portal → your Search resource → *Overview* → URL |
+| `LANGUAGE_ENDPOINT` | Azure portal → your Language resource → *Keys and Endpoint* |
+| `SPEECH_REGION` | Azure portal → your Speech resource → *Overview* → Location (e.g. `eastus`) |
+| `SPEECH_ENDPOINT` | Azure portal → your Speech resource → *Keys and Endpoint* |
+| `CONTENT_SAFETY_ENDPOINT` | Azure portal → your Content Safety resource → *Keys and Endpoint* |
+| `CU_ENDPOINT` | same as `FOUNDRY_ENDPOINT` (CU routes through Foundry) |
+| `STORAGE_ACCOUNT` | Azure portal → your Storage Account → *Overview* → Storage account name |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Azure portal → App Insights → *Overview* → Connection String (optional — tracing) |
+| `AZURE_SUBSCRIPTION_ID` | Azure portal → Subscriptions |
+| `AZURE_RESOURCE_GROUP` | Azure portal → Resource groups |
+
+### 4. Authenticate
+
+```bash
+az login
+```
+
+`DefaultAzureCredential` picks this up automatically. All lessons use Entra bearer tokens — no API keys in any `.py` file.
+
+### 5. Run a lesson
 
 ```bash
 uv run python 02-generative-ai-and-agents/01_first_api_call.py
 ```
 
-Or activate the venv once and run directly:
+Or activate once and drop the `uv run` prefix:
 
 ```bash
 source .venv/bin/activate
 python 02-generative-ai-and-agents/01_first_api_call.py
 ```
 
-Add a dependency:
+### Adding a package
 
 ```bash
-uv add <package>        # updates pyproject.toml + uv.lock
+uv add <package>    # updates pyproject.toml + uv.lock
 ```
-
-No API keys live in any Python file. Auth is Entra bearer tokens via `DefaultAzureCredential`.
 
 ## Syllabus map
 
