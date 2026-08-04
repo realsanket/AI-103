@@ -1,8 +1,4 @@
-"""Azure Speech SpeechConfig factory — keyless via Entra token when possible.
-
-The Speech SDK supports token-based auth via `SpeechConfig(auth_token=..., region=...)`.
-We fetch a Cognitive Services scope token so no long-lived key is stored.
-"""
+"""Azure Speech SpeechConfig factory — keyless via Entra token, endpoint-based routing."""
 import azure.cognitiveservices.speech as speechsdk
 from azure.identity import DefaultAzureCredential
 from .config import settings
@@ -16,6 +12,6 @@ def _token() -> str:
 
 def speech_config() -> speechsdk.SpeechConfig:
     s = settings()
-    # SpeechConfig auth_token format for Entra: "aad#<resource_id>#<token>". For most
-    # regional endpoints, `auth_token=<bearer>` works when passed with `region=`.
-    return speechsdk.SpeechConfig(auth_token=_token(), region=s.speech_region)
+    # Endpoint-based auth: same Foundry resource, cognitiveservices subdomain.
+    # No SPEECH_REGION needed — the endpoint encodes the resource location.
+    return speechsdk.SpeechConfig(auth_token=_token(), endpoint=s.speech_endpoint)

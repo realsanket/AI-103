@@ -43,19 +43,21 @@ Creates `.venv/` and installs all packages from `uv.lock`. No manual venv creati
 
 ### 2. Create Azure resources
 
-Minimum resources needed before any lesson runs:
+**One Foundry resource handles most services.** Language, Speech, Content Safety, Content Understanding, and Translator are all "Foundry Tools" — part of the same resource. Two URL formats point at the same resource:
 
-| Resource | Portal path | Notes |
-|----------|-------------|-------|
-| **Microsoft Foundry project** | [ai.azure.com](https://ai.azure.com) → New project | Gives you `PROJECT_ENDPOINT` |
-| **Model deployments** | Foundry portal → Models | Deploy `gpt-4.1-mini`, `gpt-image-1`, `text-embedding-3-large` |
-| **Azure AI Search** | Azure portal → Create AI Search | For Domain 5 lessons |
-| **Azure AI Language** | Azure portal → Create Language | For Domain 4 lessons |
-| **Azure AI Speech** | Azure portal → Create Speech | For Domain 4 speech lessons |
-| **Azure Content Safety** | Azure portal → Create Content Safety | For Domain 1 safety lessons |
-| **Azure Blob Storage** | Azure portal → Create Storage Account | For RAG ingestion + batch STT |
+```
+https://<resource>.services.ai.azure.com       → Foundry SDK / project / agent ops
+https://<resource>.cognitiveservices.azure.com → Language / Speech / Content Safety / CU SDKs
+```
 
-Domains 1–2 only need Foundry. Add other resources as you reach those domain lessons.
+| Resource | Portal path | Needed for |
+|----------|-------------|-----------|
+| **Microsoft Foundry resource** | [ai.azure.com](https://ai.azure.com) → New resource | Everything — D1–D4, all Language/Speech/Safety |
+| **Model deployments** | Foundry portal → Model catalog | Deploy `gpt-4.1-mini`, `gpt-image-1`, `text-embedding-3-large` |
+| **Azure AI Search** | Azure portal → Create AI Search | Domain 5 (separate resource, not part of Foundry) |
+| **Azure Blob Storage** | Azure portal → Create Storage Account | RAG ingestion + batch STT |
+
+Domains 1–3 + D4 Language/Speech: **Foundry resource only**. Add Search + Storage when you reach Domain 5.
 
 ### 3. Configure `.env`
 
@@ -67,17 +69,17 @@ Fill in values — **no secrets, only endpoints and names**. Auth is `az login`,
 
 | Variable | Where to find it |
 |----------|-----------------|
-| `FOUNDRY_ENDPOINT` | Foundry portal → your project → *Overview* → Endpoint |
-| `PROJECT_ENDPOINT` | same page — the `/api/projects/<name>` URL |
-| `DEFAULT_MODEL` | name of your `gpt-4.1-mini` deployment |
-| `SEARCH_ENDPOINT` | Azure portal → your Search resource → *Overview* → URL |
-| `LANGUAGE_ENDPOINT` | Azure portal → your Language resource → *Keys and Endpoint* |
-| `SPEECH_REGION` | Azure portal → your Speech resource → *Overview* → Location (e.g. `eastus`) |
-| `SPEECH_ENDPOINT` | Azure portal → your Speech resource → *Keys and Endpoint* |
-| `CONTENT_SAFETY_ENDPOINT` | Azure portal → your Content Safety resource → *Keys and Endpoint* |
-| `CU_ENDPOINT` | same as `FOUNDRY_ENDPOINT` (CU routes through Foundry) |
-| `STORAGE_ACCOUNT` | Azure portal → your Storage Account → *Overview* → Storage account name |
-| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Azure portal → App Insights → *Overview* → Connection String (optional — tracing) |
+| `FOUNDRY_ENDPOINT` | Azure portal → Foundry resource → *Keys and Endpoint* → Endpoint (`.services.ai.azure.com`) |
+| `PROJECT_ENDPOINT` | Foundry portal → project → *Overview* → the `/api/projects/<name>` URL |
+| `DEFAULT_MODEL` | name of your `gpt-4.1-mini` deployment in Foundry portal |
+| `LANGUAGE_ENDPOINT` | same Foundry resource — use `.cognitiveservices.azure.com` subdomain |
+| `SPEECH_ENDPOINT` | same Foundry resource — use `.cognitiveservices.azure.com` subdomain |
+| `SPEECH_REGION` | e.g. `eastus` — only needed for batch transcription REST + LLM speech preview; not needed for `SpeechRecognizer` / `SpeechSynthesizer` |
+| `CONTENT_SAFETY_ENDPOINT` | same Foundry resource — use `.cognitiveservices.azure.com` subdomain |
+| `CU_ENDPOINT` | same Foundry resource — use `.services.ai.azure.com` subdomain |
+| `SEARCH_ENDPOINT` | Azure portal → AI Search resource → *Overview* → URL |
+| `STORAGE_ACCOUNT` | Azure portal → Storage Account → *Overview* → name |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Azure portal → App Insights → *Overview* → Connection String (optional) |
 | `AZURE_SUBSCRIPTION_ID` | Azure portal → Subscriptions |
 | `AZURE_RESOURCE_GROUP` | Azure portal → Resource groups |
 
