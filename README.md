@@ -43,10 +43,11 @@ Creates `.venv/` and installs all packages from `uv.lock`. No manual venv creati
 
 ### 2. Create Azure resources
 
-**One Foundry resource handles most services.** Language, Speech, Content Safety, Content Understanding, and Translator are all "Foundry Tools" — part of the same resource. Two URL formats point at the same resource:
+**One Foundry resource handles most services.** Language, Speech, Content Safety, Content Understanding, and Translator are all "Foundry Tools" — part of the same resource. Three URL formats, same resource:
 
 ```
 https://<resource>.services.ai.azure.com       → Foundry SDK / project / agent ops
+https://<resource>.openai.azure.com            → OpenAI Python SDK (Chat Completions, Responses API)
 https://<resource>.cognitiveservices.azure.com → Language / Speech / Content Safety / CU SDKs
 ```
 
@@ -70,8 +71,9 @@ Fill in values — **no secrets, only endpoints and names**. Auth is `az login`,
 | Variable | Where to find it |
 |----------|-----------------|
 | `FOUNDRY_ENDPOINT` | Azure portal → Foundry resource → *Keys and Endpoint* → Endpoint (`.services.ai.azure.com`) |
+| `AZURE_OPENAI_ENDPOINT` | same resource — swap subdomain to `.openai.azure.com` (used by OpenAI Python SDK) |
 | `PROJECT_ENDPOINT` | Foundry portal → project → *Overview* → the `/api/projects/<name>` URL |
-| `DEFAULT_MODEL` | name of your `gpt-4.1-mini` deployment in Foundry portal |
+| `DEFAULT_MODEL` | **deployment name** (not model name) of your chat deployment — e.g. `gpt-5-mini` |
 | `LANGUAGE_ENDPOINT` | same Foundry resource — use `.cognitiveservices.azure.com` subdomain |
 | `SPEECH_ENDPOINT` | same Foundry resource — use `.cognitiveservices.azure.com` subdomain |
 | `SPEECH_REGION` | e.g. `eastus` — only needed for batch transcription REST + LLM speech preview; not needed for `SpeechRecognizer` / `SpeechSynthesizer` |

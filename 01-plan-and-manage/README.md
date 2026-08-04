@@ -550,12 +550,17 @@ wait 4s → 8s → 16s → up to 60s
 fail after 6 attempts
 ```
 
-**`.env` required:** `DEFAULT_MODEL` must be the **deployment name**, not the model name.
+**`.env` required — two things:**
 
-```
-# deployment name = what you named it in Foundry portal
-# model name      = the underlying model (e.g. gpt-5-mini)
-# They often match — but not always (e.g. gpt-5-deploy has model=gpt-5)
+```bash
+# 1. OpenAI SDK uses a different subdomain than the Foundry SDK
+#    Same resource, different URL:
+#      Foundry SDK  → services.ai.azure.com  (agents, projects)
+#      OpenAI SDK   → openai.azure.com       (Chat Completions, Responses API)
+AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
+
+# 2. DEFAULT_MODEL must be the deployment NAME, not the model name
+#    "gpt-5-deploy" deployment has model=gpt-5 — using "gpt-5" gives 404 DeploymentNotFound
 DEFAULT_MODEL=gpt-5-mini
 ```
 

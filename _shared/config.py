@@ -13,6 +13,7 @@ load_dotenv(_ENV_FILE)
 class Settings:
     # Foundry / models
     foundry_endpoint: str
+    azure_openai_endpoint: str
     project_endpoint: str
     default_model: str
     reasoning_model: str
@@ -71,7 +72,8 @@ def _opt(key: str, default: str = "") -> str:
 @lru_cache
 def settings() -> Settings:
     return Settings(
-        foundry_endpoint=_req("FOUNDRY_ENDPOINT"),
+        foundry_endpoint=_req("FOUNDRY_ENDPOINT").rstrip("/"),
+        azure_openai_endpoint=_req("AZURE_OPENAI_ENDPOINT").rstrip("/"),
         project_endpoint=_req("PROJECT_ENDPOINT"),
         default_model=_opt("DEFAULT_MODEL", "gpt-4.1-mini"),
         reasoning_model=_opt("REASONING_MODEL", "o4-mini"),
