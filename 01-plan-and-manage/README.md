@@ -28,10 +28,10 @@ Prereqs: `.env` filled, `az login` completed. See root [README.md](../README.md)
 
 ## Reference docs (in-repo)
 
-- Deployment types: `.context/azure-ai-docs/articles/foundry/concepts/deployments-overview.md`
-- Model Router: `.context/azure-ai-docs/articles/foundry/openai/concepts/model-router.md`
-- Provisioned Throughput: `.context/azure-ai-docs/articles/foundry/openai/provisioned-quickstart.md`
-- Content Filter / Prompt Shields: `.context/azure-ai-docs/articles/foundry/openai/concepts/content-filter-prompt-shields.md`
-- Guardrails: `.context/azure-ai-docs/articles/foundry/guardrails/`
-- Evaluators: `.context/azure-ai-docs/articles/foundry/concepts/built-in-evaluators.md`
-- Tracing: `.context/azure-ai-docs/articles/foundry/observability/how-to/trace-agent-framework.md`
+- [Deployment types](../.context/azure-ai-docs/articles/foundry/concepts/deployments-overview.md)
+- [Model Router](../.context/azure-ai-docs/articles/foundry/openai/concepts/model-router.md)
+- [Provisioned Throughput](../.context/azure-ai-docs/articles/foundry/openai/provisioned-quickstart.md)
+- [Content Filter / Prompt Shields](../.context/azure-ai-docs/articles/foundry/openai/concepts/content-filter-prompt-shields.md)
+- [Guardrails overview](../.context/azure-ai-docs/articles/foundry/guardrails/guardrails-overview.md)
+- [Evaluators](../.context/azure-ai-docs/articles/foundry/concepts/built-in-evaluators.md)
+- [Tracing](../.context/azure-ai-docs/articles/foundry/observability/how-to/trace-agent-framework.md)

@@ -29,9 +29,9 @@ python 05-information-extraction/01_search_basic_query.py
 
 ## Reference docs
 
-- Hybrid search: `.context/azure-ai-docs/articles/search/hybrid-search-overview.md`
-- Skillsets: `.context/azure-ai-docs/articles/search/cognitive-search-defining-skillset.md`
-- Custom skills: `.context/azure-ai-docs/articles/search/cognitive-search-custom-skill-interface.md`
-- Agentic knowledge sources: `.context/azure-ai-docs/articles/search/agentic-knowledge-source-overview.md`
-- Content Understanding analyzers: `.context/azure-ai-docs/articles/ai-services/content-understanding/concepts/analyzer-reference.md`
-- Standard vs Pro mode: `.context/azure-ai-docs/articles/ai-services/content-understanding/concepts/standard-pro-modes.md`
+- [Hybrid search overview](../.context/azure-ai-docs/articles/search/hybrid-search-overview.md)
+- [Skillsets](../.context/azure-ai-docs/articles/search/cognitive-search-defining-skillset.md)
+- [Custom skill interface](../.context/azure-ai-docs/articles/search/cognitive-search-custom-skill-interface.md)
+- [Agentic knowledge sources](../.context/azure-ai-docs/articles/search/agentic-knowledge-source-overview.md)
+- [CU analyzer reference](../.context/azure-ai-docs/articles/ai-services/content-understanding/concepts/analyzer-reference.md)
+- [Standard vs Pro mode](../.context/azure-ai-docs/articles/ai-services/content-understanding/concepts/standard-pro-modes.md)

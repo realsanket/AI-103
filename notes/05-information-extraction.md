@@ -7,7 +7,7 @@
 | Retrieval + grounding pipelines | Ingest + index, search modes, enrichment skills, RAG ingestion, connect to agent tools |
 | Extract content from documents | Multimodal pipelines (OCR + layout + fields), grounded representations, analyzers |
 
-> **MS Docs source:** `.context/azure-ai-docs/articles/search/` (AI Search) · `.context/azure-ai-docs/articles/ai-services/content-understanding/` (CU analyzers)
+> **MS Docs source:** [AI Search hybrid](../.context/azure-ai-docs/articles/search/hybrid-search-overview.md) · [Skillsets](../.context/azure-ai-docs/articles/search/cognitive-search-defining-skillset.md) · [CU overview](../.context/azure-ai-docs/articles/ai-services/content-understanding/overview.md) · [CU analyzer reference](../.context/azure-ai-docs/articles/ai-services/content-understanding/concepts/analyzer-reference.md)
 
 ---
 

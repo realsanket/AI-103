@@ -59,7 +59,7 @@ check response.model to see which was chosen
 
 # Deployment Types
 
-> **MS Docs source:** `.context/azure-ai-docs/articles/foundry/foundry-models/concepts/deployment-types.md`
+> **MS Docs source:** [deployment-types.md](../.context/azure-ai-docs/articles/foundry/foundry-models/concepts/deployment-types.md) · [deployments-overview.md](../.context/azure-ai-docs/articles/foundry/concepts/deployments-overview.md)
 
 ## Standard deployments — 10 types (pay-per-token OR PTU × Global/DataZone/Regional)
 
@@ -132,7 +132,7 @@ PTU reserves *throughput* (tokens/minute capacity), NOT a fixed number of tokens
 
 For OpenAI SDK: use `get_bearer_token_provider(DefaultAzureCredential(), scope)` — never pass a raw key.
 
-## Foundry RBAC roles (source: `foundry/concepts/rbac-foundry.md`)
+## Foundry RBAC roles ([rbac-foundry.md](../.context/azure-ai-docs/articles/foundry/concepts/rbac-foundry.md))
 
 | Role | Create projects | Build/develop | Assign roles | Publish agents | Interact with agents |
 |------|:--------------:|:-------------:|:------------:|:--------------:|:--------------------:|
@@ -214,7 +214,7 @@ Application
       └── Search index health ─────────────────→ Indexer run logs
 ```
 
-## Evaluators — 7 categories, 30+ built-in (source: `foundry/concepts/built-in-evaluators.md`)
+## Evaluators — 7 categories, 30+ built-in ([built-in-evaluators.md](../.context/azure-ai-docs/articles/foundry/concepts/built-in-evaluators.md))
 
 ### Key evaluators for AI-103 exam
 
@@ -303,7 +303,7 @@ WITH Prompt Shields (docs): attack detected, flagged or blocked
 
 ---
 
-# Guardrails (source: `foundry/guardrails/guardrails-overview.md`)
+# Guardrails ([guardrails-overview.md](../.context/azure-ai-docs/articles/foundry/guardrails/guardrails-overview.md))
 
 A **guardrail** = named collection of controls applied to one or many models and/or agents in a project.
 

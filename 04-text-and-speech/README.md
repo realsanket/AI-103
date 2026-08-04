@@ -32,8 +32,8 @@ python 04-text-and-speech/01_llm_ner.py
 
 ## Reference docs
 
-- Azure Language: `.context/azure-ai-docs/articles/ai-services/language-service/`
-- Language MCP: `.context/azure-ai-docs/articles/foundry/mcp/available-tools.md`
-- Speech STT modes: `.context/azure-ai-docs/articles/ai-services/speech-service/concepts/audio-concepts.md`
-- Voice Live: `.context/azure-ai-docs/articles/foundry/agents/` (see voice-live docs)
-- Translator: `.context/azure-ai-docs/articles/ai-services/translator/`
+- [Azure Language service](../.context/azure-ai-docs/articles/ai-services/language-service/overview.md)
+- [Language / Speech MCP tools](../.context/azure-ai-docs/articles/foundry/mcp/available-tools.md)
+- [Speech STT audio concepts](../.context/azure-ai-docs/articles/ai-services/speech-service/concepts/audio-concepts.md)
+- [Foundry Agent Service overview](../.context/azure-ai-docs/articles/foundry/agents/overview.md) (Voice Live docs)
+- [Azure Translator overview](../.context/azure-ai-docs/articles/ai-services/translator/overview.md)

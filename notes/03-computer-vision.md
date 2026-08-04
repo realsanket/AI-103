@@ -8,7 +8,7 @@
 | Multimodal understanding | Visual context, captions, alt-text, CU image analysis, video segments, object detection |
 | Responsible AI | Unsafe content classification, indirect prompt injection, visual policy rules |
 
-> **MS Docs source:** `.context/azure-ai-docs/articles/ai-services/content-understanding/` · `.context/azure-ai-docs/articles/ai-services/content-safety/`
+> **MS Docs source:** [Content Understanding](../.context/azure-ai-docs/articles/ai-services/content-understanding/overview.md) · [Content Safety](../.context/azure-ai-docs/articles/ai-services/content-safety/overview.md)
 
 ---
 

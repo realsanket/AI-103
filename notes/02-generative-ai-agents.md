@@ -45,7 +45,7 @@ Memory: **Responses API = one call for everything; `conversation_id` keeps threa
 
 # Tool Taxonomy
 
-## The 7 tool types (source: `foundry/agents/concepts/tool-catalog.md`)
+## The 7 tool types ([tool-catalog.md](../.context/azure-ai-docs/articles/foundry/agents/concepts/tool-catalog.md))
 
 ```
 Agent Tools
@@ -170,7 +170,7 @@ graph.add_node("tools", ToolNode(tools))
 
 ```
 Short-term: session conversation context → managed by orchestration framework
-Long-term:  Foundry Memory (cross-session persistent, source: foundry/agents/concepts/what-is-memory.md)
+Long-term:  Foundry Memory (cross-session persistent, [what-is-memory.md](../.context/azure-ai-docs/articles/foundry/agents/concepts/what-is-memory.md))
 ```
 
 ## Foundry Memory — 3 phases
@@ -297,7 +297,7 @@ Orchestrator Agent
 | **Groundedness Pro** | answer, source docs | Binary pass/fail; no model deployment needed |
 | **Response Completeness** | question, answer, ground truth | Covered required points? |
 
-## Agent evaluators — all 11 (source: `foundry/concepts/built-in-evaluators.md`)
+## Agent evaluators — all 11 ([built-in-evaluators.md](../.context/azure-ai-docs/articles/foundry/concepts/built-in-evaluators.md))
 
 | Evaluator | What it scores |
 |-----------|---------------|

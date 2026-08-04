@@ -24,7 +24,7 @@ Outputs land in `_shared/sample_data/generated/`.
 
 ## Reference docs
 
-- Multimodal models: `.context/azure-ai-docs/articles/foundry/openai/concepts/models.md`
-- Content Understanding image: `.context/azure-ai-docs/articles/ai-services/content-understanding/image/`
-- Content Understanding video: `.context/azure-ai-docs/articles/ai-services/content-understanding/video/`
-- Content Safety image moderation: `.context/azure-ai-docs/articles/ai-services/content-safety/`
+- [Foundry Models overview](../.context/azure-ai-docs/articles/foundry/concepts/foundry-models-overview.md)
+- [Content Understanding image](../.context/azure-ai-docs/articles/ai-services/content-understanding/image/overview.md)
+- [Content Understanding video](../.context/azure-ai-docs/articles/ai-services/content-understanding/video/overview.md)
+- [Content Safety overview](../.context/azure-ai-docs/articles/ai-services/content-safety/overview.md)

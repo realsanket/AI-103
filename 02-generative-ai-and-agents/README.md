@@ -42,10 +42,10 @@ For agent files: run `08_prompt_agent_create.py` once (creates the agent version
 
 ## Reference docs
 
-- Foundry Agent Service: `.context/azure-ai-docs/articles/foundry/agents/overview.md`
-- Responses API: `.context/azure-ai-docs/articles/foundry/agents/quickstarts/responses-api.md`
-- Hosted agents: `.context/azure-ai-docs/articles/foundry/agents/concepts/hosted-agents.md`
-- Memory: `.context/azure-ai-docs/articles/foundry/agents/concepts/what-is-memory.md`
-- Workflows / YAML: `.context/azure-ai-docs/articles/foundry/agents/concepts/agent-yaml-reference.md`
-- MCP: `.context/azure-ai-docs/articles/foundry/mcp/`
-- LangChain integration: `.context/azure-ai-docs/articles/foundry/how-to/develop/langchain.md`
+- [Foundry Agent Service](../.context/azure-ai-docs/articles/foundry/agents/overview.md)
+- [Responses API](../.context/azure-ai-docs/articles/foundry/agents/quickstarts/responses-api.md)
+- [Hosted agents](../.context/azure-ai-docs/articles/foundry/agents/concepts/hosted-agents.md)
+- [Memory](../.context/azure-ai-docs/articles/foundry/agents/concepts/what-is-memory.md)
+- [Workflows / YAML reference](../.context/azure-ai-docs/articles/foundry/agents/concepts/agent-yaml-reference.md)
+- [MCP get started](../.context/azure-ai-docs/articles/foundry/mcp/get-started.md)
+- [LangChain integration](../.context/azure-ai-docs/articles/foundry/how-to/develop/langchain.md)
