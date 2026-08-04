@@ -379,10 +379,10 @@ name = "agent-framework-hyperlight"
 version = "1.0.0b260730"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "agent-framework-core" },
-    { name = "hyperlight-sandbox" },
+    { name = "agent-framework-core", marker = "python_full_version < '3.14'" },
+    { name = "hyperlight-sandbox", marker = "python_full_version < '3.14'" },
     { name = "hyperlight-sandbox-backend-wasm", marker = "(python_full_version < '3.14' and platform_machine == 'x86_64' and sys_platform == 'linux') or (python_full_version < '3.14' and platform_machine == 'AMD64' and sys_platform == 'win32')" },
-    { name = "hyperlight-sandbox-python-guest" },
+    { name = "hyperlight-sandbox-python-guest", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3f/72/5efc5d736a30fd36f6f24e91730d79e86dc4827cffcd78a56b0e0ddfe26b/agent_framework_hyperlight-1.0.0b260730.tar.gz", hash = "sha256:399d940b5a4437f9d9facfcee41a4debb1ba22080683bb03c0b3350fff0ceaa8", size = 22327, upload-time = "2026-07-30T23:39:09.925Z" }
 wheels = [
@@ -523,7 +523,7 @@ wheels = [
 [[package]]
 name = "ai-103"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "agent-framework" },
     { name = "azure-ai-agents" },
