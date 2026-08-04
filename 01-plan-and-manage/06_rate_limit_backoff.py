@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/06_rate_limit_backoff.py
 """429 handling — exponential backoff + jitter using `tenacity`.
 
 Retry only on rate-limit / transient errors. Respect the `Retry-After` header

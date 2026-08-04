@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/10_prompt_shields_docs.py
 """Prompt Shields — indirect (document) prompt injection via OCR text.
 
 The user's message is harmless. The attached "OCR extract" contains hidden

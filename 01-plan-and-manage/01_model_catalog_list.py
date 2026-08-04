@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/01_model_catalog_list.py
 """List available deployments — treat as your live "model catalog" reference."""
 from _shared.foundry_client import project_client
 

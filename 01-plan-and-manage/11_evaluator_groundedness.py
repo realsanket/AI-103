@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/11_evaluator_groundedness.py
 """Response Completeness / Groundedness evaluator loop.
 
 Ask a grounded RAG agent → have a second call critique the answer against a

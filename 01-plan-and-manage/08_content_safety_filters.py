@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/08_content_safety_filters.py
 """Content Safety — text + image moderation, all four harm categories.
 
 Wraps two flows:

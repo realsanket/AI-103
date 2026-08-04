@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/13_rbac_role_policies.py
 """RBAC role-policy management for Azure AI resources.
 
 The exam covers: managed identity, private networking, keyless credentials,

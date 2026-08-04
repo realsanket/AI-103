@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/09_prompt_shields_user.py
 """Prompt Shields — user prompt attack (jailbreak) triggers a guardrail.
 
 Sends a jailbreak-style prompt to an agent that has Prompt Shields enabled.

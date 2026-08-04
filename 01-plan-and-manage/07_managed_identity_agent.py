@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/07_managed_identity_agent.py
 """Keyless auth end-to-end — DefaultAzureCredential + list agents.
 
 Passes iff (a) you're logged in with `az login`, (b) your identity has the

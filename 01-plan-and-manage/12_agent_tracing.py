@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/12_agent_tracing.py
 """OpenTelemetry observability for agent calls: tracing, token analytics,
 safety signals, and latency breakdowns.
 

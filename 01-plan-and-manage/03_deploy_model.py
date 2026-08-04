@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/03_deploy_model.py
 """Programmatically deploy a model into a Foundry project.
 
 The deployments surface on `AIProjectClient` handles create/update. Exact SDK

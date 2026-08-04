@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/05_quotas_and_tpm.py
 """List Cognitive Services quotas — TPM allocation + rate-limit status.
 
 Uses the management SDK, which requires a subscription-scoped credential.

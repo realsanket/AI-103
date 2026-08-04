@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/02_deployment_types.py
 """Choose a deployment type — decision helper + cheatsheet.
 
 Prints a matrix comparing Global Standard / Standard Regional / Provisioned

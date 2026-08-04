@@ -1,3 +1,4 @@
+# Run: uv run python 01-plan-and-manage/04_model_router.py
 """Model Router — one endpoint, router picks the underlying model per prompt.
 
 Deploy `model-router` from the catalog once, then call it like any model.
