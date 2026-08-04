@@ -13,6 +13,7 @@
 | 04 | `04_model_router.py` | Choose appropriate Foundry services — Model Router |
 | 05 | `05_quotas_and_tpm.py` | Manage quotas, scaling, rate limits, cost footprints |
 | 06 | `06_rate_limit_backoff.py` | Handle 429 with exponential backoff + jitter |
+| 06.5 | `06_5_ephemeral_agent.py` | Agent basics — ephemeral vs prompt vs hosted; multi-turn via previous_response_id |
 | 07 | `07_managed_identity_agent.py` | Configure security — managed identity, keyless credentials |
 | 08 | `08_content_safety_filters.py` | Configure safety filters, guardrails, content moderation |
 | 09 | `09_prompt_shields_user.py` | Prompt Shields — user prompt attacks |
@@ -625,6 +626,167 @@ if __name__ == "__main__":
 - `stop_after_attempt(6)` — give up after 6 tries
 - `reraise=True` — re-raises the last exception after all attempts exhausted
 - `before_sleep_log` — logs each retry with wait time for observability
+
+---
+
+# Lesson 06.5 — Foundry Agent Basics (Ephemeral + Prompt Agents)
+
+Source: [agents/overview.md](../.context/azure-ai-docs/articles/foundry/agents/overview.md) | [quickstarts/responses-api.md](../.context/azure-ai-docs/articles/foundry/agents/quickstarts/responses-api.md)
+
+**Read this before lessons 09–12.** Those lessons reference a `northwind-support` agent. This lesson explains what that means and how to set it up.
+
+> **Scope of this lesson:** Covers enough to unblock the remaining Domain 1 lessons.
+> **Full agent coverage is in Domain 2** (`02-generative-ai-and-agents/`) which goes deep on:
+> - Tools: file search, code interpreter, web search, MCP servers, function calling
+> - Multi-agent orchestration and agent-to-agent calling
+> - Memory and state management
+> - Agent publishing and versioning
+> - Observability: per-turn tracing, tool call inspection, evaluation
+> - Hosted agents: packaging code in containers, CI/CD deployment
+>
+> This lesson gives the minimal mental model needed now. Return to Domain 2 for the full picture.
+
+---
+
+## Three agent types in Foundry Agent Service
+
+```
+Prompt Agent   — defined via config (instructions + model + tools)
+                 Foundry runs it. No application code.
+                 Called via agent_reference in Responses API.           ← L09-L12 use this
+
+Ephemeral Agent — definition lives in your code, not persisted
+                  Same capabilities, same guardrails, no portal needed. ← this script
+
+Hosted Agent   — your code in a container, Foundry manages endpoint
+                 Requires Docker + container registry.                  ← Domain 2
+```
+
+**All three use the Responses API as their entry point** — the difference is where the agent definition lives, not how you call it.
+
+---
+
+## Ephemeral agent — works immediately, no portal needed
+
+Pass `instructions=` directly to `responses.create()`. No agent resource to create or delete — definition lives in code and is stateless across calls.
+
+```python
+r = openai_client.responses.create(
+    model="gpt-5-mini",
+    instructions="You are Northwind Support...",
+    input="What is the refund policy?",
+)
+```
+
+**Multi-turn conversation** — Foundry stores context server-side via `previous_response_id`:
+
+```python
+r1 = oc.responses.create(model=model, instructions=_SYSTEM, input="What's the refund policy?")
+r2 = oc.responses.create(model=model, instructions=_SYSTEM, input="Can I get a refund after 60 days?",
+                          previous_response_id=r1.id)
+# r2 knows the context from r1
+```
+
+---
+
+## Prompt agent — registered in Foundry, called via agent_reference
+
+For lessons 09–12 to work with `agent_reference`, create a **northwind-support** Prompt Agent in the Foundry portal:
+
+```
+Foundry portal → your project → Agents → + New agent
+  Name:         northwind-support
+  Model:        gpt-5-mini  (your deployment name)
+  Instructions: You are Northwind Support, a customer support agent.
+                Answer questions about refunds, subscriptions, and billing.
+  Tools:        (none for now — add file search in Domain 2)
+→ Deploy / Publish
+```
+
+Once created, call it via `agent_reference`:
+
+```python
+r = openai_client.responses.create(
+    extra_body={"agent_reference": {"type": "agent_reference", "name": "northwind-support"}},
+    input="What is the refund policy?",
+)
+```
+
+The `agent_reference` routes the call through the registered agent's configuration (instructions, tools, guardrails) — you don't pass `instructions=` separately.
+
+---
+
+## Code (ephemeral — runs without any portal setup)
+
+```python
+# 06_5_ephemeral_agent.py
+from _shared.config import settings
+from _shared.foundry_client import project_client
+
+_SYSTEM = (
+    "You are Northwind Support. Answer questions about refunds, "
+    "subscriptions, and billing. Keep answers brief and professional."
+)
+
+
+def single_turn(oc, model, question):
+    r = oc.responses.create(model=model, instructions=_SYSTEM, input=question)
+    return r.output_text
+
+
+def multi_turn(oc, model, questions):
+    prev_id = None
+    for q in questions:
+        kwargs = {"model": model, "instructions": _SYSTEM, "input": q}
+        if prev_id:
+            kwargs["previous_response_id"] = prev_id
+        r = oc.responses.create(**kwargs)
+        prev_id = r.id
+        print(f"Q: {q}\nA: {r.output_text}\n")
+
+
+def main() -> None:
+    client = project_client()
+    oc = client.get_openai_client()
+    model = settings().default_model
+
+    print("=== Single-turn ===")
+    print(single_turn(oc, model, "What is the refund policy for Pro subscribers?"))
+
+    print("\n=== Multi-turn ===")
+    multi_turn(oc, model, [
+        "What is the refund policy for Pro subscribers?",
+        "Can I get a refund after 60 days?",
+    ])
+
+
+if __name__ == "__main__":
+    main()
+```
+
+**Expected output:**
+
+```
+=== Single-turn ===
+Pro plan subscribers have a 30-day money-back guarantee. Refunds after 30 days are generally not available.
+
+=== Multi-turn ===
+Q: What is the refund policy for Pro subscribers?
+A: Pro plan: 30-day money-back guarantee for annual subscriptions. Monthly charges are non-refundable once billed.
+
+Q: Can I get a refund after 60 days?
+A: Generally no — the 30-day window has passed. Exceptions apply for billing errors or duplicate charges.
+```
+
+**Key points:**
+
+- **Ephemeral** = agent definition in code, stateless between runs, no portal needed
+- **Prompt agent** = registered in Foundry, persisted, called via `agent_reference` — needed for L09-L12
+- **Hosted agent** = containerized code (Domain 2 topic)
+- `previous_response_id` enables multi-turn without sending full history on each call — Foundry stores it
+- Both ephemeral and prompt agents use the same project-scoped endpoint: `services.ai.azure.com/api/projects/.../openai/v1`
+- Ephemeral agents still get project-level guardrails, content filters, tracing — "ephemeral" refers to the definition, not the capabilities
+- Exam trap: `agent_reference` calls a registered Prompt Agent — `instructions=` in code is ephemeral — same Responses API, different patterns
 
 ---
 
