@@ -1,7 +1,7 @@
 # AI-103 runnable study repository
 
 Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md).
-It has **85 numbered Python lessons** across five domains. Lessons use
+It has **93 numbered Python lessons** across five domains. Lessons use
 Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many
 make billable remote calls or change persistent cloud state.
 
@@ -14,7 +14,7 @@ subscription.
 
 | Domain | Exam weight | Lessons | Start here |
 |---|---:|---:|---|
-| [01 Plan and manage](01-plan-and-manage/README.md) | 25–30% | 18 | `01_model_catalog_list.py`, `02_deployment_types.py` |
+| [01 Plan and manage](01-plan-and-manage/README.md) | 25–30% | 26 | `01_model_catalog_list.py`, `02_deployment_types.py` |
 | [02 Generative AI and agents](02-generative-ai-and-agents/README.md) | 30–35% | 22 | `01_first_api_call.py`, `07_structured_output.py` |
 | [03 Computer vision](03-computer-vision/README.md) | 10–15% | 9 | `01_multimodal_understanding.py`, `07_alt_text_captions.py` |
 | [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 20 | `05_language_pii.py`, `20_language_sentiment.py`, `11_stt_fast_file.py` |
@@ -98,6 +98,7 @@ URLs, or production data.
 | Search | `SEARCH_ENDPOINT`, `SEARCH_INDEX`, `SEARCH_INDEX_VECTOR`, `SEARCH_INDEXER`, `SEARCH_SKILLSET` |
 | Storage | `STORAGE_ACCOUNT`, `STORAGE_CONTAINER`, `STORAGE_CONNECTION_STRING` |
 | Monitoring and RBAC | `APPLICATIONINSIGHTS_CONNECTION_STRING`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP` |
+| Domain 1 advanced labs | `DEPLOYMENT_NAME`, `DEPLOYMENT_MODEL_NAME`, `DEPLOYMENT_MODEL_VERSION`, `PROVENANCE_SOURCE_URL`, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, `AZURE_AI_MODEL_DEPLOYMENT_NAME` |
 | OpenAPI sample | `ORDERS_FN_ENDPOINT` |
 
 Template defaults currently include `gpt-4.1-mini`, `o4-mini`, `gpt-image-1`,
@@ -210,7 +211,10 @@ uv run python 05-information-extraction/04_search_indexer_setup.py --run
 | Area | What changes or costs |
 |---|---|
 | D1 L03 | Creates/updates deployment and allocates billable capacity. |
-| D1 L04, L06–L18 | Inference and Content Safety calls; L15 persists blocklist/items; L18 may export data to telemetry. |
+| D1 L04, L06–L18 | Inference and Content Safety calls; L15 persists blocklist/items only with `--apply`; L18 can export governed token/latency/safety telemetry without prompt/output attributes. |
+| D1 L19–L21 | Content Safety checks; L21 polls a Blob-backed provenance job only with `--run`. |
+| D1 L22–L25 | Evaluations, monitoring rules, telemetry feedback, and red-team scans only with explicit `--apply`; can persist state and bill. |
+| D1 L26 | Local tracing/App Insights preflight only; no Azure call or mutation. |
 | D2 | Model/tool calls; agent versions, vector stores/files, memory stores/items, workflow assets, Functions, and telemetry can persist or bill. |
 | D3 | Remote calls throughout; L02–L05 overwrite generated files. Sora 2 and CU lessons have preview/availability constraints described in domain README. |
 | D4 | Remote calls throughout; batch STT uses Blob and Speech processing; L18 creates agent version and is protocol-only, not end-to-end voice playback. |

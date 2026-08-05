@@ -3,17 +3,20 @@
 
 This is application instrumentation, not complete Foundry tracing:
   - Tracing   → one manual span sent to Application Insights (or stdout)
-  - Tokens    → input_tokens, output_tokens, total tracked per call
+  - Tokens    → input_tokens and output_tokens tracked per call
   - Safety    → content-filter result attached to span attributes
-  - Latency   → wall-clock duration captured via span timing
+  - Latency   → span start and end times
 
-Foundry tracing needs Application Insights connected to its project and
-client-side GenAI instrumentation. This lesson does not enable that
-instrumentation, collect server-side traces, or make spans appear in Foundry's
-Traces view. When APPLICATIONINSIGHTS_CONNECTION_STRING is set, this manual
+Server-side tracing starts when Application Insights is connected to a Foundry
+project and captures supported Foundry-hosted agent activity without app code.
+This manual, client-side span supplements that view with this application's
+model call; it does not connect a project or enable server-side tracing.
+
+Prompts and outputs are deliberately not span attributes. They can contain
+sensitive data. When APPLICATIONINSIGHTS_CONNECTION_STRING is set, this manual
 span reaches Azure Monitor; otherwise it prints to the console.
 """
-import time
+from azure.core.exceptions import HttpResponseError, ServiceRequestError
 
 from _shared.config import settings
 from _shared.openai_client import openai_client
@@ -38,33 +41,32 @@ def run_traced_call(prompt: str) -> str:
     oc = openai_client()
     model = settings().default_model
 
-    with tracer.start_as_current_span("agent.responses_create") as span:
-        span.set_attribute("model", model)
-        span.set_attribute("input.preview", prompt[:200])
+    with tracer.start_as_current_span(f"chat {model}") as span:
+        span.set_attribute("gen_ai.operation.name", "chat")
+        span.set_attribute("gen_ai.system", "openai")
+        span.set_attribute("gen_ai.request.model", model)
 
-        t0 = time.perf_counter()
         response = oc.responses.create(model=model, input=prompt)
-        latency_ms = (time.perf_counter() - t0) * 1000
 
-        # Token analytics
         usage = response.usage or {}
         input_tokens = getattr(usage, "input_tokens", 0)
         output_tokens = getattr(usage, "output_tokens", 0)
-        span.set_attribute("tokens.input", input_tokens)
-        span.set_attribute("tokens.output", output_tokens)
-        span.set_attribute("tokens.total", input_tokens + output_tokens)
-
-        # Latency
-        span.set_attribute("latency_ms", round(latency_ms, 1))
+        span.set_attribute("gen_ai.response.model", model)
+        span.set_attribute("gen_ai.usage.input_tokens", input_tokens)
+        span.set_attribute("gen_ai.usage.output_tokens", output_tokens)
 
         output = response.output_text
-        # Safety signals — check the model output before returning
+        if not settings().content_safety_endpoint:
+            span.set_attribute("content_safety.error.type", "ConfigurationMissing")
+            return output
+
         try:
             safety = _check_safety(output)
             for category, severity in safety.items():
                 span.set_attribute(f"safety.{category}", severity)
-        except Exception:
-            span.set_attribute("safety.error", "content_safety_unavailable")
+        except (HttpResponseError, ServiceRequestError) as error:
+            span.record_exception(error)
+            span.set_attribute("content_safety.error.type", type(error).__name__)
 
         return output
 

@@ -185,15 +185,14 @@ def main() -> None:
     ]
     for title, messages in cases:
         print(f"=== {title} ===")
-        try:
-            result = _analyze(client, endpoint, messages)
-            print(f"  api_version: {result.get('api_version')}")
-            print(f"  taskRiskDetected: {result.get('taskRiskDetected')}")
-            if result.get("details"):
-                print(f"  details: {result['details']}")
-            print(f"  raw: {json.dumps({k: v for k, v in result.items() if k != 'api_version'}, indent=2)}")
-        except Exception as e:
-            print(f"  ERROR: {e}")
+        result = _analyze(client, endpoint, messages)
+        print(f"  api_version: {result.get('api_version')}")
+        print(f"  taskRiskDetected: {result.get('taskRiskDetected')}")
+        if result.get("details"):
+            print(f"  details: {result['details']}")
+        print(
+            f"  raw: {json.dumps({k: v for k, v in result.items() if k != 'api_version'}, indent=2)}"
+        )
         print()
 
 

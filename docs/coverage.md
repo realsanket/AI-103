@@ -32,24 +32,24 @@ This matrix maps every bullet to code that exists now, not to planned work.
 | Design Azure infrastructure for AI apps and agent-based solutions | Root README and domain READMEs describe topology, endpoints, roles, and resource paths | **Conceptual** — no infrastructure-as-code or provisioning workflow. |
 | Choose appropriate deployment options | D1 `02_deployment_types.py` | **Local** — prints documented comparison; does not query availability. |
 | Configure model and agent deployments | D1 `03_deploy_model.py`; D2 `08_prompt_agent_create.py` | **Runnable** — model lesson writes deployment; agent lesson creates version. |
-| Integrate Foundry projects with CI/CD pipelines | None | **Gap** — `workflows/wf_triage.yml` is a Foundry workflow study asset, not CI/CD. |
+| Integrate Foundry projects with CI/CD pipelines | D1 README release workflow and official Bicep/Terraform/evaluation-pipeline references | **Conceptual / Partial** — teaches a production gate but does not ship a repository CI workflow. |
 
 ### Manage, monitor, and secure AI systems
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
 | Manage quotas, scaling, rate limits, and cost footprints for model and agent workloads | D1 `05_quotas_and_tpm.py`, `06_rate_limit_backoff.py`, deployment-type reference | **Partial** — quota inspection and retry only; no autoscaling or billing analysis. |
-| Monitor model performance, drift, safety events, and grounding quality | D1 `17_evaluator_groundedness.py`, `18_agent_tracing.py`; D2 `19_evaluator_task_adherence.py`, `21_langchain_tracing.py` | **Partial** — self-critique/local evaluation/manual spans; no drift monitor or Foundry evaluation run. |
+| Monitor model performance, drift, safety events, and grounding quality | D1 `20_groundedness_detection.py`, `22_foundry_evaluation.py`, `23_continuous_evaluation.py`, `26_foundry_tracing_setup.py` | **Partial** — evaluation/continuous-rule/tracing paths exist; drift policy, alerts, and configured live service remain subscription-dependent. |
 | Monitor data ingestion quality, search index health, and relevance performance | D5 `04_search_indexer_setup.py` starts an indexer; D5 `03_search_hybrid_semantic.py` prints query results | **Partial** — no indexer-status, ingestion-quality, or relevance-evaluation monitor. |
-| Configure security, including managed identity, private networking, keyless credentials, and role policies | D1 `07_managed_identity_agent.py`, `08_rbac_role_policies.py`; shared keyless clients | **Partial** — no private-network configuration. |
+| Configure security, including managed identity, private networking, keyless credentials, and role policies | D1 `07_managed_identity_agent.py`, `08_rbac_role_policies.py`; shared keyless clients; D1 README private-network architecture guidance | **Partial** — private-network implementation remains conceptual. |
 
 ### Implement responsible AI across generative AI and agentic systems
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
-| Configure safety filters, guardrails, risk detection, and content moderation | D1 `09_content_safety_filters.py`–`15_blocklists.py` | **Runnable** — several feature-specific lessons are preview; L15 persists a blocklist. |
-| Apply responsible AI instrumentation, including evaluators, safety evaluations, and explanation tooling | D1 `17_evaluator_groundedness.py`; D2 `19_evaluator_task_adherence.py` | **Partial** — local/self-critique demonstrations, not Foundry evaluation runs or explanation tooling. |
-| Implement auditing through trace logging, provenance metadata, and approval workflows | D1 `18_agent_tracing.py`; D2 `15_workflow_intake.py`, `16_workflow_conditional.py` | **Partial** — manual tracing and conditional workflow only; no provenance store or human approval implementation. |
+| Configure safety filters, guardrails, risk detection, and content moderation | D1 `09_content_safety_filters.py`–`15_blocklists.py`, `19_protected_material.py`–`21_provenance_detection.py` | **Runnable / Partial** — advanced features are preview and require service availability; L15 persists only with `--apply`. |
+| Apply responsible AI instrumentation, including evaluators, safety evaluations, and explanation tooling | D1 `22_foundry_evaluation.py`, `23_continuous_evaluation.py`, `25_red_teaming.py` | **Runnable / Partial** — cloud state/billing require `--apply`; rubric/evaluator availability is region dependent. |
+| Implement auditing through trace logging, provenance metadata, and approval workflows | D1 `18_agent_tracing.py`, `21_provenance_detection.py`, `24_human_feedback.py`, `26_foundry_tracing_setup.py` | **Runnable / Partial** — telemetry/provenance paths exist; approval workflow remains application architecture. |
 | Govern agent behavior with oversight modes, constraints, and tool-access controls | D1 `16_agent_basics.py`; D2 `09_prompt_agent_invoke.py`, `11_agent_function_tools.py`, `16_workflow_conditional.py` | **Partial** — instructions, argument validation, and routing; no explicit oversight-mode service configuration. |
 
 ## 2. Implement generative AI and agentic solutions (30–35%)
@@ -74,7 +74,7 @@ This matrix maps every bullet to code that exists now, not to planned work.
 | Integrate agent tools, including APIs, knowledge stores, search, content understanding, and custom functions | D2 `10_agent_web_search.py`, `11_agent_function_tools.py`, `12_agent_openapi_tools.py`; D5 `15_cu_content_agent.py` | **Partial** — no documented managed Azure AI Search tool is configured. |
 | Implement orchestrated multi-agent solutions | D2 `18_multi_agent_coord.py` | **Runnable** |
 | Build autonomous or semiautonomous workflows with safeguards and approval flow controls | D2 `15_workflow_intake.py`, `16_workflow_conditional.py` | **Partial** — conditional preview workflow; no human approval flow. |
-| Integrate monitoring into deployed agents, evaluate agent behavior, and perform error analysis | D1 `18_agent_tracing.py`; D2 `19_evaluator_task_adherence.py`, `21_langchain_tracing.py` | **Partial** — manual/local/optional tracing, not deployed-agent monitoring. |
+| Integrate monitoring into deployed agents, evaluate agent behavior, and perform error analysis | D1 `22_foundry_evaluation.py`–`26_foundry_tracing_setup.py`; D2 `19_evaluator_task_adherence.py`, `21_langchain_tracing.py` | **Partial** — evaluation, feedback, continuous-rule, and tracing setup paths exist; live deployed-agent monitoring remains resource-dependent. |
 
 ### Optimize and operationalize generative AI systems
 
@@ -82,7 +82,7 @@ This matrix maps every bullet to code that exists now, not to planned work.
 |---|---|---|
 | Tune generation behavior, such as prompt engineering and adjusting model parameters | D2 `02_model_behavior.py`, `07_structured_output.py` | **Runnable** |
 | Implement model reflection, chain-of-thought evaluations, and self-critique loops | D1 `17_evaluator_groundedness.py` | **Partial** — self-critique/regeneration; no chain-of-thought evaluation storage or evaluator run. |
-| Set up observability by implementing tracing, token analytics, safety signals, and latency breakdowns | D1 `18_agent_tracing.py`; D2 `21_langchain_tracing.py` | **Partial** — manual span attributes and optional tracing, not full Foundry tracing. |
+| Set up observability by implementing tracing, token analytics, safety signals, and latency breakdowns | D1 `18_agent_tracing.py`, `23_continuous_evaluation.py`, `24_human_feedback.py`, `26_foundry_tracing_setup.py`; D2 `21_langchain_tracing.py` | **Partial** — manual and native-tracing setup paths are taught; live portal telemetry remains resource-dependent. |
 | Orchestrate multiple models, flows, or hybrid LLM and rules engines | D2 `18_multi_agent_coord.py`, `22_langgraph_agent.py` | **Runnable** |
 
 ## 3. Implement computer vision solutions (10–15%)
@@ -162,12 +162,12 @@ This matrix maps every bullet to code that exists now, not to planned work.
 
 | Domain | Numbered lessons present | Notes |
 |---|---:|---|
-| 1 — Plan and manage | 18 | Renamed current sequence is `01`–`18`; RBAC is `08`, Content Safety `09`, tracing `18`. |
+| 1 — Plan and manage | 26 | Sequence is `01`–`26`; advanced Content Safety is `19`–`21`, evaluations `22`–`25`, tracing setup `26`. |
 | 2 — Generative AI and agents | 22 | `01`–`22`. |
 | 3 — Computer vision | 9 | `01`–`09`. |
 | 4 — Text and speech | 20 | `01`–`20`; `20_language_sentiment.py` is included. |
 | 5 — Information extraction | 16 | `00`–`15`; `00_search_index_setup.py` is included. |
-| **Total** | **85** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
+| **Total** | **93** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
 
 Gaps and partial labels are intentional. They prevent a local study repository
 from claiming implementation of private networking, CI/CD, video editing,

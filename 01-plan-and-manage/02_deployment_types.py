@@ -8,6 +8,14 @@ as shown below. Availability varies by model and region.
 
 _MATRIX = [
     {
+        "type": "Instant (preview)",
+        "billing": "pay-per-token (separate global quota pool)",
+        "residency": "inference can run in any Azure region",
+        "throughput": "no deployment needed; platform-managed access",
+        "cost": "pay-per-token",
+        "when": "prototyping or trying an eligible model",
+    },
+    {
         "type": "Global Standard",
         "billing": "pay-per-token",
         "residency": "inference can run in any Azure region",

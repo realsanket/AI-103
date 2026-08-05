@@ -15,14 +15,12 @@ Flow B — Foundry model deployment guardrail (Chat Completions):
 This lesson covers the USER PROMPT channel (the user is the attacker).
 Lesson 11 covers the DOCUMENT channel (attacker embeds in data the model reads).
 """
-import json
-
 from openai import BadRequestError
 from azure.ai.contentsafety import ContentSafetyClient
-from azure.core.rest import HttpRequest
 from azure.identity import DefaultAzureCredential
 
 from _shared.config import settings
+from _shared.content_safety_client import shield_prompt
 from _shared.openai_client import openai_client
 
 _BENIGN = "What is Northwind's refund policy for Pro plan subscribers?"
@@ -35,14 +33,10 @@ _JAILBREAK = (
 )
 
 
-def shield_user_prompt(client: ContentSafetyClient, endpoint: str, user_prompt: str) -> dict:
-    req = HttpRequest(
-        method="POST",
-        url=f"{endpoint}/contentsafety/text:shieldPrompt?api-version=2024-09-01",
-        headers={"Content-Type": "application/json"},
-        content=json.dumps({"userPrompt": user_prompt, "documents": []}).encode(),
-    )
-    return client.send_request(req).json()
+def shield_user_prompt(
+    client: ContentSafetyClient, endpoint: str, user_prompt: str
+) -> dict:
+    return shield_prompt(client, endpoint, user_prompt, [])
 
 
 def _shield_via_foundry_guardrail(user_prompt: str) -> None:
@@ -82,7 +76,7 @@ def main() -> None:
     print("\n  Jailbreak:")
     result = shield_user_prompt(client, endpoint, _JAILBREAK)
     print(f"  attackDetected: {result['userPromptAnalysis']['attackDetected']}")
-    print(f"  raw: {json.dumps(result, indent=2)}")
+    print(f"  raw: {result}")
 
     print("\n=== Flow B — Foundry deployment guardrail (Chat Completions) ===")
     print("\n  Benign:")

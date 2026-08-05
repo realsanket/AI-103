@@ -24,7 +24,12 @@ group, then subscription. This sample lists a resource-group scope, so its
 output can include unrelated resources. It doesn't establish effective access.
 
 Prereqs in .env: AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP.
+
+Run without flags to list assignments. Role assignment is persistent and needs
+all of --apply, --assign-principal-id, and --role.
 """
+import argparse
+
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.authorization import AuthorizationManagementClient
 
@@ -54,6 +59,9 @@ def assign_role(
     principal_id: str,
     role_name: str,
 ) -> None:
+    if role_name not in _ROLES:
+        raise ValueError(f"Unsupported role {role_name!r}. Choose from {sorted(_ROLES)}.")
+
     import uuid
     from azure.mgmt.authorization.models import RoleAssignmentCreateParameters
 
@@ -71,7 +79,7 @@ def assign_role(
     print(f"Assigned '{role_name}' to principal {principal_id}")
 
 
-def main() -> None:
+def main(args: argparse.Namespace) -> None:
     s = settings()
     if not s.azure_subscription_id or not s.azure_resource_group:
         raise SystemExit(
@@ -84,12 +92,27 @@ def main() -> None:
     # Resource-group scope is broad; prefer the project/resource scope in production.
     scope = f"/subscriptions/{s.azure_subscription_id}/resourceGroups/{s.azure_resource_group}"
 
-    list_assignments(auth_client, scope)
+    if not args.apply:
+        list_assignments(auth_client, scope)
+        return
 
-    # To grant Foundry User to a managed identity, uncomment:
-    # assign_role(auth_client, scope, principal_id="<managed-identity-object-id>",
-    #             role_name="Foundry User")
+    if not args.assign_principal_id or not args.role:
+        raise SystemExit("--apply requires --assign-principal-id and --role.")
+    assign_role(
+        auth_client,
+        args.scope or scope,
+        principal_id=args.assign_principal_id,
+        role_name=args.role,
+    )
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--apply", action="store_true", help="Persist a role assignment.")
+    parser.add_argument("--assign-principal-id", help="Managed identity object ID.")
+    parser.add_argument("--role", choices=sorted(_ROLES), help="Least-privilege role.")
+    parser.add_argument(
+        "--scope",
+        help="Optional narrower Azure scope. Defaults to the configured resource group.",
+    )
+    main(parser.parse_args())

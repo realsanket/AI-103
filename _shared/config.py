@@ -21,6 +21,9 @@ class Settings:
     video_model: str
     embedding_model: str
     model_router_deployment: str
+    deployment_name: str
+    deployment_model_name: str
+    deployment_model_version: str
     # Search
     search_endpoint: str
     search_index: str
@@ -47,6 +50,7 @@ class Settings:
     app_insights_connection_string: str
     # Content Safety
     content_safety_endpoint: str
+    provenance_source_url: str
     # RBAC / resource identifiers
     azure_subscription_id: str
     azure_resource_group: str
@@ -77,6 +81,9 @@ def settings() -> Settings:
         video_model=_opt("VIDEO_MODEL", "sora"),
         embedding_model=_opt("EMBEDDING_MODEL", "text-embedding-3-large"),
         model_router_deployment=_opt("MODEL_ROUTER_DEPLOYMENT", "model-router"),
+        deployment_name=_opt("DEPLOYMENT_NAME"),
+        deployment_model_name=_opt("DEPLOYMENT_MODEL_NAME"),
+        deployment_model_version=_opt("DEPLOYMENT_MODEL_VERSION"),
         search_endpoint=_opt("SEARCH_ENDPOINT"),
         search_index=_opt("SEARCH_INDEX", "northwind-docs"),
         search_index_vector=_opt("SEARCH_INDEX_VECTOR", "northwind-docs-vector"),
@@ -96,6 +103,7 @@ def settings() -> Settings:
         storage_connection_string=_opt("STORAGE_CONNECTION_STRING"),
         app_insights_connection_string=_opt("APPLICATIONINSIGHTS_CONNECTION_STRING"),
         content_safety_endpoint=_opt("CONTENT_SAFETY_ENDPOINT"),
+        provenance_source_url=_opt("PROVENANCE_SOURCE_URL"),
         azure_subscription_id=_opt("AZURE_SUBSCRIPTION_ID"),
         azure_resource_group=_opt("AZURE_RESOURCE_GROUP"),
     )

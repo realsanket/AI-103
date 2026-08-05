@@ -24,16 +24,11 @@ What to watch:
   Each deployment row shows model / SKU / capacity. Usage table shows
   consumed/limit per quota bucket (per model family, per region).
 """
-from urllib.parse import urlparse
-
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.cognitiveservices import CognitiveServicesManagementClient
 
 from _shared.config import settings
-
-
-def _account_name(endpoint: str) -> str:
-    return (urlparse(endpoint).hostname or "").split(".")[0]
+from _shared.foundry_management import foundry_account_name
 
 
 def main() -> None:
@@ -41,7 +36,7 @@ def main() -> None:
     if not s.azure_subscription_id or not s.azure_resource_group:
         raise SystemExit("Set AZURE_SUBSCRIPTION_ID and AZURE_RESOURCE_GROUP in .env.")
 
-    account = _account_name(s.foundry_endpoint)
+    account = foundry_account_name(s.foundry_endpoint)
     client = CognitiveServicesManagementClient(DefaultAzureCredential(), s.azure_subscription_id)
 
     # Get account location (needed for usages.list)

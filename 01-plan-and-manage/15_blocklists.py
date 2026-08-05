@@ -21,6 +21,7 @@ Sources:
   foundry/openai/how-to/use-blocklists.md
   ai-services/content-safety/quickstart-blocklist.md
 """
+import argparse
 import time
 
 from azure.core.exceptions import HttpResponseError
@@ -133,10 +134,23 @@ def _flow_b_foundry_custom_blocklists() -> None:
         print(f"  HTTP error: {e}")
 
 
-def main() -> None:
+def main(apply: bool = False) -> None:
+    if not apply:
+        print(
+            "Preflight only. Re-run with --apply to create/update the persistent "
+            f"{_LIST!r} blocklist and send its test requests."
+        )
+        return
+
     _flow_a_content_safety_blocklist()
     _flow_b_foundry_custom_blocklists()
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Create/update persistent blocklist state and run live requests.",
+    )
+    main(parser.parse_args().apply)

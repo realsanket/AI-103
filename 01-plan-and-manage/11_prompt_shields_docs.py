@@ -19,14 +19,13 @@ text into a chat message is not an equivalent document-channel test.
 This lesson covers the DOCUMENT channel (attacker embeds in data the model reads).
 Lesson 10 covers the USER PROMPT channel (the user is the attacker).
 """
-import json
 from pathlib import Path
 
 from azure.ai.contentsafety import ContentSafetyClient
-from azure.core.rest import HttpRequest
 from azure.identity import DefaultAzureCredential
 
 from _shared.config import settings
+from _shared.content_safety_client import shield_prompt
 
 _USER_PROMPT = "I uploaded a report PDF. Can you summarize the key findings?"
 
@@ -40,13 +39,7 @@ _MIXED_DOCS = [_INJECTED_DOC, _CLEAN_DOC]
 def shield_documents(
     client: ContentSafetyClient, endpoint: str, user_prompt: str, documents: list[str]
 ) -> dict:
-    req = HttpRequest(
-        method="POST",
-        url=f"{endpoint}/contentsafety/text:shieldPrompt?api-version=2024-09-01",
-        headers={"Content-Type": "application/json"},
-        content=json.dumps({"userPrompt": user_prompt, "documents": documents}).encode(),
-    )
-    return client.send_request(req).json()
+    return shield_prompt(client, endpoint, user_prompt, documents)
 
 
 def main() -> None:
@@ -65,7 +58,7 @@ def main() -> None:
     print(f"  userPrompt attackDetected: {user_attack}")  # False — user is innocent
     for i, doc in enumerate(result.get("documentsAnalysis", [])):
         print(f"  doc[{i}] attackDetected: {doc['attackDetected']}")
-    print(f"  raw: {json.dumps(result, indent=2)}")
+    print(f"  raw: {result}")
 
     print("\n=== Flow B — deployment guardrail integration ===")
     print("  Configure Document attack for user input or tool response, then route")

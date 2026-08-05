@@ -1,7 +1,7 @@
 # Domain 1: Plan and manage Microsoft Foundry
 
 > Study guide and runnable labs for deployment planning, access, guardrails,
-> agents, evaluation concepts, and operations. Run commands from repository
+> agents, evaluations, observability, and operations. Run commands from repository
 > root: `uv run python 01-plan-and-manage/<lesson>.py`.
 >
 > This domain explains service behavior; a script is evidence only for its
@@ -93,6 +93,11 @@ Use a nonproduction Foundry resource for deployment, blocklist, and guardrail
 experiments. Never commit `.env`, API keys, connection strings, customer
 content, or production prompts.
 
+For Entra token auth, configure a custom subdomain on the Foundry resource.
+Foundry and Azure OpenAI clients request the `https://ai.azure.com/.default`
+scope; an endpoint URL is not an OAuth scope. Agents and evaluation APIs
+require Entra ID: an API key is not a fallback for those paths.
+
 Populate values appropriate to the lesson:
 
 ```dotenv
@@ -104,6 +109,10 @@ AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
 # Deployment names, not model-family labels
 DEFAULT_MODEL=<deployment-name>
 MODEL_ROUTER_DEPLOYMENT=model-router
+# Lesson 03 management-plane deployment declaration
+DEPLOYMENT_NAME=<new-deployment-alias>
+DEPLOYMENT_MODEL_NAME=<model-family>
+DEPLOYMENT_MODEL_VERSION=<optional-pinned-version>
 
 # Content Safety and management context
 CONTENT_SAFETY_ENDPOINT=https://<content-safety-resource>.cognitiveservices.azure.com
@@ -112,6 +121,12 @@ AZURE_RESOURCE_GROUP=<resource-group>
 
 # Optional: lesson 18 manual telemetry export
 APPLICATIONINSIGHTS_CONNECTION_STRING=<connection-string>
+
+# Advanced optional labs
+PROVENANCE_SOURCE_URL=<https-blob-or-sas-uri>
+AZURE_AI_PROJECT_ENDPOINT=<project-endpoint-for-evaluation-labs>
+AZURE_AI_AGENT_NAME=<target-agent-name>
+AZURE_AI_MODEL_DEPLOYMENT_NAME=<evaluation-judge-deployment>
 ```
 
 `DefaultAzureCredential` commonly uses Azure CLI authentication after `az login`
@@ -134,6 +149,12 @@ For a managed identity, enable or attach the identity, then assign roles to its
    intentionally changing access.
 7. Run **15** only when ready to create a persistent lab blocklist.
 8. Run **18** only after reviewing telemetry destination and data handling.
+9. Run **19–21** with `--run` only after reviewing Content Safety region,
+   input, and Storage access requirements.
+10. Run **22–25** with `--apply` only in a disposable nonproduction project.
+    They can create datasets, evaluations, monitoring rules, telemetry, or scans.
+11. Run **26** first when adopting Foundry-native tracing; it is local preflight
+    only and explains the portal-side setup that remains necessary.
 
 ### Costs and side effects
 
@@ -144,7 +165,13 @@ For a managed identity, enable or attach the identity, then assign roles to its
 | 03 | Creates or updates a deployment; allocation and billing implications. |
 | 04, 06, 07, 09–11, 13–14, 16–18 | Model and/or Content Safety requests; input, output, retries, and selected model affect cost. |
 | 15 | Creates/updates persistent `northwind-exam-blocklist` and items; matching can take time to propagate. |
-| 18 | May export prompt previews, output-derived attributes, token metadata, and latency to telemetry. |
+| 18 | May export governed model/token/latency/safety metadata to telemetry; it does not add prompt/output text as span attributes. |
+| 19–20 | Content Safety requests only with `--run`; supported region, role, and input limits apply. |
+| 21 | Async Blob-backed provenance request only with `--run`; service identity needs Blob read access. |
+| 22–23 | Dataset/evaluation/rule creation only with `--apply`; persistent state and evaluator costs. |
+| 24 | Appends feedback telemetry only when application code calls its opt-in helper. |
+| 25 | Red-team scan only with `--apply`; use purple environment and synthetic target. |
+| 26 | Local preflight only; connecting App Insights is an explicit portal/IaC decision. |
 
 Provisioned deployments reserve PTU capacity and incur hourly capacity cost
 while present, including idle time. A PTU is reserved throughput capacity, **not
@@ -258,10 +285,18 @@ throughput differs by model and configuration.
 | 12 | [Spotlighting](12_spotlighting.py) | Inspect documented preview request/integration boundary. | Local reference only. |
 | 13 | [PII filter](13_pii_filter.py) | Inspect output filter annotations with synthetic data. | Live inference; preview. |
 | 14 | [Task Adherence](14_task_adherence.py) | Analyze aligned/misaligned tool plans. | Live preview API; app must act on signal. |
-| 15 | [Blocklists](15_blocklists.py) | Create/update and test Content Safety blocklist. | Persistent write; propagation delay. |
+| 15 | [Blocklists](15_blocklists.py) | Create/update and test Content Safety blocklist. | Persistent write; requires `--apply`; propagation delay. |
 | 16 | [Agent basics](16_agent_basics.py) | Code-defined instructions and linked Responses turns. | Live inference; not a Foundry agent resource. |
 | 17 | [Self-critique](17_evaluator_groundedness.py) | Draft, critique, regenerate. | Live inference; not a built-in evaluator/run. |
 | 18 | [Manual tracing](18_agent_tracing.py) | Emit application OpenTelemetry span and metadata. | Live calls; not full Foundry tracing. |
+| 19 | [Protected material](19_protected_material.py) | Detect protected material in synthetic English output. | GA Content Safety API; requires `--run`. |
+| 20 | [Groundedness detection](20_groundedness_detection.py) | Compare synthetic generated text to sources. | Preview Content Safety API; supported region/S0 only; requires `--run`. |
+| 21 | [Provenance detection](21_provenance_detection.py) | Detect C2PA/watermark provenance for Blob media. | Preview async API; Blob identity/SAS prerequisite; requires `--run`. |
+| 22 | [Foundry evaluation](22_foundry_evaluation.py) | Create a dataset-backed Foundry evaluation run. | Preview; persistent/billable; requires `--apply --dataset`. |
+| 23 | [Continuous evaluation](23_continuous_evaluation.py) | Create a sampled monitoring evaluation rule. | Preview; persistent/billable; requires `--apply`. |
+| 24 | [Human feedback](24_human_feedback.py) | Emit correlated end-user feedback to telemetry. | Integration reference; append-only telemetry event. |
+| 25 | [Red teaming](25_red_teaming.py) | Run a safe synthetic RedTeam target. | Preview/billable; purple environment; requires `--apply`. |
+| 26 | [Foundry tracing setup](26_foundry_tracing_setup.py) | Preflight project/App Insights tracing governance. | Local, read-only guidance; portal setup still required. |
 
 ## Lessons 01–08: plan, deploy, operate, secure
 
@@ -505,6 +540,37 @@ human review, or record an audit event.
 
 Do not compare these score formats as if they were interchangeable. A safety
 signal is contextual evidence, not a complete risk decision.
+
+### Guardrail implementation rules
+
+| Rule | Why it matters |
+|---|---|
+| An agent guardrail overrides its model guardrail. | Tool call/response controls are unscanned unless they exist in agent policy. |
+| `Annotate` is model-only; agents use annotate-and-block behavior. | Do not assume an agent can continue after annotate-only detection. |
+| Tool call/response controls are preview and tool-specific. | Custom tools do not automatically gain moderation coverage. |
+| Guardrails add latency at intervention points. | Budget roughly 50-100 ms per point and test full agent routes. |
+| Hosted-agent attachment uses full ARM policy ID. | A bare name does not identify a policy resource. |
+
+Use explicit Content Safety API calls when application code must decide before
+inference. Use deployment/agent guardrails for service-side enforcement. Both
+still require application block, redact, clarify, human-review, audit, and
+rollback behavior.
+
+### Content Safety limits that affect lesson design
+
+| Capability | Current documented boundary | Design response |
+|---|---|---|
+| Text analysis | 10,000 characters | Chunk without losing policy context. |
+| Image analysis | 4 MB; 50x50-7,200x7,200; JPEG/PNG/GIF/BMP/TIFF/WEBP | Validate before upload; image severities are 0/2/4/6. |
+| Prompt Shields | User prompt 10,000; five documents/10,000 total | Preserve source identity; scan ingestion/retrieval boundaries. |
+| Task Adherence | 100,000 characters; best-tested English; data can process in US/EU | Confirm residency and enforce app-side HITL/block. |
+| Blocklists | 100 items/request; 10,000 total; 128 chars/item | Batch updates and allow propagation before test. |
+| Protected Material | English; 110-10,000 characters | Scan completion, not short user input. |
+
+Task Adherence is preview. Local official docs show both
+`2024-12-15-preview` and `2025-09-15-preview` examples; lesson 14 tries the
+newer quickstart version before documented fallback. Validate availability in
+the target subscription before release.
 
 ### 09 — Content safety filters
 
@@ -763,6 +829,13 @@ Useful dimensions:
 | Response Completeness | **Preview** built-in evaluator | Requires supported evaluation run/input contract; lesson 17 does not implement it. |
 | Groundedness | Built-in evaluator | Requires documented evaluation contract; lesson 17 does not implement it. |
 | Lesson 18 span | Application instrumentation | Not automatic Foundry tracing or Foundry Traces integration. |
+| Protected Material text | GA Content Safety API | Lesson 19 checks synthetic English completion only. |
+| Groundedness detection | **Preview** Content Safety API | Lesson 20 is a source-support signal, not a Foundry evaluator run. |
+| Provenance detection | **Preview** async Content Safety API | Lesson 21 requires Blob read access and detects markers, not authenticity. |
+| Evaluation / continuous evaluation | **Preview** | Lessons 22-23 create billable persistent state only with `--apply`. |
+| Human feedback / trace annotations | **Preview** | Lesson 24 shows append-only correlated telemetry path. |
+| AI Red Teaming Agent | **Preview** | Lesson 25 defaults to a safe synthetic callback; use purple environment. |
+| Server-side Foundry tracing | Platform setup | Lesson 26 is read-only preflight; App Insights connection enables tracing. |
 
 ## Troubleshooting guide
 
@@ -826,6 +899,254 @@ Avoid using a single score as a deployment decision. A higher aggregate quality
 score can hide a critical safety, residency, latency, cost, or tool-action
 failure. Keep rollback ownership and a known-good configuration.
 
+## Advanced production path: lessons 19-26
+
+Lessons 01-18 establish basic planning, safety, and application telemetry.
+Lessons 19-26 add output safety, groundedness, provenance, evaluations,
+feedback, red teaming, and Foundry-native observability. Each answers a
+different operational question; none replaces the others.
+
+```text
+Application identity
+  ├── Foundry project: agent, deployment, guardrail, evaluation, traces
+  ├── Content Safety: moderation, shields, grounding, provenance
+  ├── Storage: source media and datasets
+  ├── Application Insights / Log Analytics: telemetry, feedback, retention
+  └── Key Vault / network policy / RBAC: security boundaries
+```
+
+A Foundry project connection is not permission to access Storage, Key Vault,
+Search, Content Safety, or Log Analytics. Each is a separate Azure resource
+with its own identity, network, role, cost, and retention boundary.
+
+| Question | Use | Do not confuse with |
+|---|---|---|
+| Is generated output known protected text? | Protected Material API | A copyright ownership decision. |
+| Is an answer supported by supplied sources? | Groundedness detection/evaluator | Harm moderation or factual truth outside sources. |
+| Does media contain a recognized origin marker? | Provenance detection | Proof that unmarked media is human-created or safe. |
+| Did a release meet measurable quality/safety criteria? | Foundry evaluation run | Self-critique of one response. |
+| Did a real user judge one response useful? | Correlated feedback/trace annotation | A detached application log. |
+| What adversarial weaknesses exist? | Red-team scan in purple environment | Production traffic test. |
+| What did Foundry observe end-to-end? | Project-connected App Insights tracing | A manual client span only. |
+
+### 19 - Protected Material detection
+
+**What:** GA Content Safety output check for known protected English text.
+**Why:** route a completion to abstention, attribution, legal review, or
+policy handling. **How:** send a model completion to
+`text:detectProtectedMaterial`; inspect
+`protectedMaterialAnalysis.detected`. **Use it:** after generation where
+reproduction risk matters. **Do not use it:** for user prompts, harm
+classification, short snippets, or legal conclusions.
+
+```bash
+uv run python 01-plan-and-manage/19_protected_material.py
+uv run python 01-plan-and-manage/19_protected_material.py --run
+```
+
+Requires Content Safety, `CONTENT_SAFETY_ENDPOINT`, and `Cognitive Services
+User`. It accepts 110-10,000 English characters; the lab sends synthetic text
+and creates no persistent state. Keep real output out of logs unless retention
+and reviewer access are approved.
+
+### 20 - Groundedness detection
+
+**What:** preview Content Safety API for unsupported answer spans. **Why:** a
+fluent RAG answer can still invent claims. **How:** compare generated `text`
+to `groundingSources`, then use `ungroundedDetected`,
+`ungroundedPercentage`, and `ungroundedDetails`. The percentage is a
+proportion, not confidence. **Use it:** summaries and answers backed by
+curated content. **Do not use it:** as authorization, citation storage, or
+universal truth test.
+
+```bash
+uv run python 01-plan-and-manage/20_groundedness_detection.py
+uv run python 01-plan-and-manage/20_groundedness_detection.py --run
+```
+
+Requires S0 Content Safety in a supported region, `Cognitive Services User`,
+and `CONTENT_SAFETY_ENDPOINT`; F0 is unsupported. The preview API is
+`2024-09-15-preview`. Text and optional QnA query allow 7,500 characters;
+sources total 55,000. Reasoning mode additionally needs an eligible GPT-4o
+deployment and `llmResource`; do not enable it by accident.
+
+### 21 - Provenance detection
+
+**What:** preview asynchronous detection of C2PA and supported invisible
+watermark markers in media. **Why:** add an origin signal before trusting or
+publishing media. **How:** submit `content.uri` to
+`operations:detect`, poll its operation ID, and handle
+`ProvenanceDetected`, `NoProvenanceDetected`, or failure. **Use it:** media
+review workflows. **Do not use it:** as a safety classifier, ownership proof,
+or authenticity guarantee.
+
+```bash
+uv run python 01-plan-and-manage/21_provenance_detection.py
+uv run python 01-plan-and-manage/21_provenance_detection.py --run
+```
+
+Requires `PROVENANCE_SOURCE_URL` (HTTPS Blob/SAS URI),
+`CONTENT_SAFETY_ENDPOINT`, `Cognitive Services User` for caller, and
+`Storage Blob Data Reader` for Content Safety's managed identity. Prefer
+managed identity over a long-lived SAS. This uses
+`2026-07-01-preview`; local docs do not list a fixed region matrix, so verify
+availability before a production design.
+
+### 22 - Evaluation runs, not self-critique
+
+Lesson 17 is draft -> critique -> regenerate. It teaches a pattern, but it
+does not create a dataset, metric, run, trend, or release gate. A Foundry
+evaluation is repeatable evidence with a documented input mapping.
+
+```bash
+uv run python 01-plan-and-manage/22_foundry_evaluation.py
+uv run python 01-plan-and-manage/22_foundry_evaluation.py \
+  --apply --dataset path/to/tests.jsonl [--rubric reviewed-rubric-name]
+```
+
+The first command is preflight. Applying uploads data, creates an evaluation
+and run, calls the agent/evaluators, and can bill. It needs JSONL `query`
+fields, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`,
+`AZURE_AI_MODEL_DEPLOYMENT_NAME`, a target agent/deployment, and `Foundry
+User`.
+
+| Evaluator | Input / purpose | Distinction |
+|---|---|---|
+| Rubric / Quality | Judge deployment plus reviewed criteria | Product-specific release quality. |
+| Risk and safety | Usually query + response; hosted safety model | Does not need the judge deployment-name constructor. |
+| Agent | Tool definitions/calls or response | Measures tool behavior, not only prose. |
+| Groundedness Pro | Binary Content Safety-backed score | Different from model-based 1-5 Groundedness. |
+| Response Completeness | `ground_truth` and response | Different from grounding and safety. |
+
+Task Adherence has three surfaces: lesson 14's Content Safety REST signal
+(`tools` plus conversation messages), Foundry guardrail runtime annotation,
+and `builtin.task_adherence` evaluator over evaluation data. Choose real-time
+enforcement, runtime policy, or offline measurement deliberately. Rows are
+limited to 2 MB; batches to 100,000 rows; evaluator region support varies.
+
+### 23 - Continuous evaluation
+
+**What:** sampled post-deployment evaluation rule. **Why:** catch regression
+after release. **How:** evaluates completed responses on a bounded schedule.
+**Use it:** monitored production quality/safety signals. **Do not use it:** as
+a synchronous safety block or a dump of unrestricted sensitive traffic.
+
+```bash
+uv run python 01-plan-and-manage/23_continuous_evaluation.py
+uv run python 01-plan-and-manage/23_continuous_evaluation.py --apply
+```
+
+Applying creates persistent evaluation/rule state and incurs sampling,
+evaluator, and telemetry cost. Requires project/agent identifiers,
+Application Insights, and `Foundry User` for project managed identity. The
+lesson caps at 10 runs/hour; change only after privacy, cost, alert, owner,
+and rollback review.
+
+### 24 - Human feedback and HITL
+
+**What:** structured quality signal linked to an exact response. **Why:**
+automated metrics cannot replace user/domain-expert judgment. **How:** emit
+`gen_ai.evaluation.result` while original response span is active; portal
+annotations are append-only history. **Use it:** approved review and feedback
+flows. **Do not use it:** for silent sensitive-data capture.
+
+```bash
+uv run python 01-plan-and-manage/24_human_feedback.py
+```
+
+The lesson prints integration guidance; a handler calls
+`emit_end_user_feedback(..., apply=True)` with the original span. It requires
+project-connected Application Insights, tracing packages, and governed
+retention. Reviewers need `Foundry User` plus Reader; template management
+needs `Foundry Project Manager`. Human templates are preview; the default
+binary `task_completion` path must preserve trace/span correlation.
+
+### 25 - AI Red Teaming Agent
+
+**What:** preview adversarial scan with Attack Success Rate evidence. **Why:**
+find systematic failures before users do. **How:** generate approved attacks
+against an explicit target. **Use it:** nonproduction purple environment with
+an incident/mitigation owner. **Do not use it:** against production tools,
+customer content, or unapproved endpoints.
+
+```bash
+uv run python 01-plan-and-manage/25_red_teaming.py
+AZURE_AI_PROJECT=<project-endpoint> \
+  uv run python 01-plan-and-manage/25_red_teaming.py --apply
+```
+
+The apply lesson deliberately uses only a fixed safe synthetic callback; no
+real model, tool, or application receives the generated attacks. It requires
+Python 3.10-3.13, `azure-ai-evaluation[redteam]`, Entra identity, Foundry
+project, and `Foundry User` for project managed identity. Scans bill and
+region support is preview-sensitive; verify it before targeting a real
+nonproduction system.
+
+### 18 and 26 - manual versus Foundry-native tracing
+
+```bash
+uv run python 01-plan-and-manage/18_agent_tracing.py
+uv run python 01-plan-and-manage/26_foundry_tracing_setup.py
+```
+
+Lesson 18 adds application-owned `gen_ai.*` attributes and token counts around
+a Responses call. `AZURE_OPENAI_ENDPOINT` is required;
+`CONTENT_SAFETY_ENDPOINT` and
+`APPLICATIONINSIGHTS_CONNECTION_STRING` are optional. Prompts and outputs are
+not span attributes. It is not server-side Foundry tracing.
+
+Lesson 26 is local/read-only preflight. Foundry-native tracing starts after
+Application Insights is connected to project; supported prompt/hosted agent
+and workflow paths then trace automatically. Trace access needs project access
+and Log Analytics Reader; protected sensitive-content tables also require
+Privileged Monitoring Data Reader.
+
+| Operational rule | Why |
+|---|---|
+| Record content only for approved development/debugging. | Prompt/output data increases privacy and incident scope. |
+| Use protected `AppGenAIContent` access, RBAC, PIM/JIT, and short retention. | Sensitive GenAI attributes need stronger control. |
+| Treat `protectGenAISensitiveData` as subscription mutation. | It is preview and intentionally not scripted. |
+| Download cluster-analysis CSV before leaving. | Preview clustering results are not persisted. |
+| Sanitize trace-to-dataset samples. | Production traces can contain customer and tool data. |
+
+### Security, networking, IaC, and release
+
+| Decision | Recommendation | Common pitfall |
+|---|---|---|
+| Identity | Managed/workload identity in Azure; Azure CLI only locally | Agents/evaluations require Entra ID; custom subdomain is required for token auth. |
+| Scope | Project/resource/agent scope; `Foundry Agent Consumer` for endpoint-only callers | Owner/Contributor management rights do not grant data-plane inference. |
+| Network | Choose public/IP rules, Private Link, managed VNet, or customer VNet from compliance and outbound needs | Fully private deployments need SDK/CLI configuration; portal alone is insufficient. |
+| Keys | Microsoft-managed by default; CMK only for requirement | CMK needs regional Key Vault, soft delete, purge protection, identity, Crypto User. |
+| IaC | Portal to learn; Bicep/Terraform for reviewed repeatability | Do not maintain portal, CLI, and IaC as competing sources of truth. |
+| Resilience | Independent regional resources plus app routing | Global/Data Zone is not automatic application failover. |
+
+Release model: provision identity/network/diagnostics through reviewed IaC;
+verify workload identity and least privilege; run unit contracts, curated
+evaluations, safety regressions, and bounded red teaming; approve measurable
+quality/latency/cost/rollback evidence; deploy progressively; monitor traces,
+safety, quota, and cost; roll back known-good configuration on regression.
+
+**Troubleshoot:** `Custom subdomain required` means token-auth prerequisite is
+missing. `401`/`403` means inspect endpoint, principal object ID, role, scope,
+and propagation--do not retry. Missing evaluations/red team usually mean
+feature-specific region, preview access, managed-identity role, or bad mapping.
+Missing traces usually mean App Insights connection, ingestion delay,
+Log-Analytics/protected-table role, or retention. Provenance file-not-found
+usually means unreachable Blob URI or missing Storage Blob Data Reader.
+
+### Interview prompts and takeaways
+
+1. Why is a deployment name not a model name? Deployment alias also selects
+   version, capacity, filters, and limits; application calls alias while
+   automation declares model/version.
+2. Groundedness API or evaluation? API is immediate source-support signal;
+   evaluation is repeatable offline/release evidence.
+3. How do model and agent guardrails interact? Assigned agent guardrail
+   overrides its model guardrail; tool controls must exist in agent policy.
+4. What proves safe release? Least privilege, policy tests, representative
+   evaluation, bounded red team, human review, governed telemetry, rollout,
+   and rollback--never one score.
+
 ## Common exam traps
 
 | Claim | Correct interpretation |
@@ -876,4 +1197,15 @@ Microsoft documentation:
 - [Prompt Shields and Spotlighting](https://learn.microsoft.com/azure/ai-foundry/openai/concepts/content-filter-prompt-shields)
 - [Task Adherence](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/task-adherence)
 - [Built-in evaluators](https://learn.microsoft.com/azure/ai-foundry/concepts/built-in-evaluators)
-- [Client-side agent tracing](https://learn.microsoft.com/azure/ai-foundry/observability/how-to/trace-agent-client-side)
+- [Azure AI Content Safety](https://learn.microsoft.com/azure/ai-services/content-safety/)
+- [Foundry guardrails](https://learn.microsoft.com/azure/ai-foundry/guardrails/guardrails-overview)
+- [Foundry architecture](https://learn.microsoft.com/azure/ai-foundry/concepts/architecture)
+- [Foundry authentication](https://learn.microsoft.com/azure/ai-foundry/concepts/authentication-authorization)
+- [Private Link](https://learn.microsoft.com/azure/ai-foundry/how-to/configure-private-link)
+- [Foundry observability](https://learn.microsoft.com/azure/ai-foundry/observability/concepts/observability)
+- [Tracing setup](https://learn.microsoft.com/azure/ai-foundry/observability/how-to/trace-agent-setup)
+- [Agent evaluation](https://learn.microsoft.com/azure/ai-foundry/observability/how-to/evaluate-agent)
+- [Human evaluation](https://learn.microsoft.com/azure/ai-foundry/observability/how-to/human-evaluation)
+- [AI Red Teaming Agent](https://learn.microsoft.com/azure/ai-foundry/concepts/ai-red-teaming-agent)
+- [Bicep resource template](https://learn.microsoft.com/azure/ai-foundry/how-to/create-resource-template)
+- [Terraform resource deployment](https://learn.microsoft.com/azure/ai-foundry/how-to/create-resource-terraform)
