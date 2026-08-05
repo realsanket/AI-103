@@ -1,12 +1,8 @@
 # Domain 1: Plan and manage Microsoft Foundry
 
-> Study guide and runnable labs for deployment planning, access, guardrails,
-> agents, evaluations, observability, and operations. Run commands from repository
-> root: `uv run python 01-plan-and-manage/<lesson>.py`.
+> Study guide and runnable labs for deployment planning, access, guardrails, agents, evaluations, observability, and operations. Run commands from repository root: `uv run python 01-plan-and-manage/<lesson>.py`.
 >
-> This domain explains service behavior; a script is evidence only for its
-> documented path. Preview availability, quota, model support, and permissions
-> remain subscription and region specific.
+> This domain explains service behavior; a script is evidence only for its documented path. Preview availability, quota, model support, and permissions remain subscription and region specific.
 
 ## What this domain teaches
 
@@ -24,9 +20,7 @@ Apply guardrails at input, tool, and output boundaries
 Evaluate changes, trace runtime behavior, and release through CI/CD
 ```
 
-The lessons follow that lifecycle. They do not create a complete production
-application or prove every Foundry feature. They teach decisions, boundaries,
-and the smallest runnable evidence for each subject.
+The lessons follow that lifecycle. They do not create a complete production application or prove every Foundry feature. They teach decisions, boundaries, and the smallest runnable evidence for each subject.
 
 ## Foundry mental model
 
@@ -41,10 +35,7 @@ and the smallest runnable evidence for each subject.
 | **Endpoint** | URL/API surface called by a client. | Endpoint determines API and RBAC assumptions; do not swap URLs. |
 | **Guardrail** | Configured policy applied at service intervention points. | It is not identical to an explicit Content Safety API request. |
 
-One model can have multiple deployments: development and production, different
-regions, or different capacity and policy decisions. A deployment name is the
-stable application configuration value. List deployments before assuming a
-name exists.
+One model can have multiple deployments: development and production, different regions, or different capacity and policy decisions. A deployment name is the stable application configuration value. List deployments before assuming a name exists.
 
 ### Endpoint map: same organization, different surfaces
 
@@ -55,10 +46,7 @@ name exists.
 | Direct Azure OpenAI-compatible API | `AZURE_OPENAI_ENDPOINT` | `https://<resource>.openai.azure.com` | Direct Responses/Chat Completions calls | `Cognitive Services OpenAI User` on direct resource |
 | Azure AI Content Safety | `CONTENT_SAFETY_ENDPOINT` | `https://<resource>.cognitiveservices.azure.com` | Explicit moderation, shields, Task Adherence, blocklists | Appropriate Content Safety access |
 
-`FOUNDRY_ENDPOINT` and `PROJECT_ENDPOINT` are not interchangeable. A direct
-OpenAI client does not infer its endpoint or authorization from a project URL.
-Similarly, a Foundry project role does not automatically mean a principal has
-the direct Azure OpenAI data action required by a different resource surface.
+`FOUNDRY_ENDPOINT` and `PROJECT_ENDPOINT` are not interchangeable. A direct OpenAI client does not infer its endpoint or authorization from a project URL. Similarly, a Foundry project role does not automatically mean a principal has the direct Azure OpenAI data action required by a different resource surface.
 
 ### Planes and responsibility boundaries
 
@@ -73,9 +61,7 @@ Application plane: decide retry, block/escalate, redact/log, and release
   Your code and operational process
 ```
 
-A control-plane role such as `Owner` or `Contributor` does not by itself grant
-every inference data action. Conversely, an inference role does not grant
-permission to deploy models. Match both the endpoint and action.
+A control-plane role such as `Owner` or `Contributor` does not by itself grant every inference data action. Conversely, an inference role does not grant permission to deploy models. Match both the endpoint and action.
 
 ## Before running a lesson
 
@@ -89,14 +75,9 @@ cp .env.example .env
 az login
 ```
 
-Use a nonproduction Foundry resource for deployment, blocklist, and guardrail
-experiments. Never commit `.env`, API keys, connection strings, customer
-content, or production prompts.
+Use a nonproduction Foundry resource for deployment, blocklist, and guardrail experiments. Never commit `.env`, API keys, connection strings, customer content, or production prompts.
 
-For Entra token auth, configure a custom subdomain on the Foundry resource.
-Foundry and Azure OpenAI clients request the `https://ai.azure.com/.default`
-scope; an endpoint URL is not an OAuth scope. Agents and evaluation APIs
-require Entra ID: an API key is not a fallback for those paths.
+For Entra token auth, configure a custom subdomain on the Foundry resource. Foundry and Azure OpenAI clients request the `https://ai.azure.com/.default` scope; an endpoint URL is not an OAuth scope. Agents and evaluation APIs require Entra ID: an API key is not a fallback for those paths.
 
 Populate values appropriate to the lesson:
 
@@ -129,13 +110,9 @@ AZURE_AI_AGENT_NAME=<target-agent-name>
 AZURE_AI_MODEL_DEPLOYMENT_NAME=<evaluation-judge-deployment>
 ```
 
-`DefaultAzureCredential` commonly uses Azure CLI authentication after `az login`
-on a workstation. In Azure, it commonly uses a managed identity or workload
-identity. Credential-chain success does **not** prove which credential supplied
-the token; use identity and service logs when that distinction matters.
+`DefaultAzureCredential` commonly uses Azure CLI authentication after `az login` on a workstation. In Azure, it commonly uses a managed identity or workload identity. Credential-chain success does **not** prove which credential supplied the token; use identity and service logs when that distinction matters.
 
-For a managed identity, enable or attach the identity, then assign roles to its
-**principal object ID**. Do not substitute its client ID in a role assignment.
+For a managed identity, enable or attach the identity, then assign roles to its **principal object ID**. Do not substitute its client ID in a role assignment.
 
 ### Safe learning order
 
@@ -143,15 +120,14 @@ For a managed identity, enable or attach the identity, then assign roles to its
 2. Run **01** and **05** next: inventory and quota reads.
 3. Make **07** pass before treating project-authenticated lessons as usable.
 4. Use **04**, **06**, **09–14**, **16**, and **17** with a low-cost,
-   nonproduction deployment; each makes live service calls where stated.
+nonproduction deployment; each makes live service calls where stated.
 5. Review model, region, SKU, capacity, and cost before **03**.
 6. Treat **08** as an access review; use its `--apply`,
-   `--assign-principal-id`, and `--role` flags only when intentionally changing
-   access.
+`--assign-principal-id`, and `--role` flags only when intentionally changing access.
 7. Run **15 --apply** only when ready to create a persistent lab blocklist.
 8. Run **18** only after reviewing telemetry destination and data handling.
 9. Run **19–21** with `--run` only after reviewing Content Safety region,
-   input, and Storage access requirements.
+input, and Storage access requirements.
 10. Run **22–25** with `--apply` only in a disposable nonproduction project.
     They can create datasets, evaluations, monitoring rules, telemetry, or scans.
 11. Run **26** first when adopting Foundry-native tracing; it is local preflight
@@ -174,10 +150,7 @@ For a managed identity, enable or attach the identity, then assign roles to its
 | 25 | Red-team scan only with `--apply`; use purple environment and synthetic target. |
 | 26 | Local preflight only; connecting App Insights is an explicit portal/IaC decision. |
 
-Provisioned deployments reserve PTU capacity and incur hourly capacity cost
-while present, including idle time. A PTU is reserved throughput capacity, **not
-a prepaid token bucket** and not per-token billing. PTU quota approval does not
-guarantee capacity in every requested region.
+Provisioned deployments reserve PTU capacity and incur hourly capacity cost while present, including idle time. A PTU is reserved throughput capacity, **not a prepaid token bucket** and not per-token billing. PTU quota approval does not guarantee capacity in every requested region.
 
 ## Glossary
 
@@ -217,8 +190,7 @@ guarantee capacity in every requested region.
 | Language, translation, speech, moderation | Purpose-built Azure AI service where suitable | Feature limits and endpoint/role model. |
 | Mixed prompt complexity | Model Router deployment | Router availability, allowed models, cost/quality behavior. |
 
-Do not choose by benchmark headline alone. Test representative prompts, safety
-behavior, latency, required region, tool use, and total request cost.
+Do not choose by benchmark headline alone. Test representative prompts, safety behavior, latency, required region, tool use, and total request cost.
 
 ### Deployment and residency decision flow
 
@@ -248,9 +220,7 @@ Large asynchronous workload and supported model/tier?
 | Developer | Limited development scenario where offered | Service-defined development limits | Testing supported scenarios | Never assume production SLA/lifetime. |
 | Managed compute / MaaS | Model/service-specific | GPU-hour or Marketplace/service pricing | Partner/OSS model scenarios | Different service, pricing, and operations model. |
 
-Model availability, SKU names, quotas, supported regions, capacity units, and
-billing are service-version dependent. Read current portal/docs before making a
-production commitment.
+Model availability, SKU names, quotas, supported regions, capacity units, and billing are service-version dependent. Read current portal/docs before making a production commitment.
 
 ### Throughput and rate-limit decisions
 
@@ -262,11 +232,7 @@ production commitment.
 | `404 DeploymentNotFound` | Model family used instead of deployment name, wrong endpoint, or deployment absent | List deployments; correct setting. Do not retry blindly. |
 | `401` / `403` | Wrong endpoint, role, scope, or identity | Inspect endpoint and effective principal/assignment. Do not retry blindly. |
 
-A deployment `capacity` value is not a universal TPM conversion. Standard quota
-can be pooled by subscription, model/SKU, and location or zone; use lesson 05
-and service quota views rather than assuming every deployment owns an isolated
-bucket. For provisioned SKUs, capacity represents PTUs and model-specific
-throughput differs by model and configuration.
+A deployment `capacity` value is not a universal TPM conversion. Standard quota can be pooled by subscription, model/SKU, and location or zone; use lesson 05 and service quota views rather than assuming every deployment owns an isolated bucket. For provisioned SKUs, capacity represents PTUs and model-specific throughput differs by model and configuration.
 
 ## Lesson map
 
@@ -301,170 +267,112 @@ throughput differs by model and configuration.
 
 ## Detailed implementation walkthroughs: lessons 01-18
 
-Read a lesson in this order: **background** explains why capability exists;
-**before code** lists resource/identity prerequisites; **code path** maps
-significant statements to Azure behavior; **interpretation** explains what the
-result means and what it does not prove. A successful lab is a narrow
-observation, not production certification.
+Read a lesson in this order: **background** explains why capability exists; **before code** lists resource/identity prerequisites; **code path** maps significant statements to Azure behavior; **interpretation** explains what the result means and what it does not prove. A successful lab is a narrow observation, not production certification.
 
 ### 01 - Discover deployments before calling a model
 
-**Background.** A model family is a capability; a deployment is its callable
-application alias plus selected version, SKU, capacity, rate limits, and
-guardrail configuration. Azure lets one team deploy the same model several
-times because development, production, regional, and provisioned workloads
-need different operational contracts.
+**Background.** A model family is a capability; a deployment is its callable application alias plus selected version, SKU, capacity, rate limits, and guardrail configuration. Azure lets one team deploy the same model several times because development, production, regional, and provisioned workloads need different operational contracts.
 
-**Before code.** Create a Foundry project, set `PROJECT_ENDPOINT`, authenticate
-with Entra ID, and grant the caller `Foundry User`. Do not start by guessing
-`DEFAULT_MODEL`: first discover what project administrators actually deployed.
+**Before code.** Create a Foundry project, set `PROJECT_ENDPOINT`, authenticate with Entra ID, and grant the caller `Foundry User`. Do not start by guessing `DEFAULT_MODEL`: first discover what project administrators actually deployed.
 
 **Code path.**
 
 1. `project_client()` creates `AIProjectClient` with `DefaultAzureCredential`.
 2. `client.deployments.list()` asks the project data plane for visible
-   deployments.
+deployments.
 3. `name`, `model_name`, and type-like fields are read defensively because
-   service SDK shapes can evolve.
+service SDK shapes can evolve.
 4. Printed `name` becomes the value passed to later `model=` calls.
 
-**Interpretation and pitfalls.** Empty output can mean no deployment is
-visible *or* the identity lacks access. A listed deployment proves inventory
-visibility, not quota, regional eligibility, guardrail policy, or permission
-for a different endpoint. Record alias, underlying model/version, SKU, owner,
-and purpose in deployment configuration--not application literals.
+**Interpretation and pitfalls.** Empty output can mean no deployment is visible *or* the identity lacks access. A listed deployment proves inventory visibility, not quota, regional eligibility, guardrail policy, or permission for a different endpoint. Record alias, underlying model/version, SKU, owner, and purpose in deployment configuration--not application literals.
 
 ### 02 - Select a deployment type from constraints
 
-**Background.** Deployment type exists to make a trade-off explicit: where
-inference can process, how capacity is allocated, and how billing behaves.
-Global optimizes broad availability; Data Zone constrains processing to a
-geographic zone; Regional constrains it to one Azure region; Provisioned
-reserves PTUs; Batch exchanges latency for discounted asynchronous processing.
+**Background.** Deployment type exists to make a trade-off explicit: where inference can process, how capacity is allocated, and how billing behaves. Global optimizes broad availability; Data Zone constrains processing to a geographic zone; Regional constrains it to one Azure region; Provisioned reserves PTUs; Batch exchanges latency for discounted asynchronous processing.
 
-**Code path.** This local lesson intentionally prints a matrix rather than
-calling Azure. `_MATRIX` is a study aid: `type`, `billing`, `residency`,
-`throughput`, `cost`, and `when` force each choice into comparable dimensions.
-Instant access is preview and uses a platform global pool without creating a
-deployment; Managed compute serves a different model/accelerator operating
-model from standard Azure OpenAI deployment.
+**Code path.** This local lesson intentionally prints a matrix rather than calling Azure. `_MATRIX` is a study aid: `type`, `billing`, `residency`, `throughput`, `cost`, and `when` force each choice into comparable dimensions. Instant access is preview and uses a platform global pool without creating a deployment; Managed compute serves a different model/accelerator operating model from standard Azure OpenAI deployment.
 
 **Decision process.**
 
 1. Start with residency/compliance: single region, data zone, or permitted
-   global processing.
+global processing.
 2. Choose online versus asynchronous batch from interaction latency.
 3. Use Standard for variable demand; evaluate PTU only for sustained,
-   measured utilization and hourly-capacity economics.
+measured utilization and hourly-capacity economics.
 4. Validate model/SKU/region availability in portal before designing around it.
 
-**Do not assume** Data Zone means one region, PTU means prepaid tokens, or a
-provisioned deployment cannot return 429 under saturation.
+**Do not assume** Data Zone means one region, PTU means prepaid tokens, or a provisioned deployment cannot return 429 under saturation.
 
 ### 03 - Deploy a model through the management plane
 
-**Background.** Deployment creation is Azure resource management, not
-inference. It exists so deployment configuration can be reviewed, versioned,
-and automated through SDK/CLI/IaC instead of ad-hoc portal clicks.
+**Background.** Deployment creation is Azure resource management, not inference. It exists so deployment configuration can be reviewed, versioned, and automated through SDK/CLI/IaC instead of ad-hoc portal clicks.
 
-**Before code.** Use a nonproduction Foundry resource; set
-`AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `FOUNDRY_ENDPOINT`,
-`DEPLOYMENT_NAME`, and `DEPLOYMENT_MODEL_NAME`. Optionally pin
-`DEPLOYMENT_MODEL_VERSION`. Caller needs a suitable control-plane role such as
-`Cognitive Services Contributor`; that role does not grant model inference.
+**Before code.** Use a nonproduction Foundry resource; set `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `FOUNDRY_ENDPOINT`, `DEPLOYMENT_NAME`, and `DEPLOYMENT_MODEL_NAME`. Optionally pin `DEPLOYMENT_MODEL_VERSION`. Caller needs a suitable control-plane role such as `Cognitive Services Contributor`; that role does not grant model inference.
 
 **Code path.**
 
 1. `settings()` separates existing `DEFAULT_MODEL` deployment alias from the
-   model family being created.
+model family being created.
 2. `foundry_account_name()` validates and extracts the resource name from the
-   Foundry endpoint instead of silently accepting an OpenAI/project URL.
+Foundry endpoint instead of silently accepting an OpenAI/project URL.
 3. `CognitiveServicesManagementClient` targets the Azure management plane.
 4. `begin_create_or_update()` supplies `Sku(name="GlobalStandard")` and
-   `DeploymentModel(format="OpenAI", name=..., version=...)`.
+`DeploymentModel(format="OpenAI", name=..., version=...)`.
 5. Waiting on `.result()` makes the script report actual provisioning state.
 
-**Production practice.** Pin or deliberately govern model versions, tags,
-region, SKU, capacity, rollback owner, and cleanup. A `Succeeded` deployment
-does not prove data-plane RBAC, cost fit, model quality, or an SLO.
+**Production practice.** Pin or deliberately govern model versions, tags, region, SKU, capacity, rollback owner, and cleanup. A `Succeeded` deployment does not prove data-plane RBAC, cost fit, model quality, or an SLO.
 
 ### 04 - Route mixed work with Model Router
 
-**Background.** Model Router is for workloads whose prompts vary in difficulty
-and where hard-coding one model wastes either cost or quality. It selects from
-an allowed set behind one router deployment; it is not an automatic production
-optimization strategy.
+**Background.** Model Router is for workloads whose prompts vary in difficulty and where hard-coding one model wastes either cost or quality. It selects from an allowed set behind one router deployment; it is not an automatic production optimization strategy.
 
-**Before code.** Deploy supported `model-router`, set
-`MODEL_ROUTER_DEPLOYMENT`, and obtain Foundry project access. Configure and
-test routing mode, allowed model subset, version, residency, tools, safety,
-and fallback outside this small call.
+**Before code.** Deploy supported `model-router`, set `MODEL_ROUTER_DEPLOYMENT`, and obtain Foundry project access. Configure and test routing mode, allowed model subset, version, residency, tools, safety, and fallback outside this small call.
 
 **Code path.**
 
 1. `project_client().get_openai_client()` obtains the project-scoped
-   OpenAI-compatible client.
+OpenAI-compatible client.
 2. `responses.create(model=router, input=prompt)` invokes the router through
-   Responses API.
+Responses API.
 3. `response.model` reports the model chosen for this request.
 4. `output_text` demonstrates that the application still receives a normal
-   response shape.
+response shape.
 
-**When not to use it.** Do not use a router when one approved/pinned model is
-required for validation, jurisdiction, deterministic behavior, or a narrow
-latency/cost SLO. The smallest model in the allowed set can limit usable
-context; exclude unsuitable models rather than discovering that limit in
-production.
+**When not to use it.** Do not use a router when one approved/pinned model is required for validation, jurisdiction, deterministic behavior, or a narrow latency/cost SLO. The smallest model in the allowed set can limit usable context; exclude unsuitable models rather than discovering that limit in production.
 
 ### 05 - Read quota before scaling demand
 
-**Background.** Quota is a subscription-level capacity permission measured in
-model/tier/location-specific units. It prevents one subscription from consuming
-unbounded shared service capacity. It is not a utilization dashboard, invoice,
-or per-deployment guarantee.
+**Background.** Quota is a subscription-level capacity permission measured in model/tier/location-specific units. It prevents one subscription from consuming unbounded shared service capacity. It is not a utilization dashboard, invoice, or per-deployment guarantee.
 
 **Code path.**
 
 1. The lesson validates subscription/resource-group settings and derives the
-   resource name.
+resource name.
 2. `accounts.get()` obtains the account location needed by management APIs.
 3. `deployments.list()` prints configured alias, model, SKU, and capacity.
 4. `usages.list(location)` prints current value, limit, and unit for quota
-   buckets visible in that location.
+buckets visible in that location.
 
-**Use results with** application tokens, request rate, retry count, latency,
-and Cost Management data. Standard quota can be pooled; Instant access has a
-separate global pool; PTUs are a different capacity model. Quota increases can
-propagate after a delay, and a provisioned deployment can still saturate.
+**Use results with** application tokens, request rate, retry count, latency, and Cost Management data. Standard quota can be pooled; Instant access has a separate global pool; PTUs are a different capacity model. Quota increases can propagate after a delay, and a provisioned deployment can still saturate.
 
 ### 06 - Retry transient failure without amplifying it
 
-**Background.** A 429 or connection interruption can be temporary. Retrying
-every error makes outages and misconfigurations worse. Backoff exists to give a
-shared service time to recover; jitter stops many clients from retrying in
-lockstep.
+**Background.** A 429 or connection interruption can be temporary. Retrying every error makes outages and misconfigurations worse. Backoff exists to give a shared service time to recover; jitter stops many clients from retrying in lockstep.
 
 **Code path.**
 
 1. Tenacity retries only `RateLimitError` and `APIConnectionError`.
 2. `retry_after_seconds()` reads `retry-after-ms`, `retry-after`, or a valid
-   HTTP date, bounds wait to 60 seconds, and falls back to jittered exponential
-   delay.
+HTTP date, bounds wait to 60 seconds, and falls back to jittered exponential delay.
 3. `stop_after_attempt(6)` gives failure a bounded budget.
 4. `_ask()` remains small: it performs one Responses call; retry policy wraps
-   it rather than every caller reimplementing behavior.
+it rather than every caller reimplementing behavior.
 
-**Do not retry** 400/401/403/404: they require input, endpoint, deployment, or
-RBAC correction. For high volume add queueing, admission control, idempotency
-for mutations, circuit breaking, user degradation, and capacity/fallback
-design--not larger retry counts.
+**Do not retry** 400/401/403/404: they require input, endpoint, deployment, or RBAC correction. For high volume add queueing, admission control, idempotency for mutations, circuit breaking, user degradation, and capacity/fallback design--not larger retry counts.
 
 ### 07 - Prove keyless project access
 
-**Background.** `DefaultAzureCredential` lets local development use Azure CLI
-while deployed workloads use managed/workload identity. This removes stored
-secrets, but it does not remove the need to know exactly which principal and
-role the service receives.
+**Background.** `DefaultAzureCredential` lets local development use Azure CLI while deployed workloads use managed/workload identity. This removes stored secrets, but it does not remove the need to know exactly which principal and role the service receives.
 
 **Code path.**
 
@@ -473,31 +381,22 @@ role the service receives.
 3. `get_openai_client()` obtains project-scoped inference access.
 4. A small Responses request verifies configured deployment use.
 
-**Interpretation.** Passing proves that this credential chain can access this
-project and deployment now. It does not identify which credential won the
-chain, prove direct Azure OpenAI access, or prove production managed-identity
-assignment. Agents and evaluations require Entra ID; configure a custom
-subdomain and use `https://ai.azure.com/.default`.
+**Interpretation.** Passing proves that this credential chain can access this project and deployment now. It does not identify which credential won the chain, prove direct Azure OpenAI access, or prove production managed-identity assignment. Agents and evaluations require Entra ID; configure a custom subdomain and use `https://ai.azure.com/.default`.
 
 ### 08 - Grant and review least privilege
 
-**Background.** Azure RBAC binds a principal, role definition, and scope.
-Least privilege limits blast radius: a user who invokes one agent should not
-also create deployments or query all resource-group assignments.
+**Background.** Azure RBAC binds a principal, role definition, and scope. Least privilege limits blast radius: a user who invokes one agent should not also create deployments or query all resource-group assignments.
 
 **Code path.**
 
 1. `AuthorizationManagementClient` reads role assignments at configured
-   resource-group scope by default.
+resource-group scope by default.
 2. `_ROLES` contains documented role IDs for Foundry and Search examples.
 3. `assign_role()` rejects unknown roles before any Azure call.
 4. `--apply --assign-principal-id <object-id> --role <role>` creates an
-   assignment; optional `--scope` permits a narrower target.
+assignment; optional `--scope` permits a narrower target.
 
-Use the managed identity **principal object ID**, not client ID. Prefer
-agent/project/resource scope over resource group/subscription. `Foundry Agent
-Consumer` is appropriate for endpoint-only callers; `Foundry User` is for
-builders. Wait for propagation and test with intended workload identity.
+Use the managed identity **principal object ID**, not client ID. Prefer agent/project/resource scope over resource group/subscription. `Foundry Agent Consumer` is appropriate for endpoint-only callers; `Foundry User` is for builders. Wait for propagation and test with intended workload identity.
 
 ## Lessons 01–08: plan, deploy, operate, secure
 
@@ -511,19 +410,16 @@ Run:
 uv run python 01-plan-and-manage/01_model_catalog_list.py
 ```
 
-The script lists existing deployments from project context. Capture the
-**deployment name**, model, and type before configuring `DEFAULT_MODEL` or
-writing calls. Treat a catalog listing as an inventory snapshot, not proof that
-a deployment is healthy, affordable, or authorized for every principal.
+The script lists existing deployments from project context. Capture the **deployment name**, model, and type before configuring `DEFAULT_MODEL` or writing calls. Treat a catalog listing as an inventory snapshot, not proof that a deployment is healthy, affordable, or authorized for every principal.
 
 **Study points**
 
 - `model=` is generally deployment name. A model-family name causes
-  `DeploymentNotFound` unless it happens to equal a deployment name.
+`DeploymentNotFound` unless it happens to equal a deployment name.
 - A deployment's name is an application contract; isolate it in environment or
-  deployment configuration, not scattered literals.
+deployment configuration, not scattered literals.
 - Model selection includes capability, region, compliance, quota, throughput,
-  context, modality, price, and evaluation results.
+context, modality, price, and evaluation results.
 
 ### 02 — Deployment types
 
@@ -535,26 +431,25 @@ Run locally:
 uv run python 01-plan-and-manage/02_deployment_types.py
 ```
 
-Use this as a decision reference, then validate exact model/SKU availability in
-the current Foundry portal and documentation.
+Use this as a decision reference, then validate exact model/SKU availability in the current Foundry portal and documentation.
 
 **Region concepts**
 
 - An Azure **region** is a particular datacenter geography location.
 - A **geography/data zone** spans multiple regions inside a broader boundary.
 - Global capacity can improve availability and quota options, but it changes
-  residency assumptions.
+residency assumptions.
 - Regional deployment is for a concrete location requirement, not a generic
-  "EU" requirement.
+"EU" requirement.
 
 **Exam traps**
 
 - Data Zone is not one region.
 - PTUs reserve hourly capacity; they do not pre-buy tokens or make all 429s
-  impossible under every workload condition.
+impossible under every workload condition.
 - Batch is an asynchronous workload pattern, not a low-latency serving tier.
 - Managed compute and serverless partner-model offerings can have a different
-  billing/operations model from Azure OpenAI Standard deployments.
+billing/operations model from Azure OpenAI Standard deployments.
 
 ### 03 — Deploy a model
 
@@ -566,16 +461,9 @@ Run only after selecting model, SKU, region, capacity, and cleanup owner:
 uv run python 01-plan-and-manage/03_deploy_model.py
 ```
 
-The lesson uses `CognitiveServicesManagementClient`, which is a **management
-plane** client. It derives account name from `FOUNDRY_ENDPOINT`, then performs
-create-or-update for one Global Standard deployment. It is intentionally an
-idempotent-style automation example, not a deployment policy engine.
+The lesson uses `CognitiveServicesManagementClient`, which is a **management plane** client. It derives account name from `FOUNDRY_ENDPOINT`, then performs create-or-update for one Global Standard deployment. It is intentionally an idempotent-style automation example, not a deployment policy engine.
 
-Before production automation, pin or deliberately manage version selection,
-validate model availability and allowed SKU, set desired naming conventions,
-record ownership/tags, and plan rollback. A successful provisioning state does
-not prove the application has correct data-plane permissions or that a
-workload meets its SLO.
+Before production automation, pin or deliberately manage version selection, validate model availability and allowed SKU, set desired naming conventions, record ownership/tags, and plan rollback. A successful provisioning state does not prove the application has correct data-plane permissions or that a workload meets its SLO.
 
 ### 04 — Model Router through Responses API
 
@@ -587,16 +475,9 @@ Run after creating supported `model-router` deployment:
 uv run python 01-plan-and-manage/04_model_router.py
 ```
 
-The script calls the **project-scoped Responses API** with
-`model=MODEL_ROUTER_DEPLOYMENT`, then prints `response.model` to show the
-model chosen for that request. Router is Responses-supported in this lab. Do
-not revive older guidance claiming router only works through Chat Completions.
+The script calls the **project-scoped Responses API** with `model=MODEL_ROUTER_DEPLOYMENT`, then prints `response.model` to show the model chosen for that request. Router is Responses-supported in this lab. Do not revive older guidance claiming router only works through Chat Completions.
 
-Router can simplify an application that receives mixed-complexity prompts, but
-it is not a substitute for product evaluation. Measure quality, latency, cost,
-allowed model set, regional availability, safety behavior, and observability.
-Keep a deliberate fallback plan for router unavailability or workloads needing
-strict model selection.
+Router can simplify an application that receives mixed-complexity prompts, but it is not a substitute for product evaluation. Measure quality, latency, cost, allowed model set, regional availability, safety behavior, and observability. Keep a deliberate fallback plan for router unavailability or workloads needing strict model selection.
 
 ### 05 — Quotas and throughput
 
@@ -606,14 +487,9 @@ strict model selection.
 uv run python 01-plan-and-manage/05_quotas_and_tpm.py
 ```
 
-The lesson lists account deployments and `usages.list(location)`. Quota is a
-control-plane observation, not an invoice. It needs a subscription-level role
-such as `Cognitive Services Usages Reader` or subscription `Reader`; resource
-scope alone can be insufficient.
+The lesson lists account deployments and `usages.list(location)`. Quota is a control-plane observation, not an invoice. It needs a subscription-level role such as `Cognitive Services Usages Reader` or subscription `Reader`; resource scope alone can be insufficient.
 
-Use quota output to locate allocation and pool pressure. It does not tell you
-actual prompt mix, output lengths, retry amplification, end-user latency, or
-monthly spend. Combine it with application metrics and cost management data.
+Use quota output to locate allocation and pool pressure. It does not tell you actual prompt mix, output lengths, retry amplification, end-user latency, or monthly spend. Combine it with application metrics and cost management data.
 
 ### 06 — Rate-limit backoff
 
@@ -623,9 +499,7 @@ monthly spend. Combine it with application metrics and cost management data.
 uv run python 01-plan-and-manage/06_rate_limit_backoff.py
 ```
 
-The lesson sends five requests and retries `RateLimitError` and transient
-connection failures with bounded exponential backoff plus jitter. Jitter avoids
-synchronized retry storms; a maximum attempt count prevents infinite waiting.
+The lesson sends five requests and retries `RateLimitError` and transient connection failures with bounded exponential backoff plus jitter. Jitter avoids synchronized retry storms; a maximum attempt count prevents infinite waiting.
 
 ```text
 429 / transient connection failure
@@ -634,10 +508,7 @@ synchronized retry storms; a maximum attempt count prevents infinite waiting.
   → surface failure or queue work after budget exhausted
 ```
 
-Do **not** retry a configuration or access bug as though it were transient:
-`400`, `401`, `403`, and `404` need diagnosis. At scale, complement client
-retry with backpressure, request shaping, idempotency where an operation can
-mutate state, circuit breaking, queueing, and explicit user-facing degradation.
+Do **not** retry a configuration or access bug as though it were transient: `400`, `401`, `403`, and `404` need diagnosis. At scale, complement client retry with backpressure, request shaping, idempotency where an operation can mutate state, circuit breaking, queueing, and explicit user-facing degradation.
 
 ### 07 — Managed identity and keyless project auth
 
@@ -647,11 +518,7 @@ mutate state, circuit breaking, queueing, and explicit user-facing degradation.
 uv run python 01-plan-and-manage/07_managed_identity_agent.py
 ```
 
-This is the practical must-pass smoke test. It creates a project client with
-`DefaultAzureCredential`, lists hosted agents, obtains the project-scoped
-OpenAI client, and makes one Responses request. Passing proves that path can
-reach the project and configured deployment; it does not identify the selected
-credential-chain member.
+This is the practical must-pass smoke test. It creates a project client with `DefaultAzureCredential`, lists hosted agents, obtains the project-scoped OpenAI client, and makes one Responses request. Passing proves that path can reach the project and configured deployment; it does not identify the selected credential-chain member.
 
 Credential chain mental model:
 
@@ -665,8 +532,7 @@ Azure workload:    managed identity
             RBAC assignment at valid scope
 ```
 
-Use managed identity in deployed workloads instead of stored secrets whenever
-supported. Scope roles to project/resource and principal minimum needed.
+Use managed identity in deployed workloads instead of stored secrets whenever supported. Scope roles to project/resource and principal minimum needed.
 
 ### 08 — RBAC role policies
 
@@ -676,9 +542,7 @@ supported. Scope roles to project/resource and principal minimum needed.
 uv run python 01-plan-and-manage/08_rbac_role_policies.py
 ```
 
-The default behavior lists assignments. Role mutation requires `--apply`,
-`--assign-principal-id`, and `--role` because it is an administrative action.
-Review target principal, role, scope, and propagation before running it.
+The default behavior lists assignments. Role mutation requires `--apply`, `--assign-principal-id`, and `--role` because it is an administrative action. Review target principal, role, scope, and propagation before running it.
 
 | Operation | Starting role | Scope | Why |
 |---|---|---|---|
@@ -689,172 +553,119 @@ Review target principal, role, scope, and propagation before running it.
 | Quota inspection | `Cognitive Services Usages Reader` or `Reader` | Subscription | Usage visibility is subscription scoped. |
 | Telemetry query | `Log Analytics Reader` plus protected-table access if needed | Telemetry resource | Manual trace visibility. |
 
-Use groups for humans, managed identities/workload identities for applications,
-and resource/project scope before subscription scope. An application needing
-one specific agent endpoint should not automatically receive resource-wide
-management access.
+Use groups for humans, managed identities/workload identities for applications, and resource/project scope before subscription scope. An application needing one specific agent endpoint should not automatically receive resource-wide management access.
 
 ### 09 - Separate model guardrails from explicit moderation
 
-**Background.** Foundry deployment guardrails enforce configured policy while
-the Content Safety API gives application code a direct classification result.
-They solve different problems: a guardrail can stop a model response; an
-explicit check lets an application route, log safely, ask for clarification,
-or reject content before it reaches a model.
+**Background.** Foundry deployment guardrails enforce configured policy while the Content Safety API gives application code a direct classification result. They solve different problems: a guardrail can stop a model response; an explicit check lets an application route, log safely, ask for clarification, or reject content before it reaches a model.
 
 **Code path.**
 
 1. Flow A uses Chat Completions so deployment filter annotations/block behavior
-   is observable. A blocked request is normally HTTP 400 `content_filter`.
+is observable. A blocked request is normally HTTP 400 `content_filter`.
 2. Flow B calls `ContentSafetyClient.analyze_text()` with four harm categories.
 3. Flow C calls `analyze_image()` with local bytes.
 4. Results print category severities; do not compare direct API integer scores
-   with deployment `Safe`/`Low`/`Medium`/`High` filter policy labels.
+with deployment `Safe`/`Low`/`Medium`/`High` filter policy labels.
 
-**Use it:** explicit pre-screening, independent audit, or services outside a
-configured deployment. **Do not use it:** as a complete safety architecture.
-Image moderation does not detect an instruction hidden in OCR/RAG text; scan
-that as document attack instead. Use only approved synthetic unsafe examples.
+**Use it:** explicit pre-screening, independent audit, or services outside a configured deployment. **Do not use it:** as a complete safety architecture. Image moderation does not detect an instruction hidden in OCR/RAG text; scan that as document attack instead. Use only approved synthetic unsafe examples.
 
 ### 10 - Detect direct Prompt Shield attacks
 
-**Background.** A direct attack is authored by the user: "ignore previous
-instructions", authority spoofing, jailbreak framing, or attempts to bypass
-policy. Prompt Shields exist to detect attack patterns, not to classify harm
-severity or prove the user is malicious.
+**Background.** A direct attack is authored by the user: "ignore previous instructions", authority spoofing, jailbreak framing, or attempts to bypass policy. Prompt Shields exist to detect attack patterns, not to classify harm severity or prove the user is malicious.
 
 **Code path.**
 
 1. `shield_user_prompt()` delegates to shared `shield_prompt()`.
 2. The helper enforces official 10,000-character user prompt and document
-   limits before an Azure request.
+limits before an Azure request.
 3. It submits `userPrompt` and required empty `documents` array to
-   `text:shieldPrompt`.
+`text:shieldPrompt`.
 4. The response's `userPromptAnalysis.attackDetected` is printed for benign
-   and jailbreak samples.
+and jailbreak samples.
 5. Optional Flow B reads deployment guardrail `jailbreak` annotations from
-   Chat Completions.
+Chat Completions.
 
-Use explicit API when the application needs pre-model decision/audit; use
-deployment guardrail for uniform enforcement. Keep system instructions,
-tool allowlists, input validation, and least-privilege credentials: a shield
-detection does not authorize any action.
+Use explicit API when the application needs pre-model decision/audit; use deployment guardrail for uniform enforcement. Keep system instructions, tool allowlists, input validation, and least-privilege credentials: a shield detection does not authorize any action.
 
 ### 11 - Detect indirect document attacks
 
-**Background.** Indirect injection arrives in content the user did not write:
-retrieved pages, OCR, uploaded files, tool output, or a poisoned knowledge
-base. The user's request may be harmless while the document tries to control
-the model. This is why source provenance and tool permissions matter.
+**Background.** Indirect injection arrives in content the user did not write: retrieved pages, OCR, uploaded files, tool output, or a poisoned knowledge base. The user's request may be harmless while the document tries to control the model. This is why source provenance and tool permissions matter.
 
 **Code path.**
 
 1. The lesson reads `data/malicious_ocr_sample.txt` as deliberately untrusted
-   OCR output.
+OCR output.
 2. It keeps `_USER_PROMPT` benign and passes documents separately.
 3. Shared `shield_prompt()` validates maximum five documents/10,000 total
-   characters, then calls the direct Shield endpoint.
+characters, then calls the direct Shield endpoint.
 4. `documentsAnalysis[i].attackDetected` identifies which document is risky.
 5. The clean/mixed cases demonstrate that user-prompt and document outcomes
-   are different signals.
+are different signals.
 
-Never paste retrieved text into `messages` and claim it tested document
-protection: that creates user-prompt channel content. In production preserve
-source ID, retrieval authorization, chunk lineage, and scan decision; minimize
-tool authority; repeat checks at ingestion and tool-response boundaries.
+Never paste retrieved text into `messages` and claim it tested document protection: that creates user-prompt channel content. In production preserve source ID, retrieval authorization, chunk lineage, and scan decision; minimize tool authority; repeat checks at ingestion and tool-response boundaries.
 
 ### 12 - Understand Spotlighting before using it
 
-**Background.** Spotlighting is preview, Chat-Completions-only, model-only
-defense that marks document data as lower trust through documented encoding.
-It is additive to document Prompt Shields, not a substitute for source
-validation, tool policy, or retrieval hygiene.
+**Background.** Spotlighting is preview, Chat-Completions-only, model-only defense that marks document data as lower trust through documented encoding. It is additive to document Prompt Shields, not a substitute for source validation, tool policy, or retrieval hygiene.
 
-**Code path.** The lesson intentionally prints a request shape instead of
-sending an invented integration. `data_sources` represents a real
-document-bearing channel; `prompt_shield.documents.spotlighting_enabled`
-belongs there. A plain chat message is not a document channel.
+**Code path.** The lesson intentionally prints a request shape instead of sending an invented integration. `data_sources` represents a real document-bearing channel; `prompt_shield.documents.spotlighting_enabled` belongs there. A plain chat message is not a document channel.
 
-**Use it:** eligible preview document workflows after measuring token and
-context impact. **Do not use it:** with agents, Responses API, or as a way to
-avoid implementing indirect-attack controls. Base64 expansion can exceed
-context limits and a model can mention encoded content.
+**Use it:** eligible preview document workflows after measuring token and context impact. **Do not use it:** with agents, Responses API, or as a way to avoid implementing indirect-attack controls. Base64 expansion can exceed context limits and a model can mention encoded content.
 
 ### 13 - Treat PII filtering as output control
 
-**Background.** PII filtering is preview Foundry guardrail behavior at
-completion/output boundary. It exists to detect, block, or redact personal
-information generated by a model. It is not a promise that every identifier is
-found, a lawful-processing determination, or a replacement for data
-minimization.
+**Background.** PII filtering is preview Foundry guardrail behavior at completion/output boundary. It exists to detect, block, or redact personal information generated by a model. It is not a promise that every identifier is found, a lawful-processing determination, or a replacement for data minimization.
 
 **Code path.**
 
 1. The lesson requests only synthetic contact data.
 2. Chat Completions runs against a deployment whose PII guardrail was enabled
-   in portal/policy.
+in portal/policy.
 3. `_extract_pii()` accommodates current/older annotation keys.
 4. `_print_pii()` shows `detected`, `filtered`, `redacted`, optional redacted
-   text, and subcategories.
+text, and subcategories.
 5. HTTP 400 path inspects filter result when policy blocks entire completion.
 
-PII filtering requires preview-compatible API/guardrail support. Test false
-positive/negative behavior with privacy-approved cases; never use this lesson
-as an excuse to prompt for real data or log raw outputs.
+PII filtering requires preview-compatible API/guardrail support. Test false positive/negative behavior with privacy-approved cases; never use this lesson as an excuse to prompt for real data or log raw outputs.
 
 ### 14 - Check whether tool intent matches user intent
 
-**Background.** Task Adherence is preview analysis of proposed agent tool
-behavior. It detects a difference between what a user asked and what a tool
-plan would do--for example, viewing leave balance versus submitting leave.
-It is neither a jailbreak detector nor an automatic tool firewall.
+**Background.** Task Adherence is preview analysis of proposed agent tool behavior. It detects a difference between what a user asked and what a tool plan would do--for example, viewing leave balance versus submitting leave. It is neither a jailbreak detector nor an automatic tool firewall.
 
 **Code path.**
 
 1. `_TOOLS` defines tool names/descriptions, including read and side-effecting
-   operations.
+operations.
 2. Each scenario builds structured `Prompt`/`Completion` messages, assistant
-   tool calls, and optional tool results.
+tool calls, and optional tool results.
 3. `_analyze()` posts tools/messages, tries current preview contract then
-   documented fallback only on request-not-found/bad-request behavior.
+documented fallback only on request-not-found/bad-request behavior.
 4. It returns `taskRiskDetected` and `details`; unhandled failures surface
-   rather than pretending the check passed.
+rather than pretending the check passed.
 
-**Application rule:** before calling a consequential tool, block, ask for
-confirmation, or escalate on risk. Consider idempotency, audit trail,
-authorization, and human approval independently. Validate English/region/data
-residency behavior in target environment; service analysis can process data in
-US/EU.
+**Application rule:** before calling a consequential tool, block, ask for confirmation, or escalate on risk. Consider idempotency, audit trail, authorization, and human approval independently. Validate English/region/data residency behavior in target environment; service analysis can process data in US/EU.
 
 ### 15 - Build domain-specific blocklists deliberately
 
-**Background.** Harm classifiers are semantic and general; blocklists cover
-known codenames, competitor phrases, policy terms, and local abuse language.
-They exist for explicit organization policy, not for broad safety or injection
-defense.
+**Background.** Harm classifiers are semantic and general; blocklists cover known codenames, competitor phrases, policy terms, and local abuse language. They exist for explicit organization policy, not for broad safety or injection defense.
 
 **Code path.**
 
 1. `BlocklistClient.create_or_update_text_blocklist()` idempotently creates
-   lab list metadata.
+lab list metadata.
 2. `add_or_update_blocklist_items()` adds terms with service-assigned IDs.
 3. `AnalyzeTextOptions(blocklist_names=[...])` requests matches while
-   `halt_on_blocklist_hit=False` lets the lesson inspect all examples.
+`halt_on_blocklist_hit=False` lets the lesson inspect all examples.
 4. Retry loop waits for expected propagation before declaring match result.
 5. Flow B demonstrates that direct Content Safety lists and Foundry deployment
-   custom blocklists require separate wiring.
+custom blocklists require separate wiring.
 
-Run only with `--apply`. Service limits are 100 items/request, 10,000 total
-terms, 128 characters/item. Delete lab content afterward. A blocklist hit must
-map to application policy--warn, block, redact, or review--not merely print.
+Run only with `--apply`. Service limits are 100 items/request, 10,000 total terms, 128 characters/item. Delete lab content afterward. A blocklist hit must map to application policy--warn, block, redact, or review--not merely print.
 
 ### 16 - Learn code-defined agent state before managed agents
 
-**Background.** A Responses call with instructions is code-defined agent
-behavior: simple, versioned with application code, and useful for prototypes
-or bounded support behavior. It is not a Foundry prompt/hosted agent resource,
-so it does not provide managed lifecycle, tool registration, or shared agent
-configuration.
+**Background.** A Responses call with instructions is code-defined agent behavior: simple, versioned with application code, and useful for prototypes or bounded support behavior. It is not a Foundry prompt/hosted agent resource, so it does not provide managed lifecycle, tool registration, or shared agent configuration.
 
 **Code path.**
 
@@ -862,62 +673,46 @@ configuration.
 2. `single_turn()` passes `instructions` and user input to one Responses call.
 3. `multi_turn()` stores returned `response.id`.
 4. Later calls pass `previous_response_id`, letting server-side conversation
-   state link turns without resending full history.
+state link turns without resending full history.
 
-Use it when application owns behavior and state requirements are bounded. Do
-not mistake linked response state for retention/security policy: decide
-conversation lifecycle, user isolation, logging, and tool authorization
-explicitly. Use Domain 2 managed agents when team lifecycle/tools require it.
+Use it when application owns behavior and state requirements are bounded. Do not mistake linked response state for retention/security policy: decide conversation lifecycle, user isolation, logging, and tool authorization explicitly. Use Domain 2 managed agents when team lifecycle/tools require it.
 
 ### 17 - Use self-critique as a pattern, not evidence
 
-**Background.** Draft -> critique -> regenerate can improve a bounded answer
-when a checklist exposes omitted requirements. It exists as an application
-pattern, but the same model can repeat the same mistaken assumption in both
-roles.
+**Background.** Draft -> critique -> regenerate can improve a bounded answer when a checklist exposes omitted requirements. It exists as an application pattern, but the same model can repeat the same mistaken assumption in both roles.
 
 **Code path.**
 
 1. `_AGENT_INSTRUCTIONS` provides only known refund policy.
 2. First Responses call produces a draft.
 3. `_CRITIQUE_INSTRUCTIONS` defines completeness criteria and constrained
-   `COMPLETE`/`MISSING` output.
+`COMPLETE`/`MISSING` output.
 4. If missing, a second answer call receives an explicit coverage reminder.
 
-Use it for low-risk response refinement with clear source material. Do not use
-it as a release evaluator, fabricated-claim detector, safety approval, or
-chain-of-thought store. For production use held-out data, built-in evaluators,
-human review, thresholds, drift monitoring, and run history--lesson 22.
+Use it for low-risk response refinement with clear source material. Do not use it as a release evaluator, fabricated-claim detector, safety approval, or chain-of-thought store. For production use held-out data, built-in evaluators, human review, thresholds, drift monitoring, and run history--lesson 22.
 
 ### 18 - Instrument the application path safely
 
-**Background.** A trace is a correlated record of a request and suboperations.
-Manual instrumentation exists for app-specific work that Foundry cannot see:
-custom retrieval, policy, tool adapter, cache, queue, or business operation.
-It complements server-side Foundry tracing; it does not enable it.
+**Background.** A trace is a correlated record of a request and suboperations. Manual instrumentation exists for app-specific work that Foundry cannot see: custom retrieval, policy, tool adapter, cache, queue, or business operation. It complements server-side Foundry tracing; it does not enable it.
 
 **Code path.**
 
 1. `setup_tracing()` selects Azure Monitor exporter when connection string is
-   supplied or console exporter for local learning.
+supplied or console exporter for local learning.
 2. `start_as_current_span()` creates an application span around
-   `responses.create`.
+`responses.create`.
 3. Code adds model, token counts, latency, and controlled safety severity
-   attributes using GenAI conventions.
+attributes using GenAI conventions.
 4. Optional `_check_safety()` classifies output; transport errors are recorded
-   explicitly rather than hidden as safe output.
+explicitly rather than hidden as safe output.
 
-Do not add raw prompt/output attributes by default. Design telemetry schema,
-retention, protected-table access, PIM/JIT review, release correlation, and
-incident process before enabling content capture. Lesson 26 explains the
-zero-code server-side tracing path after connecting Application Insights.
+Do not add raw prompt/output attributes by default. Design telemetry schema, retention, protected-table access, PIM/JIT review, release correlation, and incident process before enabling content capture. Lesson 26 explains the zero-code server-side tracing path after connecting Application Insights.
 
 ## Lessons 09-15: defense in depth
 
 ### Guardrail layers and intervention points
 
-A safe system does not rely on one classifier. Separate policy enforcement from
-application decisions and place checks at the boundary where risk appears.
+A safe system does not rely on one classifier. Separate policy enforcement from application decisions and place checks at the boundary where risk appears.
 
 ```text
 User input ──► [user-input guardrail / Prompt Shield] ──► model or agent
@@ -939,12 +734,7 @@ and test all routes including retrieval and tools.
 | Tool response | Agent workflows where supported | Tool/web/RAG result contains indirect prompt injection. |
 | Output | Models and agents | Harmful output, PII disclosure, protected material. |
 
-Foundry guardrails are configured service policy and can annotate/block at
-supported intervention points. The explicit Azure AI Content Safety API is a
-separate application call, useful for pre-screening, independent checks, or
-workflows outside a configured deployment. Your application still owns the
-response to a detection signal: block, redact, ask for clarification, route to
-human review, or record an audit event.
+Foundry guardrails are configured service policy and can annotate/block at supported intervention points. The explicit Azure AI Content Safety API is a separate application call, useful for pre-screening, independent checks, or workflows outside a configured deployment. Your application still owns the response to a detection signal: block, redact, ask for clarification, route to human review, or record an audit event.
 
 ### Severity and scope distinction
 
@@ -957,8 +747,7 @@ human review, or record an audit event.
 | Task Adherence | Agent plan versus user intent | Preview risk signal plus details. |
 | Blocklist | Organization-specific terms/patterns | Match result/filter behavior. |
 
-Do not compare these score formats as if they were interchangeable. A safety
-signal is contextual evidence, not a complete risk decision.
+Do not compare these score formats as if they were interchangeable. A safety signal is contextual evidence, not a complete risk decision.
 
 ### Guardrail implementation rules
 
@@ -970,10 +759,7 @@ signal is contextual evidence, not a complete risk decision.
 | Guardrails add latency at intervention points. | Budget roughly 50-100 ms per point and test full agent routes. |
 | Hosted-agent attachment uses full ARM policy ID. | A bare name does not identify a policy resource. |
 
-Use explicit Content Safety API calls when application code must decide before
-inference. Use deployment/agent guardrails for service-side enforcement. Both
-still require application block, redact, clarify, human-review, audit, and
-rollback behavior.
+Use explicit Content Safety API calls when application code must decide before inference. Use deployment/agent guardrails for service-side enforcement. Both still require application block, redact, clarify, human-review, audit, and rollback behavior.
 
 ### Content Safety limits that affect lesson design
 
@@ -986,10 +772,7 @@ rollback behavior.
 | Blocklists | 100 items/request; 10,000 total; 128 chars/item | Batch updates and allow propagation before test. |
 | Protected Material | English; 110-10,000 characters | Scan completion, not short user input. |
 
-Task Adherence is preview. Local official docs show both
-`2024-12-15-preview` and `2025-09-15-preview` examples; lesson 14 tries the
-newer quickstart version before documented fallback. Validate availability in
-the target subscription before release.
+Task Adherence is preview. Local official docs show both `2024-12-15-preview` and `2025-09-15-preview` examples; lesson 14 tries the newer quickstart version before documented fallback. Validate availability in the target subscription before release.
 
 ### 09 — Content safety filters
 
@@ -999,19 +782,17 @@ the target subscription before release.
 uv run python 01-plan-and-manage/09_content_safety_filters.py
 ```
 
-The lesson contrasts a deployment-level model guardrail with explicit Content
-Safety text and image analysis. It uses intentionally unsafe test text; use
-only approved synthetic test material in labs.
+The lesson contrasts a deployment-level model guardrail with explicit Content Safety text and image analysis. It uses intentionally unsafe test text; use only approved synthetic test material in labs.
 
 **Study points**
 
 - Harm categories include hate/fairness, sexual, violence, and self-harm.
 - Deployment guardrail filter results and direct API severities have different
-  response shapes and scales.
+response shapes and scales.
 - A blocked deployment request can surface as `400` with `content_filter`;
-  annotation visibility depends on request path/configuration.
+annotation visibility depends on request path/configuration.
 - Image moderation is not a defense against text hidden in OCR, RAG chunks, or
-  a tool response. Use document/prompt-injection protections for that problem.
+a tool response. Use document/prompt-injection protections for that problem.
 
 ### 10 — Prompt Shields: direct user attacks
 
@@ -1021,20 +802,13 @@ only approved synthetic test material in labs.
 uv run python 01-plan-and-manage/10_prompt_shields_user.py
 ```
 
-A direct attack is in `userPrompt`: for example, attempted instruction override,
-authority spoofing, or jailbreak framing. The explicit shield API returns a
-boolean such as `userPromptAnalysis.attackDetected`. A configured deployment
-path can expose `jailbreak` detection/filter data or block according to policy.
+A direct attack is in `userPrompt`: for example, attempted instruction override, authority spoofing, or jailbreak framing. The explicit shield API returns a boolean such as `userPromptAnalysis.attackDetected`. A configured deployment path can expose `jailbreak` detection/filter data or block according to policy.
 
-Use a pre-model explicit check when you need routing or audit logic before
-inference. Use configured guardrails for consistent service-side enforcement.
-Neither removes need for strong system instructions, tool allowlists, output
-validation, and least-privilege tool credentials.
+Use a pre-model explicit check when you need routing or audit logic before inference. Use configured guardrails for consistent service-side enforcement. Neither removes need for strong system instructions, tool allowlists, output validation, and least-privilege tool credentials.
 
 ### 11 — Prompt Shields: document and indirect attacks
 
-**Question answered:** Is untrusted retrieved or uploaded content trying to
-control the model?
+**Question answered:** Is untrusted retrieved or uploaded content trying to control the model?
 
 ```bash
 uv run python 01-plan-and-manage/11_prompt_shields_docs.py
@@ -1048,58 +822,35 @@ Indirect attack: innocent user asks for summary; OCR/web/RAG/tool content
                  contains the attacker instruction.
 ```
 
-The explicit `shieldPrompt` flow supplies documents separately and reports
-per-document analysis. That is the clean way to test an actual document
-channel in this lesson.
+The explicit `shieldPrompt` flow supplies documents separately and reports per-document analysis. That is the clean way to test an actual document channel in this lesson.
 
-**Critical channel caveat:** pasting document text into a Chat Completions user
-message does **not** create a document-bearing channel. It can be evaluated as
-user-prompt content and produce a `jailbreak` result instead. An inline
-`indirect_attack` result requires an actual supported document path, such as
-configured retrieval/data source or tool response, plus Document attack control.
-Do not claim this sample proves that full inline document integration.
+**Critical channel caveat:** pasting document text into a Chat Completions user message does **not** create a document-bearing channel. It can be evaluated as user-prompt content and produce a `jailbreak` result instead. An inline `indirect_attack` result requires an actual supported document path, such as configured retrieval/data source or tool response, plus Document attack control. Do not claim this sample proves that full inline document integration.
 
-Treat all external content as data, not instructions. Preserve source identity,
-minimize tool authority, scan before ingestion and at retrieval/tool boundaries,
-and give the model explicit rules for handling untrusted content.
+Treat all external content as data, not instructions. Preserve source identity, minimize tool authority, scan before ingestion and at retrieval/tool boundaries, and give the model explicit rules for handling untrusted content.
 
 ### 12 — Spotlighting (preview)
 
-**Question answered:** What extra trust-boundary defense is available for
-supported document workflows?
+**Question answered:** What extra trust-boundary defense is available for supported document workflows?
 
 ```bash
 uv run python 01-plan-and-manage/12_spotlighting.py
 ```
 
-This local reference inspects documented request shape and integration boundary.
-Spotlighting is **preview**, works with **Chat Completions only**, and is **not
-supported for agents**. It marks document content as lower trust through its
-documented transformation/encoding behavior; it is additive to document Prompt
-Shields, not a replacement.
+This local reference inspects documented request shape and integration boundary. Spotlighting is **preview**, works with **Chat Completions only**, and is **not supported for agents**. It marks document content as lower trust through its documented transformation/encoding behavior; it is additive to document Prompt Shields, not a replacement.
 
-Use it only after validating preview eligibility and token impact. Document
-expansion can increase input tokens and exceed context/input limits. It cannot
-replace retrieval hygiene, Prompt Shields, tool authorization, or testing real
-document paths.
+Use it only after validating preview eligibility and token impact. Document expansion can increase input tokens and exceed context/input limits. It cannot replace retrieval hygiene, Prompt Shields, tool authorization, or testing real document paths.
 
 ### 13 — PII filter (preview)
 
-**Question answered:** How can a completion guardrail expose personal-data
-handling behavior?
+**Question answered:** How can a completion guardrail expose personal-data handling behavior?
 
 ```bash
 uv run python 01-plan-and-manage/13_pii_filter.py
 ```
 
-The lesson requests synthetic values and inspects output filter annotations. PII
-filter is a **preview** completion/output intervention control; it is not a
-promise that all personal data is found, removed, or lawful to process. Enable
-and test the matching deployment guardrail before relying on results.
+The lesson requests synthetic values and inspects output filter annotations. PII filter is a **preview** completion/output intervention control; it is not a promise that all personal data is found, removed, or lawful to process. Enable and test the matching deployment guardrail before relying on results.
 
-Production design should minimize collection, avoid logging sensitive prompts
-and outputs, restrict telemetry access, define retention, and test false
-positive/negative consequences. Do not feed real personal data into this lab.
+Production design should minimize collection, avoid logging sensitive prompts and outputs, restrict telemetry access, define retention, and test false positive/negative consequences. Do not feed real personal data into this lab.
 
 ### 14 — Task Adherence (preview)
 
@@ -1109,41 +860,27 @@ positive/negative consequences. Do not feed real personal data into this lab.
 uv run python 01-plan-and-manage/14_task_adherence.py
 ```
 
-The lesson calls Content Safety Task Adherence with tool definitions and
-conversation/tool-plan messages. It compares aligned and misaligned plans, such
-as reading leave balance versus submitting leave, or drafting versus sending an
-email.
+The lesson calls Content Safety Task Adherence with tool definitions and conversation/tool-plan messages. It compares aligned and misaligned plans, such as reading leave balance versus submitting leave, or drafting versus sending an email.
 
-Task Adherence is **preview** and returns a signal; it does not execute or
-block a tool on its own. The application must stop the action, ask confirmation,
-or escalate to human review. It is not a jailbreak detector and not a generic
-harm classifier. Test language and workflow behavior with representative
-examples before making it a release gate.
+Task Adherence is **preview** and returns a signal; it does not execute or block a tool on its own. The application must stop the action, ask confirmation, or escalate to human review. It is not a jailbreak detector and not a generic harm classifier. Test language and workflow behavior with representative examples before making it a release gate.
 
 ### 15 — Custom blocklists
 
-**Question answered:** How can a policy catch organization-specific terms that
-harm categories miss?
+**Question answered:** How can a policy catch organization-specific terms that harm categories miss?
 
 ```bash
 uv run python 01-plan-and-manage/15_blocklists.py
 ```
 
-The lesson creates/updates `northwind-exam-blocklist`, adds lab terms, and
-analyzes text for matches only with explicit intent:
+The lesson creates/updates `northwind-exam-blocklist`, adds lab terms, and analyzes text for matches only with explicit intent:
 
 ```bash
 uv run python 01-plan-and-manage/15_blocklists.py --apply
 ```
 
-It persists service state. Delete lab-only list/items when finished if they
-are no longer needed.
+It persists service state. Delete lab-only list/items when finished if they are no longer needed.
 
-Blocklists fit codenames, competitor names, regulated phrases, and other
-explicit domain policy. They do not replace semantic moderation or injection
-defense. Allow for propagation delay after changes. Content Safety blocklist
-APIs and Foundry deployment custom-blocklist configuration are related concepts
-with different wiring; configure and test the one your serving path uses.
+Blocklists fit codenames, competitor names, regulated phrases, and other explicit domain policy. They do not replace semantic moderation or injection defense. Allow for propagation delay after changes. Content Safety blocklist APIs and Foundry deployment custom-blocklist configuration are related concepts with different wiring; configure and test the one your serving path uses.
 
 ## Lessons 16–18: agents, evaluation, observability
 
@@ -1155,28 +892,19 @@ with different wiring; configure and test the one your serving path uses.
 | Prompt agent | Foundry-managed definition | Shared/versioned agent behavior | Broader lifecycle covered in Domain 2. |
 | Hosted agent | Your packaged code hosted by Foundry | Custom runtime/dependencies/tooling | Lesson 07 only lists hosted agents as auth smoke test. |
 
-"Ephemeral" describes where behavior is defined, not an absence of safety,
-identity, cost, or observability responsibilities. A code-defined Responses
-call can still use project access, deployment guardrails, and application
-telemetry.
+"Ephemeral" describes where behavior is defined, not an absence of safety, identity, cost, or observability responsibilities. A code-defined Responses call can still use project access, deployment guardrails, and application telemetry.
 
 ### 16 — Agent basics through Responses API
 
-**Question answered:** How do instructions and multi-turn state work without
-creating a Foundry agent resource?
+**Question answered:** How do instructions and multi-turn state work without creating a Foundry agent resource?
 
 ```bash
 uv run python 01-plan-and-manage/16_agent_basics.py
 ```
 
-The lesson uses code-defined instructions for a single response, then links a
-follow-up through `previous_response_id`. This demonstrates conversation state
-without resending every prior message in the client call.
+The lesson uses code-defined instructions for a single response, then links a follow-up through `previous_response_id`. This demonstrates conversation state without resending every prior message in the client call.
 
-Use this pattern for bounded behavior owned and deployed with application code.
-It is not a substitute for evaluating instructions, authorizing tools, setting
-retention expectations, or deciding whether managed prompt/hosted agents fit
-team operations better.
+Use this pattern for bounded behavior owned and deployed with application code. It is not a substitute for evaluating instructions, authorizing tools, setting retention expectations, or deciding whether managed prompt/hosted agents fit team operations better.
 
 ### Evaluation concepts: rubric versus self-critique
 
@@ -1187,30 +915,19 @@ team operations better.
 | Golden-set CI gate | Repeatable representative test set and threshold | Release evidence, only as good as dataset/threshold. |
 | Human review | Domain expert examines selected/flagged cases | High-value qualitative/regulated review. |
 
-Groundedness asks whether response claims are supported by supplied sources.
-Response Completeness asks whether needed aspects were covered. Neither is
-identical to safety, tool correctness, or user satisfaction. Preview evaluator
-requirements can differ; for example, Response Completeness needs its
-supported evaluation contract such as `ground_truth` and `response`.
+Groundedness asks whether response claims are supported by supplied sources. Response Completeness asks whether needed aspects were covered. Neither is identical to safety, tool correctness, or user satisfaction. Preview evaluator requirements can differ; for example, Response Completeness needs its supported evaluation contract such as `ground_truth` and `response`.
 
 ### 17 — Self-critique and regeneration
 
-**Question answered:** How can an application implement draft → critique →
-regenerate?
+**Question answered:** How can an application implement draft → critique → regenerate?
 
 ```bash
 uv run python 01-plan-and-manage/17_evaluator_groundedness.py
 ```
 
-The lesson generates a support answer, asks another model call to return
-`COMPLETE` or `MISSING` against a checklist, and regenerates when needed. This
-is useful for learning how a rubric can shape revision.
+The lesson generates a support answer, asks another model call to return `COMPLETE` or `MISSING` against a checklist, and regenerates when needed. This is useful for learning how a rubric can shape revision.
 
-**Limitation:** lesson 17 is **not** a Foundry built-in Groundedness or Response
-Completeness evaluator, and it does not create an evaluation run. A model can
-make the same mistake in drafting and reviewing. For production, use held-out
-examples, documented evaluator contracts, human review where needed, and
-monitor quality drift rather than trusting a self-approval loop.
+**Limitation:** lesson 17 is **not** a Foundry built-in Groundedness or Response Completeness evaluator, and it does not create an evaluation run. A model can make the same mistake in drafting and reviewing. For production, use held-out examples, documented evaluator contracts, human review where needed, and monitor quality drift rather than trusting a self-approval loop.
 
 ### 18 — Manual tracing
 
@@ -1220,16 +937,9 @@ monitor quality drift rather than trusting a self-approval loop.
 uv run python 01-plan-and-manage/18_agent_tracing.py
 ```
 
-The lesson creates an application-owned OpenTelemetry span around a Responses
-call. It records model, token metadata, latency, and best-effort safety
-metadata without adding prompt or output text as span attributes; an optional
-Application Insights connection string exports telemetry.
+The lesson creates an application-owned OpenTelemetry span around a Responses call. It records model, token metadata, latency, and best-effort safety metadata without adding prompt or output text as span attributes; an optional Application Insights connection string exports telemetry.
 
-**Limitation:** this is manual application instrumentation, **not** automatic
-Foundry server/client tracing and **not** proof of full Foundry Traces
-integration. Treat spans as a carefully governed operational dataset: avoid
-secrets and unnecessary personal data, cap previews, apply access controls,
-set retention, and correlate traces with deployment version and release ID.
+**Limitation:** this is manual application instrumentation, **not** automatic Foundry server/client tracing and **not** proof of full Foundry Traces integration. Treat spans as a carefully governed operational dataset: avoid secrets and unnecessary personal data, cap previews, apply access controls, set retention, and correlate traces with deployment version and release ID.
 
 Useful dimensions:
 
@@ -1282,8 +992,7 @@ Useful dimensions:
 
 ## CI/CD and operational release discussion
 
-Treat Foundry configuration, prompts, deployment names, guardrail policy, and
-application code as a release system—not portal-only changes.
+Treat Foundry configuration, prompts, deployment names, guardrail policy, and application code as a release system—not portal-only changes.
 
 ```text
 Pull request
@@ -1307,7 +1016,7 @@ Pull request
 - Evaluation datasets, rubric versions, thresholds, and reviewed exceptions.
 - Telemetry schema, redaction rules, alert thresholds, release identifiers.
 - RBAC role assignments as IaC where organization policy allows; never store
-  secrets in repository variables.
+secrets in repository variables.
 
 ### Practical release gates
 
@@ -1320,16 +1029,11 @@ Pull request
 | Telemetry change | Redaction, access, retention, correlation, and ingestion verification. |
 | RBAC change | Test with intended workload identity at least scope; confirm no privileged fallback. |
 
-Avoid using a single score as a deployment decision. A higher aggregate quality
-score can hide a critical safety, residency, latency, cost, or tool-action
-failure. Keep rollback ownership and a known-good configuration.
+Avoid using a single score as a deployment decision. A higher aggregate quality score can hide a critical safety, residency, latency, cost, or tool-action failure. Keep rollback ownership and a known-good configuration.
 
 ## Advanced production path: lessons 19-26
 
-Lessons 01-18 establish basic planning, safety, and application telemetry.
-Lessons 19-26 add output safety, groundedness, provenance, evaluations,
-feedback, red teaming, and Foundry-native observability. Each answers a
-different operational question; none replaces the others.
+Lessons 01-18 establish basic planning, safety, and application telemetry. Lessons 19-26 add output safety, groundedness, provenance, evaluations, feedback, red teaming, and Foundry-native observability. Each answers a different operational question; none replaces the others.
 
 ```text
 Application identity
@@ -1340,9 +1044,7 @@ Application identity
   └── Key Vault / network policy / RBAC: security boundaries
 ```
 
-A Foundry project connection is not permission to access Storage, Key Vault,
-Search, Content Safety, or Log Analytics. Each is a separate Azure resource
-with its own identity, network, role, cost, and retention boundary.
+A Foundry project connection is not permission to access Storage, Key Vault, Search, Content Safety, or Log Analytics. Each is a separate Azure resource with its own identity, network, role, cost, and retention boundary.
 
 | Question | Use | Do not confuse with |
 |---|---|---|
@@ -1356,72 +1058,40 @@ with its own identity, network, role, cost, and retention boundary.
 
 ### 19 - Protected Material detection
 
-**What:** GA Content Safety output check for known protected English text.
-**Why:** route a completion to abstention, attribution, legal review, or
-policy handling. **How:** send a model completion to
-`text:detectProtectedMaterial`; inspect
-`protectedMaterialAnalysis.detected`. **Use it:** after generation where
-reproduction risk matters. **Do not use it:** for user prompts, harm
-classification, short snippets, or legal conclusions.
+**What:** GA Content Safety output check for known protected English text. **Why:** route a completion to abstention, attribution, legal review, or policy handling. **How:** send a model completion to `text:detectProtectedMaterial`; inspect `protectedMaterialAnalysis.detected`. **Use it:** after generation where reproduction risk matters. **Do not use it:** for user prompts, harm classification, short snippets, or legal conclusions.
 
 ```bash
 uv run python 01-plan-and-manage/19_protected_material.py
 uv run python 01-plan-and-manage/19_protected_material.py --run
 ```
 
-Requires Content Safety, `CONTENT_SAFETY_ENDPOINT`, and `Cognitive Services
-User`. It accepts 110-10,000 English characters; the lab sends synthetic text
-and creates no persistent state. Keep real output out of logs unless retention
-and reviewer access are approved.
+Requires Content Safety, `CONTENT_SAFETY_ENDPOINT`, and `Cognitive Services User`. It accepts 110-10,000 English characters; the lab sends synthetic text and creates no persistent state. Keep real output out of logs unless retention and reviewer access are approved.
 
 ### 20 - Groundedness detection
 
-**What:** preview Content Safety API for unsupported answer spans. **Why:** a
-fluent RAG answer can still invent claims. **How:** compare generated `text`
-to `groundingSources`, then use `ungroundedDetected`,
-`ungroundedPercentage`, and `ungroundedDetails`. The percentage is a
-proportion, not confidence. **Use it:** summaries and answers backed by
-curated content. **Do not use it:** as authorization, citation storage, or
-universal truth test.
+**What:** preview Content Safety API for unsupported answer spans. **Why:** a fluent RAG answer can still invent claims. **How:** compare generated `text` to `groundingSources`, then use `ungroundedDetected`, `ungroundedPercentage`, and `ungroundedDetails`. The percentage is a proportion, not confidence. **Use it:** summaries and answers backed by curated content. **Do not use it:** as authorization, citation storage, or universal truth test.
 
 ```bash
 uv run python 01-plan-and-manage/20_groundedness_detection.py
 uv run python 01-plan-and-manage/20_groundedness_detection.py --run
 ```
 
-Requires S0 Content Safety in a supported region, `Cognitive Services User`,
-and `CONTENT_SAFETY_ENDPOINT`; F0 is unsupported. The preview API is
-`2024-09-15-preview`. Text and optional QnA query allow 7,500 characters;
-sources total 55,000. Reasoning mode additionally needs an eligible GPT-4o
-deployment and `llmResource`; do not enable it by accident.
+Requires S0 Content Safety in a supported region, `Cognitive Services User`, and `CONTENT_SAFETY_ENDPOINT`; F0 is unsupported. The preview API is `2024-09-15-preview`. Text and optional QnA query allow 7,500 characters; sources total 55,000. Reasoning mode additionally needs an eligible GPT-4o deployment and `llmResource`; do not enable it by accident.
 
 ### 21 - Provenance detection
 
-**What:** preview asynchronous detection of C2PA and supported invisible
-watermark markers in media. **Why:** add an origin signal before trusting or
-publishing media. **How:** submit `content.uri` to
-`operations:detect`, poll its operation ID, and handle
-`ProvenanceDetected`, `NoProvenanceDetected`, or failure. **Use it:** media
-review workflows. **Do not use it:** as a safety classifier, ownership proof,
-or authenticity guarantee.
+**What:** preview asynchronous detection of C2PA and supported invisible watermark markers in media. **Why:** add an origin signal before trusting or publishing media. **How:** submit `content.uri` to `operations:detect`, poll its operation ID, and handle `ProvenanceDetected`, `NoProvenanceDetected`, or failure. **Use it:** media review workflows. **Do not use it:** as a safety classifier, ownership proof, or authenticity guarantee.
 
 ```bash
 uv run python 01-plan-and-manage/21_provenance_detection.py
 uv run python 01-plan-and-manage/21_provenance_detection.py --run
 ```
 
-Requires `PROVENANCE_SOURCE_URL` (HTTPS Blob/SAS URI),
-`CONTENT_SAFETY_ENDPOINT`, `Cognitive Services User` for caller, and
-`Storage Blob Data Reader` for Content Safety's managed identity. Prefer
-managed identity over a long-lived SAS. This uses
-`2026-07-01-preview`; local docs do not list a fixed region matrix, so verify
-availability before a production design.
+Requires `PROVENANCE_SOURCE_URL` (HTTPS Blob/SAS URI), `CONTENT_SAFETY_ENDPOINT`, `Cognitive Services User` for caller, and `Storage Blob Data Reader` for Content Safety's managed identity. Prefer managed identity over a long-lived SAS. This uses `2026-07-01-preview`; local docs do not list a fixed region matrix, so verify availability before a production design.
 
 ### 22 - Evaluation runs, not self-critique
 
-Lesson 17 is draft -> critique -> regenerate. It teaches a pattern, but it
-does not create a dataset, metric, run, trend, or release gate. A Foundry
-evaluation is repeatable evidence with a documented input mapping.
+Lesson 17 is draft -> critique -> regenerate. It teaches a pattern, but it does not create a dataset, metric, run, trend, or release gate. A Foundry evaluation is repeatable evidence with a documented input mapping.
 
 ```bash
 uv run python 01-plan-and-manage/22_foundry_evaluation.py
@@ -1429,11 +1099,7 @@ uv run python 01-plan-and-manage/22_foundry_evaluation.py \
   --apply --dataset path/to/tests.jsonl [--rubric reviewed-rubric-name]
 ```
 
-The first command is preflight. Applying uploads data, creates an evaluation
-and run, calls the agent/evaluators, and can bill. It needs JSONL `query`
-fields, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`,
-`AZURE_AI_MODEL_DEPLOYMENT_NAME`, a target agent/deployment, and `Foundry
-User`.
+The first command is preflight. Applying uploads data, creates an evaluation and run, calls the agent/evaluators, and can bill. It needs JSONL `query` fields, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, `AZURE_AI_MODEL_DEPLOYMENT_NAME`, a target agent/deployment, and `Foundry User`.
 
 | Evaluator | Input / purpose | Distinction |
 |---|---|---|
@@ -1443,56 +1109,32 @@ User`.
 | Groundedness Pro | Binary Content Safety-backed score | Different from model-based 1-5 Groundedness. |
 | Response Completeness | `ground_truth` and response | Different from grounding and safety. |
 
-Task Adherence has three surfaces: lesson 14's Content Safety REST signal
-(`tools` plus conversation messages), Foundry guardrail runtime annotation,
-and `builtin.task_adherence` evaluator over evaluation data. Choose real-time
-enforcement, runtime policy, or offline measurement deliberately. Rows are
-limited to 2 MB; batches to 100,000 rows; evaluator region support varies.
+Task Adherence has three surfaces: lesson 14's Content Safety REST signal (`tools` plus conversation messages), Foundry guardrail runtime annotation, and `builtin.task_adherence` evaluator over evaluation data. Choose real-time enforcement, runtime policy, or offline measurement deliberately. Rows are limited to 2 MB; batches to 100,000 rows; evaluator region support varies.
 
 ### 23 - Continuous evaluation
 
-**What:** sampled post-deployment evaluation rule. **Why:** catch regression
-after release. **How:** evaluates completed responses on a bounded schedule.
-**Use it:** monitored production quality/safety signals. **Do not use it:** as
-a synchronous safety block or a dump of unrestricted sensitive traffic.
+**What:** sampled post-deployment evaluation rule. **Why:** catch regression after release. **How:** evaluates completed responses on a bounded schedule. **Use it:** monitored production quality/safety signals. **Do not use it:** as a synchronous safety block or a dump of unrestricted sensitive traffic.
 
 ```bash
 uv run python 01-plan-and-manage/23_continuous_evaluation.py
 uv run python 01-plan-and-manage/23_continuous_evaluation.py --apply
 ```
 
-Applying creates persistent evaluation/rule state and incurs sampling,
-evaluator, and telemetry cost. Requires project/agent identifiers,
-Application Insights, and `Foundry User` for project managed identity. The
-lesson caps at 10 runs/hour; change only after privacy, cost, alert, owner,
-and rollback review.
+Applying creates persistent evaluation/rule state and incurs sampling, evaluator, and telemetry cost. Requires project/agent identifiers, Application Insights, and `Foundry User` for project managed identity. The lesson caps at 10 runs/hour; change only after privacy, cost, alert, owner, and rollback review.
 
 ### 24 - Human feedback and HITL
 
-**What:** structured quality signal linked to an exact response. **Why:**
-automated metrics cannot replace user/domain-expert judgment. **How:** emit
-`gen_ai.evaluation.result` while original response span is active; portal
-annotations are append-only history. **Use it:** approved review and feedback
-flows. **Do not use it:** for silent sensitive-data capture.
+**What:** structured quality signal linked to an exact response. **Why:** automated metrics cannot replace user/domain-expert judgment. **How:** emit `gen_ai.evaluation.result` while original response span is active; portal annotations are append-only history. **Use it:** approved review and feedback flows. **Do not use it:** for silent sensitive-data capture.
 
 ```bash
 uv run python 01-plan-and-manage/24_human_feedback.py
 ```
 
-The lesson prints integration guidance; a handler calls
-`emit_end_user_feedback(..., apply=True)` with the original span. It requires
-project-connected Application Insights, tracing packages, and governed
-retention. Reviewers need `Foundry User` plus Reader; template management
-needs `Foundry Project Manager`. Human templates are preview; the default
-binary `task_completion` path must preserve trace/span correlation.
+The lesson prints integration guidance; a handler calls `emit_end_user_feedback(..., apply=True)` with the original span. It requires project-connected Application Insights, tracing packages, and governed retention. Reviewers need `Foundry User` plus Reader; template management needs `Foundry Project Manager`. Human templates are preview; the default binary `task_completion` path must preserve trace/span correlation.
 
 ### 25 - AI Red Teaming Agent
 
-**What:** preview adversarial scan with Attack Success Rate evidence. **Why:**
-find systematic failures before users do. **How:** generate approved attacks
-against an explicit target. **Use it:** nonproduction purple environment with
-an incident/mitigation owner. **Do not use it:** against production tools,
-customer content, or unapproved endpoints.
+**What:** preview adversarial scan with Attack Success Rate evidence. **Why:** find systematic failures before users do. **How:** generate approved attacks against an explicit target. **Use it:** nonproduction purple environment with an incident/mitigation owner. **Do not use it:** against production tools, customer content, or unapproved endpoints.
 
 ```bash
 uv run python 01-plan-and-manage/25_red_teaming.py
@@ -1500,12 +1142,7 @@ AZURE_AI_PROJECT=<project-endpoint> \
   uv run python 01-plan-and-manage/25_red_teaming.py --apply
 ```
 
-The apply lesson deliberately uses only a fixed safe synthetic callback; no
-real model, tool, or application receives the generated attacks. It requires
-Python 3.10-3.13, `azure-ai-evaluation[redteam]`, Entra identity, Foundry
-project, and `Foundry User` for project managed identity. Scans bill and
-region support is preview-sensitive; verify it before targeting a real
-nonproduction system.
+The apply lesson deliberately uses only a fixed safe synthetic callback; no real model, tool, or application receives the generated attacks. It requires Python 3.10-3.13, `azure-ai-evaluation[redteam]`, Entra identity, Foundry project, and `Foundry User` for project managed identity. Scans bill and region support is preview-sensitive; verify it before targeting a real nonproduction system.
 
 ### 18 and 26 - manual versus Foundry-native tracing
 
@@ -1514,17 +1151,9 @@ uv run python 01-plan-and-manage/18_agent_tracing.py
 uv run python 01-plan-and-manage/26_foundry_tracing_setup.py
 ```
 
-Lesson 18 adds application-owned `gen_ai.*` attributes and token counts around
-a Responses call. `AZURE_OPENAI_ENDPOINT` is required;
-`CONTENT_SAFETY_ENDPOINT` and
-`APPLICATIONINSIGHTS_CONNECTION_STRING` are optional. Prompts and outputs are
-not span attributes. It is not server-side Foundry tracing.
+Lesson 18 adds application-owned `gen_ai.*` attributes and token counts around a Responses call. `AZURE_OPENAI_ENDPOINT` is required; `CONTENT_SAFETY_ENDPOINT` and `APPLICATIONINSIGHTS_CONNECTION_STRING` are optional. Prompts and outputs are not span attributes. It is not server-side Foundry tracing.
 
-Lesson 26 is local/read-only preflight. Foundry-native tracing starts after
-Application Insights is connected to project; supported prompt/hosted agent
-and workflow paths then trace automatically. Trace access needs project access
-and Log Analytics Reader; protected sensitive-content tables also require
-Privileged Monitoring Data Reader.
+Lesson 26 is local/read-only preflight. Foundry-native tracing starts after Application Insights is connected to project; supported prompt/hosted agent and workflow paths then trace automatically. Trace access needs project access and Log Analytics Reader; protected sensitive-content tables also require Privileged Monitoring Data Reader.
 
 | Operational rule | Why |
 |---|---|
@@ -1545,32 +1174,20 @@ Privileged Monitoring Data Reader.
 | IaC | Portal to learn; Bicep/Terraform for reviewed repeatability | Do not maintain portal, CLI, and IaC as competing sources of truth. |
 | Resilience | Independent regional resources plus app routing | Global/Data Zone is not automatic application failover. |
 
-Release model: provision identity/network/diagnostics through reviewed IaC;
-verify workload identity and least privilege; run unit contracts, curated
-evaluations, safety regressions, and bounded red teaming; approve measurable
-quality/latency/cost/rollback evidence; deploy progressively; monitor traces,
-safety, quota, and cost; roll back known-good configuration on regression.
+Release model: provision identity/network/diagnostics through reviewed IaC; verify workload identity and least privilege; run unit contracts, curated evaluations, safety regressions, and bounded red teaming; approve measurable quality/latency/cost/rollback evidence; deploy progressively; monitor traces, safety, quota, and cost; roll back known-good configuration on regression.
 
-**Troubleshoot:** `Custom subdomain required` means token-auth prerequisite is
-missing. `401`/`403` means inspect endpoint, principal object ID, role, scope,
-and propagation--do not retry. Missing evaluations/red team usually mean
-feature-specific region, preview access, managed-identity role, or bad mapping.
-Missing traces usually mean App Insights connection, ingestion delay,
-Log-Analytics/protected-table role, or retention. Provenance file-not-found
-usually means unreachable Blob URI or missing Storage Blob Data Reader.
+**Troubleshoot:** `Custom subdomain required` means token-auth prerequisite is missing. `401`/`403` means inspect endpoint, principal object ID, role, scope, and propagation--do not retry. Missing evaluations/red team usually mean feature-specific region, preview access, managed-identity role, or bad mapping. Missing traces usually mean App Insights connection, ingestion delay, Log-Analytics/protected-table role, or retention. Provenance file-not-found usually means unreachable Blob URI or missing Storage Blob Data Reader.
 
 ### Interview prompts and takeaways
 
 1. Why is a deployment name not a model name? Deployment alias also selects
-   version, capacity, filters, and limits; application calls alias while
-   automation declares model/version.
+version, capacity, filters, and limits; application calls alias while automation declares model/version.
 2. Groundedness API or evaluation? API is immediate source-support signal;
-   evaluation is repeatable offline/release evidence.
+evaluation is repeatable offline/release evidence.
 3. How do model and agent guardrails interact? Assigned agent guardrail
-   overrides its model guardrail; tool controls must exist in agent policy.
+overrides its model guardrail; tool controls must exist in agent policy.
 4. What proves safe release? Least privilege, policy tests, representative
-   evaluation, bounded red team, human review, governed telemetry, rollout,
-   and rollback--never one score.
+evaluation, bounded red team, human review, governed telemetry, rollout, and rollback--never one score.
 
 ## Common exam traps
 
@@ -1593,16 +1210,9 @@ usually means unreachable Blob URI or missing Storage Blob Data Reader.
 
 ## Objective coverage and limits
 
-Runnable evidence in this folder covers deployment selection/control-plane API,
-quota inspection, retry behavior, project credential validation, assignment
-inspection, Content Safety and Prompt Shield calls, blocklist lifecycle,
-Responses conversation state, self-critique pattern, and manual telemetry.
+Runnable evidence in this folder covers deployment selection/control-plane API, quota inspection, retry behavior, project credential validation, assignment inspection, Content Safety and Prompt Shield calls, blocklist lifecycle, Responses conversation state, self-critique pattern, and manual telemetry.
 
-It does **not** prove production readiness, regional feature availability,
-complete compliance, service-side agent tracing, full evaluation-run setup,
-guardrail coverage on every route, or a secure tool-execution design. Preview
-features can change. A successful call proves only that call under its current
-identity, resource, configuration, and time.
+It does **not** prove production readiness, regional feature availability, complete compliance, service-side agent tracing, full evaluation-run setup, guardrail coverage on every route, or a secure tool-execution design. Preview features can change. A successful call proves only that call under its current identity, resource, configuration, and time.
 
 ## References
 
