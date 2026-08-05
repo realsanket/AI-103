@@ -67,7 +67,15 @@ L08 Safety      — "Guardrails (deployment-level) vs Content Safety API (call-a
 L09 Shields U   — "Prompt Shields: detect user jailbreak attempts"
     ↓
 L10 Shields D   — "Prompt Shields: detect indirect injection hidden in documents"
-    ↓ prompts + documents both hardened
+    ↓
+L14 Spotlight   — "Spotlighting (preview): base64-tag docs as lower-trust"
+    ↓
+L15 PII         — "PII filter (preview): detect/redact personal data in OUTPUT"
+    ↓
+L16 TaskAdhere  — "Task Adherence (preview): block misaligned agent tool calls"
+    ↓
+L17 Blocklists  — "Custom blocklists: competitors/codenames default filters miss"
+    ↓ prompts + docs + PII + tools + domain terms hardened
 L10.5 Agents    — "3 agent types explained; ephemeral pattern to unblock L11"
     ↓
 L11 Evaluator   — "draft → critique → regenerate loop (like built-in Groundedness)"
@@ -94,6 +102,10 @@ Question about RATE LIMITS?          → TPM/RPM/PTU + tenacity backoff (L05, L0
 Question about MONITORING?           → OpenTelemetry spans + built-in evaluators (L11, L12)
 Question about SAFETY filters?       → Content Safety API (0–7) vs Guardrails (Safe/Low/Med/High) (L08)
 Question about INJECTION defense?    → Prompt Shields — user prompt vs docs/indirect (L09, L10)
+Question about DOC TRUST tagging?   → Spotlighting preview (L14)
+Question about PERSONAL DATA leak?  → PII filter on output (L15)
+Question about BAD TOOL CALLS?      → Task Adherence (L16)
+Question about COMPETITOR/CODENAME? → Custom blocklists (L17)
 Question about AGENTS?               → Ephemeral vs Prompt vs Hosted (L10.5) — full detail in Domain 2
 Question about RBAC?                 → 5 Foundry roles: Consumer < User < Project Manager < Account Owner < Owner (L13)
 ```
@@ -146,6 +158,10 @@ Skim this once; refer back whenever a term feels fuzzy.
 | **Guardrail** | Deployment-level policy: harm categories + prompt shields at 4 intervention points. Severity: Safe/Low/Medium/High. |
 | **Content Safety API** | Standalone HTTP API for the same detection — 0–7 severity. Call it wherever you want. |
 | **Prompt Shield** | Guardrail control that detects jailbreak attempts (user channel) or indirect injection (document channel). |
+| **Spotlighting** | Preview document defense: base64-tags third-party docs as lower-trust. Chat Completions + models only. |
+| **PII filter** | Preview output filter for personal data (email, phone, SSN, ...). Annotate or block; optional redact. |
+| **Task Adherence** | Preview agent control: flags tool calls that do not match user intent (`taskRiskDetected`). |
+| **Blocklist** | Exact/regex term list. Content Safety API **or** Foundry `custom_blocklists` on a deployment filter. |
 | **Evaluator** | Rubric that scores model output (Groundedness, Response Completeness, Task Adherence, ...). Built-in or custom. |
 | **Span / Trace** | One unit of observability — a request's duration + attributes (tokens, latency, safety). Ships to App Insights via OpenTelemetry. |
 | **RBAC control plane** | Standard Azure roles (Owner, Contributor, Reader). Manage resources. Does NOT grant inference. |
@@ -183,6 +199,10 @@ Every one of these has bitten someone. When you see the symptom, jump to the les
 | 08 | `08_content_safety_filters.py` | Configure safety filters, guardrails, content moderation |
 | 09 | `09_prompt_shields_user.py` | Prompt Shields — user prompt attacks |
 | 10 | `10_prompt_shields_docs.py` | Prompt Shields — indirect (document) prompt injection |
+| 14 | `14_spotlighting.py` | Spotlighting (preview) — lower-trust document tagging |
+| 15 | `15_pii_filter.py` | PII filter (preview) — personal data in model output |
+| 16 | `16_task_adherence.py` | Task Adherence (preview) — misaligned agent tool plans |
+| 17 | `17_blocklists.py` | Custom blocklists — Content Safety + Foundry custom_blocklists |
 | 10.5 | `10_5_agent_basics.py` | Agent basics — ephemeral vs prompt vs hosted; prerequisite for L11 |
 | 11 | `11_evaluator_groundedness.py` | Responsible AI instrumentation — evaluators + self-critique |
 | 12 | `12_agent_tracing.py` | Observability — tracing, token analytics, safety signals, latency |
@@ -194,6 +214,9 @@ Every one of these has bitten someone. When you see the symptom, jump to the les
 - [Model Router](../.context/azure-ai-docs/articles/foundry/openai/concepts/model-router.md)
 - [Provisioned Throughput](../.context/azure-ai-docs/articles/foundry/openai/provisioned-quickstart.md)
 - [Content Filter / Prompt Shields](../.context/azure-ai-docs/articles/foundry/openai/concepts/content-filter-prompt-shields.md)
+- [PII filter](../.context/azure-ai-docs/articles/foundry/openai/concepts/content-filter-personal-information.md)
+- [Task Adherence](../.context/azure-ai-docs/articles/foundry/guardrails/task-adherence.md)
+- [Use blocklists](../.context/azure-ai-docs/articles/foundry/openai/how-to/use-blocklists.md)
 - [Guardrails overview](../.context/azure-ai-docs/articles/foundry/guardrails/guardrails-overview.md)
 - [Evaluators](../.context/azure-ai-docs/articles/foundry/concepts/built-in-evaluators.md)
 - [Tracing](../.context/azure-ai-docs/articles/foundry/observability/how-to/trace-agent-framework.md)
@@ -1375,6 +1398,8 @@ Spotlighting base64-encodes document content before sending to the model, signal
 - Known side effect: model may mention "base64 encoded content" in responses
 - Spotlighting is **additive** — not a replacement for document-attack detection
 
+Full Spotlighting lab (request shape + live call): **Lesson 14**.
+
 **Code:**
 
 ```python
@@ -1510,6 +1535,264 @@ if __name__ == "__main__":
 - Spotlighting is NOT a replacement for shield prompt — it's an additive defense
 - Flow B Document attack guardrail ≠ User prompt attack guardrail — enable the right risk
 - Doc text inside `messages[]` ≠ document channel; document channel needs `documents[]` API field or `data_sources` / tool response
+
+---
+
+# Lesson 14 — Spotlighting (Preview)
+
+**You'll learn:** Spotlighting as additive document-attack defense; where it is configured; Chat Completions-only / models-only limits; request field `prompt_shield.documents.spotlighting_enabled`.
+**Prereqs:** L10; Document attack control on deployment. Spotlighting toggle optional for live effect.
+**Time:** ~8 min.
+
+Source: [content-filter-prompt-shields.md — Spotlighting](../.context/azure-ai-docs/articles/foundry/openai/concepts/content-filter-prompt-shields.md) | [guardrails-overview.md](../.context/azure-ai-docs/articles/foundry/guardrails/guardrails-overview.md)
+
+**Concept:** Spotlighting base64-encodes third-party document content so the model treats it as **lower trust** than system/user prompts. It does **not** replace document Prompt Shields — it stacks on top.
+
+```
+Document attack shield  → detect/block injected instructions in docs
+Spotlighting (preview)  → rewrite docs (base64) so model trusts them less
+```
+
+| Fact | Detail |
+|------|--------|
+| Where | Guardrail → Document attack → Spotlighting toggle |
+| API field | `prompt_shield.documents.spotlighting_enabled: true` |
+| Surfaces | **Models ✅ / Agents ❌** |
+| API | **Chat Completions only** (not Responses) |
+| Cost | No separate fee; base64 ↑ token count |
+| Side effect | Model may mention "base64 encoded" content |
+
+**Flow A — request shape (documented):**
+
+```json
+{
+  "messages": [{"role": "user", "content": "Summarize the attached report."}],
+  "data_sources": [{ "... on-your-data / Azure AI Search ...": true }],
+  "prompt_shield": {
+    "documents": {
+      "enabled": true,
+      "action": "annotate",
+      "spotlighting_enabled": true
+    }
+  }
+}
+```
+
+**Flow B — live call:** script sends innocent user + injected doc text. Per-request `prompt_shield` may return `unknown_parameter` on v1 gateways — falls back to deployment guardrail. Injected text often trips `jailbreak` when pasted into `messages` (see L10).
+
+**Run:** `uv run python 01-plan-and-manage/14_spotlighting.py`
+
+**Exam traps:**
+
+- Spotlighting ≠ Prompt Shield — additive only
+- Models only; **not supported for agents**
+- Chat Completions only — not Responses API
+- Enable on **Document attack** control, not User prompt attack
+- Token bill can rise because of base64 expansion
+
+---
+
+# Lesson 15 — PII Filter (Preview)
+
+**You'll learn:** PII scans **model output** (completion), not user input; annotate vs annotate+block; annotation keys `pii` / `personally_identifiable_information` with `detected` / `filtered` / `redacted`.
+**Prereqs:** L08; enable **Personally identifiable information** on deployment guardrail (preview).
+**Time:** ~8 min.
+
+Source: [content-filter-personal-information.md](../.context/azure-ai-docs/articles/foundry/openai/concepts/content-filter-personal-information.md) | [how-to-create-guardrails.md](../.context/azure-ai-docs/articles/foundry/guardrails/how-to-create-guardrails.md)
+
+**Concept:** Personal data detection looks for emails, phones, SSNs, government IDs, financial numbers, Azure keys, geolocation entities, and more in **LLM completions**. Goal: stop the model from leaking PII to the user.
+
+```
+User prompt  → model → completion text
+                         ↑
+                   PII filter scans HERE (output intervention)
+```
+
+**Modes:**
+
+| Mode | Behavior |
+|------|----------|
+| Annotate | Completion returned; PII flagged in `content_filter_results` |
+| Annotate and block | Entire completion blocked → `400 content_filter` |
+
+**Annotation shape:**
+
+```json
+{
+  "pii": {
+    "detected": true,
+    "filtered": false,
+    "redacted": true
+  }
+}
+```
+
+Newer payloads may use `personally_identifiable_information` with `redacted_text` + `sub_categories`.
+
+**Code:** `15_pii_filter.py` runs a safe prompt and a **synthetic** PII prompt (fake demo values only).
+
+**Observed without PII enabled on deployment:**
+
+```
+pii key absent — enable PII (preview) on deployment guardrail
+keys present: ['hate', 'protected_material_code', ...]
+```
+
+With PII enabled you should see `detected` / `filtered` / optional `redacted`.
+
+**Exam traps:**
+
+- PII filter = **output** path (completion), not prompt path
+- Preview; needs recent API (docs: `2025-01-01-preview`+)
+- Available for models **and** agents (unlike Spotlighting)
+- Not the same as Language service PII NER — this is a Foundry guardrail control
+- Lab must use synthetic data only — never real PII
+
+---
+
+# Lesson 16 — Task Adherence (Preview)
+
+**You'll learn:** detect agent tool plans that diverge from user intent; Content Safety `agent:analyzeTaskAdherence` request/response; aligned vs misaligned examples; HITL/block signal.
+**Prereqs:** `CONTENT_SAFETY_ENDPOINT`; L10.5 helps context but not required to call the API.
+**Time:** ~10 min.
+
+Source: [task-adherence.md](../.context/azure-ai-docs/articles/foundry/guardrails/task-adherence.md) | [content-safety task adherence](../.context/azure-ai-docs/articles/ai-services/content-safety/concepts/task-adherence.md)
+
+**Concept:** Before (or while) an agent executes tools, Task Adherence checks whether planned tool calls match what the user actually asked.
+
+```
+User: "How much leave do I have left?"
+  aligned     → get_leave_balance()     taskRiskDetected: false
+  misaligned  → apply_leave()           taskRiskDetected: true + details
+```
+
+**API:**
+
+```
+POST {content_safety_endpoint}/contentsafety/agent:analyzeTaskAdherence
+     ?api-version=2025-09-15-preview
+```
+
+Body: `tools[]` + `messages[]` (`source` = Prompt|Completion, `role` = User|Assistant|Tool, optional `toolCalls` / `toolCallId`).
+
+**Response:**
+
+```json
+{
+  "taskRiskDetected": true,
+  "details": "Agent submits leave when user only asked to view balance."
+}
+```
+
+**Also as guardrail:** annotation key `task_adherence` with `detected` / `filtered` on agent workflows (Foundry portal Agentic Workflow controls).
+
+**Run:** `uv run python 01-plan-and-manage/16_task_adherence.py`
+
+**Observed output:**
+
+```
+Aligned — view leave → get_leave_balance
+  taskRiskDetected: False
+
+Misaligned — view leave → apply_leave
+  taskRiskDetected: True
+  details: ...submitting a leave request...
+
+Misaligned — draft email → send_email
+  taskRiskDetected: True
+  details: ...contradicts the user's instruction to draft...for review first...
+```
+
+**Exam traps:**
+
+- Task Adherence ≠ jailbreak shield — it judges **tool plan vs user intent**
+- Returns **boolean + reasoning**, not 0–7 severity
+- English quality best-effort; test your language
+- Input size limit (~100k chars in docs)
+- Downstream action is yours: block tool call or escalate HITL
+
+---
+
+# Lesson 17 — Custom Blocklists
+
+**You'll learn:** build a Content Safety text blocklist; match domain terms default harm filters miss; contrast Foundry deployment `custom_blocklists` annotation path.
+**Prereqs:** `CONTENT_SAFETY_ENDPOINT`. Flow B needs list attached to deployment filter (optional).
+**Time:** ~10 min.
+
+Source: [use-blocklists.md](../.context/azure-ai-docs/articles/foundry/openai/how-to/use-blocklists.md) | [quickstart-blocklist.md](../.context/azure-ai-docs/articles/ai-services/content-safety/quickstart-blocklist.md)
+
+**Concept:** Harm categories catch violence/hate/etc. They will **not** catch "Contoso Premium Rival" or internal codename `PROJECT-NIGHTHAWK`. Blocklists cover those domain terms.
+
+```
+Flow A — Content Safety API (call anywhere):
+  BlocklistClient → create list → add items → analyze_text(blocklist_names=[...])
+  → blocklists_match[]
+
+Flow B — Foundry deployment filter:
+  ARM/portal raiBlocklists + attach promptBlocklists / completionBlocklists
+  → custom_blocklists { filtered, details: [{id, filtered}] }
+  or 400 content_filter when blocking on prompt
+```
+
+**Flow A code path:**
+
+```python
+from azure.ai.contentsafety.models import (
+    TextBlocklist, TextBlocklistItem,
+    AddOrUpdateTextBlocklistItemsOptions, AnalyzeTextOptions,
+)
+from _shared.content_safety_client import blocklist_client, content_safety_client
+
+bl = blocklist_client()
+bl.create_or_update_text_blocklist(
+    blocklist_name="northwind-exam-blocklist",
+    options=TextBlocklist(blocklist_name="northwind-exam-blocklist", description="lab"),
+)
+bl.add_or_update_blocklist_items(
+    blocklist_name="northwind-exam-blocklist",
+    options=AddOrUpdateTextBlocklistItemsOptions(
+        blocklist_items=[TextBlocklistItem(text="PROJECT-NIGHTHAWK")]
+    ),
+)
+result = content_safety_client().analyze_text(
+    AnalyzeTextOptions(
+        text="Status update on PROJECT-NIGHTHAWK launch gates.",
+        blocklist_names=["northwind-exam-blocklist"],
+        halt_on_blocklist_hit=False,
+    )
+)
+for m in result.blocklists_match or []:
+    print(m.blocklist_name, m.blocklist_item_text)
+```
+
+**Observed Flow A:**
+
+```
+text: 'What is the refund policy for the Pro plan?'
+  (no blocklist match)
+text: 'Should we switch to Contoso Premium Rival for cheaper seats?'
+  MATCH item='Contoso Premium Rival'
+text: 'Status update on PROJECT-NIGHTHAWK launch gates.'
+  MATCH item='PROJECT-NIGHTHAWK'
+```
+
+**Flow B annotation (when attached to deployment):**
+
+```json
+"custom_blocklists": {
+  "filtered": true,
+  "details": [{ "filtered": true, "id": "northwind-exam-blocklist" }]
+}
+```
+
+**Exam traps:**
+
+- Custom blocklist ≠ profanity blocklist (built-in) — both can appear in annotations
+- Content Safety blocklist API ≠ Foundry `raiBlocklists` ARM path — same idea, different wiring
+- New terms can take **a few minutes** to match — retry analyze
+- Max ~10,000 terms/list; item length capped (~1000 chars)
+- Exact match vs regex (`isRegex` on Foundry raiBlocklist items)
+- `halt_on_blocklist_hit` stops further category analysis early when true
 
 ---
 
