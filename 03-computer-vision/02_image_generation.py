@@ -1,8 +1,8 @@
 """Text-to-image via `images.generate` — write PNG to _shared/sample_data/generated/."""
-import base64
 
 from _shared.config import SAMPLE_DATA, settings
 from _shared.openai_client import openai_client
+from _shared.vision_inputs import save_generated_image
 
 _PROMPT = (
     "Create a professional training image for an online course. "
@@ -23,7 +23,7 @@ def main() -> None:
         output_format="png",
     )
     out = SAMPLE_DATA / "generated" / "training_image.png"
-    out.write_bytes(base64.b64decode(r.data[0].b64_json))
+    save_generated_image(r, out)
     print(f"saved: {out}")
 
 

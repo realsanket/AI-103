@@ -2,8 +2,8 @@
 
 Beginner note:
   Two ways to moderate visual content:
-  1. **Direct**: call the Content Safety `analyze_image` API. Returns 0-7
-     severity per category (Hate / Sexual / Violence / SelfHarm). Use when
+  1. **Direct**: call the Content Safety `analyze_image` API. Returns 0, 2,
+     4, or 6 severity per category (Hate / Sexual / Violence / SelfHarm). Use when
      you want to inspect an image BEFORE any model sees it.
   2. **Guardrail**: send the image to a multimodal model; the deployment's
      guardrail evaluates both prompt and completion. `content_filters` on
@@ -16,13 +16,12 @@ Prereqs:
   - CONTENT_SAFETY_ENDPOINT in .env (for flow 1).
   - A multimodal model deployment (`DEFAULT_MODEL` — gpt-4.1-mini, gpt-4o).
 """
-import base64
-
-from azure.ai.contentsafety.models import AnalyzeImageOptions, ImageData
+from azure.ai.contentsafety.models import AnalyzeImageOptions, ImageCategory, ImageData
 
 from _shared.config import SAMPLE_DATA, settings
 from _shared.content_safety_client import content_safety_client
 from _shared.foundry_client import project_client
+from _shared.vision_inputs import image_data_url
 
 _IMAGE_PATH = SAMPLE_DATA / "images" / "support.png"
 
@@ -33,19 +32,26 @@ _AGENT_INSTRUCTIONS = (
 
 
 def _direct_content_safety() -> None:
-    """Flow 1: Content Safety API — 0-7 severity per category."""
-    print("=== Flow 1: Content Safety API (0-7 severity) ===")
+    """Flow 1: Content Safety API — direct category labels and severities."""
+    print("=== Flow 1: Content Safety API (0, 2, 4, or 6 severity) ===")
+    image_data_url(_IMAGE_PATH)
     client = content_safety_client()
     image_bytes = _IMAGE_PATH.read_bytes()
     result = client.analyze_image(AnalyzeImageOptions(image=ImageData(content=image_bytes)))
-    for cat in result.categories_analysis:
-        print(f"  {cat.category.value:<12} severity={cat.severity}")
+    severities = {item.category: item.severity for item in result.categories_analysis}
+    for category in (
+        ImageCategory.HATE,
+        ImageCategory.SELF_HARM,
+        ImageCategory.SEXUAL,
+        ImageCategory.VIOLENCE,
+    ):
+        print(f"  {category.value:<12} severity={severities.get(category, 'not returned')}")
 
 
 def _guardrail_through_model() -> None:
     """Flow 2: multimodal call — deployment guardrail evaluates both sides."""
     print("\n=== Flow 2: Multimodal call (ephemeral agent, guardrail inspection) ===")
-    b64 = base64.b64encode(_IMAGE_PATH.read_bytes()).decode("utf-8")
+    image_url = image_data_url(_IMAGE_PATH)
 
     project = project_client()
     openai = project.get_openai_client()
@@ -57,7 +63,7 @@ def _guardrail_through_model() -> None:
                 "role": "user",
                 "content": [
                     {"type": "input_text", "text": "What does this error mean and how do I fix it?"},
-                    {"type": "input_image", "image_url": f"data:image/png;base64,{b64}"},
+                    {"type": "input_image", "image_url": image_url},
                 ],
             }
         ],

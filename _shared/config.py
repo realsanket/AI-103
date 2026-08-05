@@ -97,7 +97,7 @@ def settings() -> Settings:
         voice_live_endpoint=_opt("VOICE_LIVE_ENDPOINT"),
         custom_speech_endpoint_id=_opt("CUSTOM_SPEECH_ENDPOINT_ID"),
         cu_endpoint=_opt("CU_ENDPOINT"),
-        cu_api_version=_opt("CU_API_VERSION", "2025-11-15-preview"),
+        cu_api_version=_opt("CU_API_VERSION", "2025-11-01"),
         storage_account=_opt("STORAGE_ACCOUNT"),
         storage_container=_opt("STORAGE_CONTAINER", "northwind-docs"),
         storage_connection_string=_opt("STORAGE_CONNECTION_STRING"),

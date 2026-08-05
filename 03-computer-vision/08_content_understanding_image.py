@@ -15,7 +15,7 @@ Beginner note:
 import os
 
 from _shared.config import SAMPLE_DATA
-from _shared.cu_client import analyze
+from _shared.cu_client import analyze, result_diagnostic, validate_source_url
 
 
 def main() -> None:
@@ -27,14 +27,16 @@ def main() -> None:
             f"  Example candidate to upload: {local}\n"
             "  See: .context/azure-ai-docs/articles/ai-services/content-understanding/quickstart/"
         )
-    if image_url.startswith("file://"):
-        raise SystemExit(
-            "CU cannot fetch file:// URLs — the service fetches server-side.\n"
-            "Upload the image to Blob Storage and use a SAS URL instead."
-        )
+    try:
+        image_url = validate_source_url(image_url)
+    except ValueError as error:
+        raise SystemExit(f"{error}\nUse a public HTTPS URL or complete Blob SAS URL.") from error
 
     result = analyze("prebuilt-imageSearch", image_url)
     print("status:", result.get("status"))
+    if result.get("status", "").lower() != "succeeded":
+        print("diagnostic:", result_diagnostic(result))
+        return
     contents = result.get("result", {}).get("contents", [])
     if not contents:
         return

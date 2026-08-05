@@ -1,7 +1,7 @@
 # AI-103 runnable study repository
 
 Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md).
-It has **101 numbered Python lessons** across five domains. Lessons use
+It has **107 numbered Python lessons** across five domains. Lessons use
 Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many
 make billable remote calls or change persistent cloud state.
 
@@ -16,7 +16,7 @@ subscription.
 |---|---:|---:|---|
 | [01 Plan and manage](01-plan-and-manage/README.md) | 25–30% | 26 | `01_model_catalog_list.py`, `02_deployment_types.py` |
 | [02 Generative AI and agents](02-generative-ai-and-agents/README.md) | 30–35% | 30 | `01_first_api_call.py`, `23_mcp_tool_preflight.py`, `29_cloud_evaluation.py` |
-| [03 Computer vision](03-computer-vision/README.md) | 10–15% | 9 | `01_multimodal_understanding.py`, `07_alt_text_captions.py` |
+| [03 Computer vision](03-computer-vision/README.md) | 10–15% | 15 | `01_multimodal_understanding.py`, `10_reference_media_preflight.py`, `15_cu_visual_handoff.py` |
 | [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 20 | `05_language_pii.py`, `20_language_sentiment.py`, `11_stt_fast_file.py` |
 | [05 Information extraction](05-information-extraction/README.md) | 10–15% | 16 | `00_search_index_setup.py`, `03_search_hybrid_semantic.py` |
 
@@ -113,8 +113,8 @@ Lesson-local environment inputs are deliberately not template defaults:
 
 | Lesson area | Additional value |
 |---|---|
-| CU image/video | `SAMPLE_IMAGE_URL`, `SAMPLE_VIDEO_URL`: reachable HTTPS or Blob SAS URL; never `file://` |
 | CU document lessons | `CU_READ_SOURCE_URL`, `CU_LAYOUT_SOURCE_URL`, `SAMPLE_INVOICE_URL`, `CU_SUPPORT_NOTICE_URL`, `CU_PRO_SOURCE_URLS`, `CU_MARKDOWN_SOURCE_URL` |
+| D3 hosted visual media | `SAMPLE_IMAGE_URL`, `SAMPLE_VIDEO_URL`: service-reachable HTTPS URL or short-lived read-only Blob SAS; never `file://` |
 | Batch STT | `BATCH_STT_CONTAINER_SAS`: container SAS with read and list permission |
 | OpenAPI agent | `ORDERS_FN_ENDPOINT`: deployed Function URL; Agent Service cannot call `localhost` |
 
@@ -175,8 +175,9 @@ Then follow each domain README:
    connection, data, RBAC, lifecycle, and cost checks. Lessons 26–28 validate
    local hosted-agent assets; their contained deploy wrapper also requires
    `--apply`.
-3. Domain 3: run local-image understanding/captions before image/video
-   generation or CU URL analysis.
+3. Domain 3: run L10, L12–L15 without `--apply`/`--run` first, then
+   local-image understanding/captions before image/video generation or CU URL
+   analysis.
 4. Domain 4: work through Language/Translator before Speech. Run new
    `20_language_sentiment.py` after L07.
 5. Domain 5: provision index, skillset, then indexer (`--run`); wait for its
@@ -226,7 +227,7 @@ uv run python 02-generative-ai-and-agents/29_cloud_evaluation.py --dataset cases
 | D2 L23–L25 | Default commands are local preflights. `--apply` for L23/L25 creates, invokes, then deletes a temporary agent version; L24 creates a persistent Toolbox version and deletes one only with explicit version and `--apply`. |
 | D2 L26–L28 | Local hosted-agent contract/A2A/CI-CD asset checks. Contained `deploy.py --apply` can provision or deploy hosted-agent resources; no deployment is performed by default. |
 | D2 L29–L30 | L29 default is local JSONL/lifecycle preview; `--apply` uploads an eval file, creates evaluation/run records, and invokes model/evaluators. L30 only reads local configuration. |
-| D3 | Remote calls throughout; L02–L05 overwrite generated files. Sora 2 and CU lessons have preview/availability constraints described in domain README. |
+| D3 | L01–L09 contain remote-call paths; L02–L05 can overwrite generated files after successful responses. L10/L11/L15 are local preflights unless `--apply`; L12/L13 are local preflights unless `--run`; L14 is local only. These opt-in paths are not evidence of a successful live call. Sora 2, provenance, and CU availability remain service/region/version dependent. |
 | D4 | Remote calls throughout; batch STT uses Blob and Speech processing; L18 creates agent version and is protocol-only, not end-to-end voice playback. |
 | D5 | Index, datasource, skillset, indexer, CU analyzer, and agent lessons can update persistent resources; indexer runs invoke embeddings. |
 

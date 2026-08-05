@@ -11,7 +11,7 @@ Beginner note:
 """
 import os
 
-from _shared.cu_client import analyze
+from _shared.cu_client import analyze, result_diagnostic, validate_source_url
 
 
 def main() -> None:
@@ -21,11 +21,16 @@ def main() -> None:
             "Set SAMPLE_VIDEO_URL to a Blob SAS URL of an MP4 to run this lesson.\n"
             "See: .context/azure-ai-docs/articles/ai-services/content-understanding/video/"
         )
-    if video_url.startswith("file://"):
-        raise SystemExit("CU cannot fetch file:// URLs. Upload to Blob and use a SAS URL.")
+    try:
+        video_url = validate_source_url(video_url)
+    except ValueError as error:
+        raise SystemExit(f"{error}\nUse a public HTTPS URL or complete Blob SAS URL.") from error
 
     result = analyze("prebuilt-videoSearch", video_url)
     print("status:", result.get("status"))
+    if result.get("status", "").lower() != "succeeded":
+        print("diagnostic:", result_diagnostic(result))
+        return
     for content in result.get("result", {}).get("contents", []):
         summary = content.get("fields", {}).get("Summary", {}).get("valueString", "")
         start = content.get("startTimeMs")

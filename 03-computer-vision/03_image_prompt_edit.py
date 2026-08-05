@@ -1,8 +1,8 @@
 """Prompt-driven image edit — full-frame inpainting via `images.edit`."""
-import base64
 
 from _shared.config import SAMPLE_DATA, settings
 from _shared.openai_client import openai_client
+from _shared.vision_inputs import save_generated_image, validate_edit_inputs
 
 _PROMPT = """
 Update this image so it looks like a professional marketing visual.
@@ -12,10 +12,11 @@ Improve the lighting, make the background cleaner, and give it a premium corpora
 
 
 def main() -> None:
-    client = openai_client()
     src = SAMPLE_DATA / "images" / "product_photo.png"
     dst = SAMPLE_DATA / "generated" / "edited_product_photo.png"
+    validate_edit_inputs(src)
 
+    client = openai_client()
     with src.open("rb") as image_file:
         r = client.images.edit(
             model=settings().image_model,
@@ -25,7 +26,7 @@ def main() -> None:
             n=1,
             quality="medium",
         )
-    dst.write_bytes(base64.b64decode(r.data[0].b64_json))
+    save_generated_image(r, dst)
     print(f"saved: {dst}")
 
 

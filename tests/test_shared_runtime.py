@@ -76,38 +76,26 @@ class SharedRuntimeTests(unittest.TestCase):
             )
 
         post.assert_called_once_with(
-            "https://example.services.ai.azure.com/contentunderstanding/analyzers/invoice:analyze?api-version=2025-11-15-preview",
+            "https://example.services.ai.azure.com/contentunderstanding/analyzers/invoice:analyze?api-version=2025-11-01",
             headers={"Authorization": "Bearer token", "Content-Type": "application/json"},
             json={"inputs": [{"url": "https://example.test/file.pdf"}]},
             timeout=60.0,
         )
 
-    @patch("_shared.cu_client.httpx.post")
-    @patch("_shared.cu_client.DefaultAzureCredential")
-    def test_cu_analyze_accepts_multiple_input_urls(self, credential, post) -> None:
-        post.return_value = SimpleNamespace(
-            raise_for_status=lambda: None, headers={}, json=lambda: {"accepted": True}
-        )
-        credential.return_value.get_token.return_value.token = "token"
-        with patch.dict(
-            os.environ,
-            {"CU_ENDPOINT": "https://example.services.ai.azure.com"},
-            clear=True,
-        ):
+    def test_cu_analyze_rejects_multiple_input_urls(self) -> None:
+        with self.assertRaisesRegex(ValueError, "exactly one"):
             cu_client.analyze(
                 "mortgage-package-review",
                 ["https://example.test/application.pdf", "https://example.test/paystub.pdf"],
             )
 
-        self.assertEqual(
-            post.call_args.kwargs["json"],
-            {
-                "inputs": [
-                    {"url": "https://example.test/application.pdf"},
-                    {"url": "https://example.test/paystub.pdf"},
-                ]
-            },
-        )
+    def test_cu_validates_https_and_complete_blob_sas_urls(self) -> None:
+        with self.assertRaisesRegex(ValueError, "HTTPS"):
+            cu_client.validate_source_url("http://example.test/file.pdf")
+        with self.assertRaisesRegex(ValueError, "sv, se, sp, and sig"):
+            cu_client.validate_source_url(
+                "https://account.blob.core.windows.net/container/file.png?sig=token"
+            )
 
     @patch("_shared.translator_client.httpx.post")
     @patch("_shared.translator_client.DefaultAzureCredential")

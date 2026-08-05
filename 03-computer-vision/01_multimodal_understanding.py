@@ -1,13 +1,13 @@
 """Multimodal understanding — pass an image alongside text, ask for a summary."""
-import base64
 
 from _shared.config import SAMPLE_DATA, settings
 from _shared.openai_client import openai_client
+from _shared.vision_inputs import image_data_url
 
 
 def main() -> None:
     image_path = SAMPLE_DATA / "images" / "sales_data.png"
-    b64 = base64.b64encode(image_path.read_bytes()).decode("utf-8")
+    image_url = image_data_url(image_path)
 
     client = openai_client()
     r = client.responses.create(
@@ -17,7 +17,7 @@ def main() -> None:
                 "role": "user",
                 "content": [
                     {"type": "input_text", "text": "Summarize the content in the attached image."},
-                    {"type": "input_image", "image_url": f"data:image/png;base64,{b64}"},
+                    {"type": "input_image", "image_url": image_url},
                 ],
             }
         ],

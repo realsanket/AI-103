@@ -1,8 +1,8 @@
 """Mask-based image edit — only the transparent pixels of the mask are editable."""
-import base64
 
 from _shared.config import SAMPLE_DATA, settings
 from _shared.openai_client import openai_client
+from _shared.vision_inputs import save_generated_image, validate_edit_inputs
 
 _PROMPT = """
 In the editable area, add a small modern wall display showing a simple quarterly sales chart.
@@ -12,11 +12,12 @@ The style should match the lighting and perspective of the original photo.
 
 
 def main() -> None:
-    client = openai_client()
     src = SAMPLE_DATA / "images" / "product_photo.png"
     mask = SAMPLE_DATA / "images" / "mask.png"
     dst = SAMPLE_DATA / "generated" / "masked_edit_product_photo.png"
+    validate_edit_inputs(src, mask)
 
+    client = openai_client()
     with src.open("rb") as image_file, mask.open("rb") as mask_file:
         r = client.images.edit(
             model=settings().image_model,
@@ -27,7 +28,7 @@ def main() -> None:
             n=1,
             quality="medium",
         )
-    dst.write_bytes(base64.b64decode(r.data[0].b64_json))
+    save_generated_image(r, dst)
     print(f"saved: {dst}")
 
 

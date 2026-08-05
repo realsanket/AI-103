@@ -10,8 +10,9 @@ This matrix maps every bullet to code that exists now, not to planned work.
   billable usage; this matrix does not claim it was run in your subscription.
 - **Preflight** — default command validates local configuration or static assets
   only; it makes no Azure request.
-- **Opt-in** — an explicit mutation path exists, but this repository does not
-  provide evidence that its remote operation was run successfully.
+- **Opt-in** — an explicit remote-request or mutation path exists, but this
+  repository does not provide evidence that its remote operation was run
+  successfully.
 - **Local** — executable local/reference behavior only; it does not configure
   or prove the Azure feature.
 - **Partial** — runnable evidence covers part of the bullet; limitation stated.
@@ -91,15 +92,19 @@ This matrix maps every bullet to code that exists now, not to planned work.
 
 ## 3. Implement computer vision solutions (10–15%)
 
+Evidence below inventories source code and local checks, not successful remote
+execution. A **Runnable** lesson can require configured Azure access; an
+**Opt-in** path has no live-success claim.
+
 ### Design and implement image- and video-generation solutions
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
-| Implement a solution that generates images from text prompts and reference media | D3 `02_image_generation.py` | **Partial** — text generation; no reference-media input flow. |
-| Implement a solution that generates videos from text prompts and reference media | D3 `05_video_generation.py` | **Partial** — text-to-video only. |
+| Implement a solution that generates images from text prompts and reference media | D3 `02_image_generation.py` | **Partial / Gap** — text-to-image code exists; no image-generation reference-media input flow exists. |
+| Implement a solution that generates videos from text prompts and reference media | D3 `05_video_generation.py`, `10_reference_media_preflight.py` | **Preflight / Opt-in** — L05 constructs text-to-video requests; L10 defaults to no-cloud guidance and, with `--apply`, validates one reference image then has a Sora submission path. No successful remote run is evidenced. |
 | Configure image-editing workflows, including inpainting, mask-based edits, and prompt-driven modifications | D3 `03_image_prompt_edit.py`, `04_image_masked_edit.py` | **Runnable** |
-| Implement workflows to edit generated videos | None; D3 `09_video_analysis.py` only analyzes video segments | **Gap** |
-| Select and apply appropriate generation and editing controls provided by platform | None | **Gap** — lessons generate/edit but do not configure platform controls. |
+| Implement workflows to edit generated videos | D3 `11_video_remix.py` | **Preflight / Opt-in / Partial** — default is local guidance; `--apply` has one fixed-prompt remix path for completed `video_` IDs, not a general video editor or a live-tested workflow. |
+| Select and apply appropriate generation and editing controls provided by platform | D3 `02_image_generation.py`–`05_video_generation.py`, `10_reference_media_preflight.py` | **Partial** — code fixes image size/quality/output format and video dimensions/duration; reference-media dimensions are locally checked only on opt-in apply. It does not expose or evaluate broader platform controls. |
 
 ### Design and implement multimodal understanding workflows
 
@@ -109,18 +114,18 @@ This matrix maps every bullet to code that exists now, not to planned work.
 | Configure apps to produce concise or detailed captions for single or multiple images | D3 `07_alt_text_captions.py` | **Runnable** |
 | Implement a solution that enables question-answering grounded in visual evidence | D3 `01_multimodal_understanding.py` | **Partial** — image summary prompt, not a dedicated visual-Q&A interaction. |
 | Configure generation of alt-text and extended image descriptions aligned to accessibility guidelines | D3 `07_alt_text_captions.py` | **Runnable** |
-| Implement visual understanding by configuring Azure Content Understanding in Foundry Tools to extract visual characteristics | D3 `08_content_understanding_image.py` | **Runnable** — requires reachable image URL/SAS. |
-| Implement video analysis workflows to process and interpret video segments | D3 `09_video_analysis.py` | **Runnable** — prints segment time range and summary. |
+| Implement visual understanding by configuring Azure Content Understanding in Foundry Tools to extract visual characteristics | D3 `08_content_understanding_image.py`, `14_cu_blob_preflight.py`, `15_cu_visual_handoff.py` | **Runnable / Local / Preflight / Opt-in** — L08 has CU image-analysis code; L14 is local SAS/configuration inspection; L15 bounds a CU result only with `--apply`. CU request paths are not live-tested. |
+| Implement video analysis workflows to process and interpret video segments | D3 `09_video_analysis.py`, `15_cu_visual_handoff.py` | **Runnable / Opt-in** — L09 prints returned segment ranges/summaries; L15 can normalize bounded video segments with `--apply`. No successful CU operation is evidenced. |
 | Configure single-task and pro-mode Content Understanding pipelines | D5 CU lessons 09–13 | **Runnable / Cross-domain** — lesson 13 creates a Pro analyzer and submits comma-separated document URLs as multi-input `inputs`; Pro mode remains preview and input-type constrained. |
-| Implement solutions that identify objects, components, or regions within images or video | D3 `08_content_understanding_image.py` | **Partial** — prints returned Markdown and `Summary`; no object/component/region extraction contract. |
+| Implement solutions that identify objects, components, or regions within images or video | D3 `08_content_understanding_image.py`, `09_video_analysis.py`, `15_cu_visual_handoff.py` | **Partial** — output is Markdown, summary, or bounded time segments; no object/component/region extraction contract. |
 
 ### Implement responsible AI for multimodal content
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
 | Implement filters to classify unsafe or disallowed visual content | D3 `06_image_moderation.py` | **Runnable** |
-| Detect and mitigate indirect prompt injection by using embedded text in images | D1 `11_prompt_shields_docs.py` tests local OCR text | **Partial / Cross-domain** — no image-embedded-text input path. |
-| Enforce visual policy rules, such as applying watermarks, flagging prohibited symbols, upholding brand usage requirements, and detecting potentially inappropriate content | D3 `06_image_moderation.py` detects inappropriate image categories | **Partial** — no watermark, symbol, or brand-rule enforcement. |
+| Detect and mitigate indirect prompt injection by using embedded text in images | D3 `13_ocr_image_injection_safety.py`; D1 `11_prompt_shields_docs.py` | **Preflight / Opt-in / Partial / Cross-domain** — D3 treats supplied OCR text as untrusted and scans it only with `--run`; it neither performs OCR nor proves an image-embedded-text path ran. |
+| Enforce visual policy rules, such as applying watermarks, flagging prohibited symbols, upholding brand usage requirements, and detecting potentially inappropriate content | D3 `06_image_moderation.py`, `12_visual_provenance_policy.py` | **Partial / Preflight / Opt-in** — L06 classifies image-harm categories; L12 defaults to policy guidance and has an opt-in provenance-marker detection path. No watermark application, symbol/brand enforcement, or live provenance result is evidenced. |
 
 ## 4. Implement text analysis solutions (10–15%)
 
@@ -168,10 +173,10 @@ This matrix maps every bullet to code that exists now, not to planned work.
 |---|---:|---|
 | 1 — Plan and manage | 26 | Sequence is `01`–`26`; advanced Content Safety is `19`–`21`, evaluations `22`–`25`, tracing setup `26`. |
 | 2 — Generative AI and agents | 30 | `01`–`30`; L23–L25 default to local preflights, L26–L28 are local hosted-agent assets, L29 is opt-in cloud evaluation, and L30 is local preflight. |
-| 3 — Computer vision | 9 | `01`–`09`. |
+| 3 — Computer vision | 15 | `01`–`15`; L10–L15 are preflight/local by default except explicit `--apply`/`--run` paths. |
 | 4 — Text and speech | 20 | `01`–`20`; `20_language_sentiment.py` is included. |
 | 5 — Information extraction | 16 | `00`–`15`; `00_search_index_setup.py` is included. |
-| **Total** | **101** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
+| **Total** | **107** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
 
 Gaps and partial labels are intentional. They prevent a local study repository
 from claiming live implementation of hosted deployment, A2A, MCP, Toolbox,
