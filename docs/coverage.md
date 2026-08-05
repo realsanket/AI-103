@@ -107,7 +107,7 @@ This matrix maps every bullet to code that exists now, not to planned work.
 | Configure generation of alt-text and extended image descriptions aligned to accessibility guidelines | D3 `07_alt_text_captions.py` | **Runnable** |
 | Implement visual understanding by configuring Azure Content Understanding in Foundry Tools to extract visual characteristics | D3 `08_content_understanding_image.py` | **Runnable** — requires reachable image URL/SAS. |
 | Implement video analysis workflows to process and interpret video segments | D3 `09_video_analysis.py` | **Runnable** — prints segment time range and summary. |
-| Configure single-task and pro-mode Content Understanding pipelines | D5 CU lessons 09–13 | **Partial / Cross-domain** — pro-mode lesson creates analyzer and submits one URL; shared helper does not submit multi-input `inputs`. |
+| Configure single-task and pro-mode Content Understanding pipelines | D5 CU lessons 09–13 | **Runnable / Cross-domain** — lesson 13 creates a Pro analyzer and submits comma-separated document URLs as multi-input `inputs`; Pro mode remains preview and input-type constrained. |
 | Implement solutions that identify objects, components, or regions within images or video | D3 `08_content_understanding_image.py` | **Partial** — prints returned Markdown and `Summary`; no object/component/region extraction contract. |
 
 ### Implement responsible AI for multimodal content
@@ -156,7 +156,7 @@ This matrix maps every bullet to code that exists now, not to planned work.
 |---|---|---|
 | Extract information by using multimodal pipelines that combine OCR, layout analysis, and field extraction | D5 `09_cu_prebuilt_read.py`, `10_cu_prebuilt_layout.py`, `11_cu_invoice.py`, `12_cu_custom_analyzer.py` | **Runnable** — each is a separate CU call; no single composed pipeline. |
 | Produce clean, grounded representations to use with agents and RAG by using Content Understanding | D5 `14_cu_markdown_for_rag.py`, `15_cu_content_agent.py` | **Partial** — reads/inspects markdown and sends invoice fields to model; does not index markdown. |
-| Implement analyzers for generating structured or markdown outputs for downstream reasoning by using Content Understanding | D5 `10_cu_prebuilt_layout.py`, `12_cu_custom_analyzer.py`, `13_cu_pro_mode.py` | **Runnable** — pro mode is preview with one-source helper limitation. |
+| Implement analyzers for generating structured or markdown outputs for downstream reasoning by using Content Understanding | D5 `10_cu_prebuilt_layout.py`, `12_cu_custom_analyzer.py`, `13_cu_pro_mode.py` | **Runnable** — Pro mode is preview and requires compatible multi-input documents. |
 
 ## Inventory summary
 
@@ -171,5 +171,5 @@ This matrix maps every bullet to code that exists now, not to planned work.
 
 Gaps and partial labels are intentional. They prevent a local study repository
 from claiming implementation of private networking, CI/CD, video editing,
-platform generation controls, managed Search agent tools, multi-input CU pro
-analysis, or other behavior that its current code does not perform.
+platform generation controls, managed Search agent tools, or other behavior
+that its current code does not perform.
