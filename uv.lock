@@ -527,6 +527,7 @@ source = { editable = "." }
 dependencies = [
     { name = "agent-framework" },
     { name = "azure-ai-contentsafety" },
+    { name = "azure-ai-documentintelligence" },
     { name = "azure-ai-evaluation", extra = ["redteam"] },
     { name = "azure-ai-projects" },
     { name = "azure-ai-textanalytics" },
@@ -560,6 +561,7 @@ dependencies = [
 requires-dist = [
     { name = "agent-framework", specifier = ">=1.0.0b1" },
     { name = "azure-ai-contentsafety", specifier = ">=1.0.0" },
+    { name = "azure-ai-documentintelligence", specifier = ">=1.0.2" },
     { name = "azure-ai-evaluation", extras = ["redteam"], specifier = ">=1.18.3" },
     { name = "azure-ai-projects", specifier = ">=2.0.0" },
     { name = "azure-ai-textanalytics", specifier = ">=5.3.0" },
@@ -902,6 +904,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/3d/97/6696d3fecb5650213c4b29dd45a306cc1da954e70e168605a5d372c51c3e/azure_ai_contentunderstanding-1.0.1.tar.gz", hash = "sha256:f653ea85a73df7d377ab55e39d7f02e271c66765f5fa5a3a56b59798bcb01e2c", size = 214634, upload-time = "2026-03-10T02:01:20.737Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/f4/bb26c5b347f18fc85a066b4360a93204466ef7026d28585f3bf77c1a73ed/azure_ai_contentunderstanding-1.0.1-py3-none-any.whl", hash = "sha256:8d34246482691229ef75fe25f18c066d5f6adfe03b638c47f9b784c2992e6611", size = 101275, upload-time = "2026-03-10T02:01:22.181Z" },
+]
+
+[[package]]
+name = "azure-ai-documentintelligence"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/44/7b/8115cd713e2caa5e44def85f2b7ebd02a74ae74d7113ba20bdd41fd6dd80/azure_ai_documentintelligence-1.0.2.tar.gz", hash = "sha256:4d75a2513f2839365ebabc0e0e1772f5601b3a8c9a71e75da12440da13b63484", size = 170940, upload-time = "2025-03-27T02:46:20.606Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/75/c9ec040f23082f54ffb1977ff8f364c2d21c79a640a13d1c1809e7fd6b1a/azure_ai_documentintelligence-1.0.2-py3-none-any.whl", hash = "sha256:e1fb446abbdeccc9759d897898a0fe13141ed29f9ad11fc705f951925822ed59", size = 106005, upload-time = "2025-03-27T02:46:22.356Z" },
 ]
 
 [[package]]

@@ -1,7 +1,7 @@
 # AI-103 runnable study repository
 
 Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md).
-It has **137 numbered Python lessons** across five exam domains plus two
+It has **143 numbered Python lessons** across five exam domains plus three
 supplemental domains, and a production-platform IaC lab.
 Lessons use
 Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many
@@ -24,6 +24,7 @@ subscription.
 | [06 Model customization and delivery](06-model-customization-other/README.md) | Supplemental | 14 | `00_customization_preflight.py`, `05_submit_training.py`, `10_quota_ptu_preflight.py` |
 | [07 Production platform](07-production-platform-other/README.md) | Cross-domain | IaC lab | offline preflight, then Bicep or Terraform plan |
 | [08 Advanced agents and current Foundry operations](08-advanced-agents-other/README.md) | Supplemental | 6 | `01_foundry_iq_connection_preflight.py`, `03_a2a_agent_card_preflight.py`, `04_routines_preflight.py` |
+| [09 Current AI services](09-current-ai-services-other/README.md) | Supplemental | 6 | `01_read_ocr.py`, `02_layout_markdown_tables.py`, `05_custom_neural_preflight.py` |
 
 Shared clients live in [`_shared/`](./_shared/); sample inputs live under
 `_shared/sample_data/`. `AI-103.md` is local study-guide source, `Slides.md`
@@ -44,13 +45,15 @@ Microsoft Foundry resource
 │   └── Azure OpenAI-compatible OpenAI client: Responses, images, embeddings,
 │       video, LangChain, and LangGraph
 └── https://<resource>.cognitiveservices.azure.com
-    └── Language, Speech, Content Safety, and their MCP URLs
+    └── Language, Speech, Content Safety, Document Intelligence, and their MCP URLs
 
 Separate resources
 ├── Azure AI Search: https://<search>.search.windows.net
 │   └── SEARCH_CONNECTION_NAME: existing Foundry project connection for D2 L25
-└── Azure Blob Storage: source documents, Search ingestion, CU SAS inputs,
+├── Azure Blob Storage: source documents, Search ingestion, CU SAS inputs,
     and batch Speech input
+└── Azure Document Intelligence: single-service custom subdomain for D9
+    Microsoft Entra-authenticated v4 client calls
 
 Translator is different: shared helper calls
 https://api.cognitive.microsofttranslator.com directly with Entra auth and
@@ -66,6 +69,7 @@ Do not exchange these endpoints:
 | Foundry account control plane helper | `FOUNDRY_ENDPOINT` | `https://<resource>.services.ai.azure.com` | D1 lessons 03, 05 |
 | Language, Speech, Content Safety | service endpoint settings | `https://<resource>.cognitiveservices.azure.com` | respective shared clients |
 | Content Understanding | `CU_ENDPOINT` | `https://<resource>.services.ai.azure.com` | `_shared/cu_client.py` |
+| Document Intelligence v4.0 | `DOCUMENT_INTELLIGENCE_ENDPOINT` | single-service `https://<resource>.cognitiveservices.azure.com` | D9 lessons |
 | AI Search | `SEARCH_ENDPOINT` | `https://<search>.search.windows.net` | `_shared/search_client.py` |
 
 `FOUNDRY_ENDPOINT` is not interchangeable with `PROJECT_ENDPOINT`; direct
@@ -101,6 +105,7 @@ URLs, or production data.
 | Language and Translator | `LANGUAGE_ENDPOINT`, `LANGUAGE_MCP_URL`, `TRANSLATOR_RESOURCE_ID` |
 | Speech and Voice Live | `SPEECH_REGION`, `SPEECH_ENDPOINT`, `SPEECH_MCP_URL`, `VOICE_LIVE_ENDPOINT`, `CUSTOM_SPEECH_ENDPOINT_ID` |
 | Content Understanding | `CU_ENDPOINT`, `CU_API_VERSION` |
+| Document Intelligence v4.0 | `DOCUMENT_INTELLIGENCE_ENDPOINT`, `DI_CUSTOM_NEURAL_MODEL_ID`, `DI_CUSTOM_NEURAL_PREFIX` |
 | Content Safety | `CONTENT_SAFETY_ENDPOINT` |
 | Search | `SEARCH_ENDPOINT`, `SEARCH_INDEX`, `SEARCH_INDEX_VECTOR`, `SEARCH_INDEXER`, `SEARCH_SKILLSET` |
 | Storage | `STORAGE_ACCOUNT`, `STORAGE_CONTAINER`, `STORAGE_CONNECTION_STRING` |
@@ -121,6 +126,7 @@ Lesson-local environment inputs are deliberately not template defaults:
 | Lesson area | Additional value |
 |---|---|
 | CU document lessons | `CU_READ_SOURCE_URL`, `CU_LAYOUT_SOURCE_URL`, `SAMPLE_INVOICE_URL`, `CU_SUPPORT_NOTICE_URL`, `CU_PRO_SOURCE_URLS`, `CU_MARKDOWN_SOURCE_URL` |
+| D9 Document Intelligence document lessons | `DI_READ_SOURCE_URL`, `DI_LAYOUT_SOURCE_URL`, `DI_INVOICE_SOURCE_URL`, `DI_ID_SOURCE_URL`, `DI_TRAINING_CONTAINER_URL`: runtime-only HTTPS URLs that can contain a Blob SAS; never commit them. |
 | D3 hosted visual media | `SAMPLE_IMAGE_URL`, `SAMPLE_VIDEO_URL`: service-reachable HTTPS URL or short-lived read-only Blob SAS; never `file://` |
 | Batch STT | `BATCH_STT_CONTAINER_SAS`: container SAS with read and list permission |
 | Translator document batch | `TRANSLATOR_DOCUMENT_KEY`: runtime-only secret for D4 L23; use Key Vault/CI secret store, never `.env.example` or source |
@@ -196,12 +202,15 @@ Then follow each domain README:
 6. Domain 6: run dataset and delivery preflights first. Every cloud action
    requires `--apply`; validate data, baseline, model support, quota/capacity,
    region, roles, retention, and cost before applying.
-7. Domain 8: run current Foundry-agent preflights before `--apply`. Confirm
-   feature availability, region, role assignments, gateway state, and cost;
-   these labs use current agent endpoints, never Agent Applications.
 7. Domain 7: run offline preflight, select Bicep or Terraform, then run
    `what-if`/`plan`. Its explicit `--apply` gate follows networking, CMK,
    policy, diagnostics, and DR review.
+8. Domain 8: run current Foundry-agent preflights before `--apply`. Confirm
+   feature availability, region, role assignments, gateway state, and cost;
+   these labs use current agent endpoints, never Agent Applications.
+9. Domain 9: run every Document Intelligence preflight first. Use
+   `--apply` only after identity, document-data, Storage, network, region, quota,
+   and cost review. The local DI-versus-CU chooser never calls Azure.
 
 Examples:
 
@@ -219,6 +228,8 @@ uv run python 06-model-customization-other/00_customization_preflight.py
 uv run python 06-model-customization-other/10_quota_ptu_preflight.py
 uv run python 08-advanced-agents-other/01_foundry_iq_connection_preflight.py
 uv run python 08-advanced-agents-other/03_a2a_agent_card_preflight.py
+uv run python 09-current-ai-services-other/01_read_ocr.py
+uv run python 09-current-ai-services-other/06_di_vs_cu_decision.py --scenario standard-form
 ```
 
 ## Cross-domain chooser
@@ -235,6 +246,8 @@ uv run python 08-advanced-agents-other/03_a2a_agent_card_preflight.py
 | Novel entities, tone-preserving translation, multi-task output | Responses model | compliance-grade PII redaction |
 | Single file / live audio / many files | Fast STT / real-time STT / batch STT | each other |
 | Document structure and fields | Content Understanding | Search enrichment/indexing |
+| Standard structured invoice or ID | Document Intelligence v4 prebuilt | Content Understanding analyzer for unstructured, inferred, or multimodal work |
+| OCR or layout only | Content Understanding prebuilt analyzer | DI v4 Read/Layout contract lesson; choose by validated workload needs |
 | Vector retrieval / hybrid / semantic ranking | Azure AI Search | File Search |
 | Content moderation | Content Safety | Prompt Shields, which targets prompt injection |
 | Prompt injection with document text | Prompt Shields document flow | content moderation |
@@ -260,6 +273,7 @@ uv run python 08-advanced-agents-other/03_a2a_agent_card_preflight.py
 | D6 | L00–L03 and L13 are local only. L04 creates teacher-generated local candidates only with `--apply`; L05 uploads data and submits a training job only with `--apply`; L06 reads a job only with `--apply`; L07 creates/updates a deployment only with `--apply`; L08, L11, and L12 make billable inference calls only with `--apply`; L09 uploads input and creates a Batch job only with `--apply`; L10 reads management-plane quota/deployments only with `--apply`. These paths are not evidence of a successful live operation. |
 | D7 | Offline preflight reads local IaC only. Bicep defaults to Azure `what-if`; Terraform defaults to `plan`. Each engine mutates Azure only with explicit `--apply`. The separate policy deployment can deny unapproved connections after nonproduction review. No live deployment, private connectivity, CMK, CI/CD, failover, or recovery success is claimed. |
 | D8 | All six labs default to local preflight. `--apply` can create a Foundry IQ connection or Toolbox, patch an A2A card or stable endpoint, create/dispatch a routine, or start/apply an Agent Optimizer candidate. These operations can persist cloud state or bill; no successful live operation is evidenced. M365/Teams distribution remains an explicit Foundry portal step. |
+| D9 | All six labs default to local preflight or a local decision. `--apply` submits one Document Intelligence v4 analysis or starts one custom neural build. These operations can bill or persist a model; no successful live operation is evidenced. |
 
 Preview examples include Foundry Memory, workflows, agent evaluators, Sora 2,
 Content Understanding, MAI-Transcribe, Language/Speech MCP, Voice Live, and
@@ -272,7 +286,7 @@ and delete lab-created resources when finished.
 No external link checker is required. Validate local Python/JSON after editing:
 
 ```bash
-python -m compileall -q 01-plan-and-manage 02-generative-ai-and-agents 03-computer-vision 04-text-and-speech 05-information-extraction 06-model-customization-other 08-advanced-agents-other _shared
+python -m compileall -q 01-plan-and-manage 02-generative-ai-and-agents 03-computer-vision 04-text-and-speech 05-information-extraction 06-model-customization-other 08-advanced-agents-other 09-current-ai-services-other _shared
 python -m json.tool 05-information-extraction/skillset_configs/index.json >/dev/null
 python -m json.tool 05-information-extraction/skillset_configs/data_source.json >/dev/null
 python -m json.tool 05-information-extraction/skillset_configs/skillset.json >/dev/null

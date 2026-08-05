@@ -2,7 +2,7 @@
 
 Source: [`AI-103.md`](../AI-103.md), “Skills measured as of April 16, 2026.”
 This matrix maps every exam bullet to code that exists now, not to planned
-work. Supplemental Domains 6 and 8 are documented after the exam-objective
+work. Supplemental Domains 6, 8, and 9 are documented after the exam-objective
 matrix.
 
 **Labels**
@@ -193,7 +193,8 @@ claim any remote path was run successfully.
 | 5 — Information extraction | 21 | `00`–`20`; `00_search_index_setup.py` is included. L16–L20 are default **Preflight** paths; remote work is explicit **Opt-in**. |
 | 6 — Model customization and delivery | 14 | Supplemental curriculum, `00`–`13`; local validation/preflight first, every cloud request requires `--apply`. |
 | 8 — Advanced agents and current Foundry operations | 6 | Supplemental curriculum, `01`–`06`; each lab defaults to preflight and requires `--apply` for a remote change. |
-| **Total** | **137** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
+| 9 — Current AI services | 6 | Supplemental curriculum, `01`–`06`; Read, Layout, invoice, ID, and custom neural default to local preflight and require `--apply` for remote work. DI-versus-CU selection is local only. |
+| **Total** | **143** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
 
 Gaps and partial labels are intentional. They prevent a local study repository
 from claiming live implementation of hosted deployment, A2A, MCP, Toolbox,
@@ -242,3 +243,19 @@ practice for capabilities adjacent to agent delivery and operations.
 | Routines | D8 `04_routines_preflight.py` | **Preflight / Opt-in** — default validates local manifest; `--apply` creates and optionally dispatches a routine. |
 | Gateway, endpoint release, and channel distribution | D8 `05_gateway_publishing_preflight.py` | **Preflight / Opt-in / Partial** — `--apply` pins a stable endpoint; AI Gateway and M365/Teams distribution retain explicit portal steps. |
 | Agent Optimizer | D8 `06_agent_optimizer_preflight.py` | **Preflight / Opt-in** — checks hosted-agent assets; `--apply` starts a job or applies a reviewed candidate locally, never deploys. |
+
+## Supplemental domain 9: current Document Intelligence
+
+Domain 9 is not an AI-103 objective. It provides current Document Intelligence
+v4.0 (2024-11-30 GA) exercises and a local choice between Document Intelligence
+and Content Understanding. Each default command is local. Remote analysis or
+custom-model training requires explicit `--apply`; no successful Azure
+operation is claimed.
+
+| Topic | Evidence | Status |
+|---|---|---|
+| Read OCR | D9 `01_read_ocr.py` | **Preflight / Opt-in** — default validates local input presence; `--apply` analyzes one document. |
+| Layout Markdown and tables | D9 `02_layout_markdown_tables.py` | **Preflight / Opt-in** — `--apply` requests Layout Markdown and reports structural counts. |
+| Invoice and ID extraction | D9 `03_invoice.py`, `04_id_document.py` | **Preflight / Opt-in** — `--apply` invokes one prebuilt model; values remain suppressed until an explicit display flag. |
+| Custom neural model | D9 `05_custom_neural_preflight.py` | **Preflight / Opt-in** — validates local model, Blob, and training-hour inputs; `--apply` starts and waits for a persistent, potentially billable build. |
+| DI versus CU decision | D9 `06_di_vs_cu_decision.py` | **Local** — applies current documented scenario defaults; it doesn't measure quality, cost, availability, or performance. |
