@@ -21,7 +21,7 @@ def _endpoint_base() -> str:
 
 def transcribe(audio_path: Path, locale: str = "en-US") -> str:
     token = DefaultAzureCredential().get_token(_SCOPE).token
-    url = f"{_endpoint_base()}/speechtotext/transcriptions:transcribe?api-version=2024-11-15"
+    url = f"{_endpoint_base()}/speechtotext/transcriptions:transcribe?api-version=2025-10-15"
     with audio_path.open("rb") as f:
         files = {
             "audio": (audio_path.name, f, "audio/wav"),

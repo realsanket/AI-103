@@ -1,20 +1,38 @@
 """Agent grounded in Content Understanding output.
 
-Pipe an invoice through CU → feed extracted fields to an agent → agent
-produces business-friendly review + recommended next step. Demonstrates the
-"CU as data prep, agent as reasoning layer" pattern.
+Beginner note:
+  Pipeline: invoice PDF → CU `prebuilt-invoice` extracts fields → an
+  ephemeral agent reasons over those fields → business-friendly review.
+
+  Two things fixed vs the older version:
+  1. Agent is ephemeral (`instructions=` inline) — no missing agent lookup.
+  2. Invoice URL comes from `SAMPLE_INVOICE_URL` env var — no `file://`
+     (CU cannot fetch local files; upload to Blob and use a SAS URL).
 """
-from _shared.config import SAMPLE_DATA
+import os
+
+from _shared.config import SAMPLE_DATA, settings
 from _shared.cu_client import analyze
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "northwind-support"
-
-_INVOICE_LOCAL = SAMPLE_DATA / "invoices" / "northwind_sample_invoice.pdf"
+_INSTRUCTIONS = (
+    "You are a Northwind operations reviewer. Given extracted invoice fields, "
+    "produce a business-friendly summary, an approval status, any issues found, "
+    "and the recommended next step. Do not invent values that aren't in the fields."
+)
 
 
 def _extract_fields() -> str:
-    invoice_url = f"file://{_INVOICE_LOCAL}"
+    invoice_url = os.environ.get("SAMPLE_INVOICE_URL")
+    if not invoice_url:
+        local = SAMPLE_DATA / "invoices" / "northwind_sample_invoice.pdf"
+        raise SystemExit(
+            "Set SAMPLE_INVOICE_URL to a Blob SAS URL of an invoice PDF.\n"
+            f"  Example candidate to upload: {local}"
+        )
+    if invoice_url.startswith("file://"):
+        raise SystemExit("CU cannot fetch file:// URLs — upload to Blob and use a SAS URL.")
+
     result = analyze("prebuilt-invoice", invoice_url)
     contents = result.get("result", {}).get("contents", [])
     fields = contents[0].get("fields", {}) if contents else {}
@@ -23,11 +41,12 @@ def _extract_fields() -> str:
 
 def main() -> None:
     fields_dump = _extract_fields()
+
     project = project_client()
     openai = project.get_openai_client()
-
     r = openai.responses.create(
-        extra_body={"agent_reference": {"type": "agent_reference", "name": AGENT_NAME}},
+        model=settings().default_model,
+        instructions=_INSTRUCTIONS,
         input=(
             "Review this invoice using only the extracted fields below.\n\n"
             "Your task:\n"

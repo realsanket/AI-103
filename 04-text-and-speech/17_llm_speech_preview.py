@@ -18,9 +18,11 @@ def _token() -> str:
 
 def main() -> None:
     audio = SAMPLE_DATA / "audio" / "conversation.wav"
+    # Verified against ai-services/speech-service/mai-transcribe.md — api-version=2025-10-15
+    # Endpoint is the resource endpoint (cognitiveservices subdomain), not region-specific.
     url = (
-        f"https://{settings().speech_region}.stt.speech.microsoft.com/"
-        f"speechtotext/transcriptions:transcribe?api-version=2025-11-15-preview"
+        f"{settings().speech_endpoint}"
+        f"/speechtotext/transcriptions:transcribe?api-version=2025-10-15"
     )
     with audio.open("rb") as f:
         files = {

@@ -1,21 +1,31 @@
 """Content Understanding — domain-specific `prebuilt-invoice` analyzer.
 
-Reads a sample Northwind invoice, extracts vendor/amount/line items, then
-prints the structured field dump the agent can consume.
+Beginner note:
+  `prebuilt-invoice` extracts vendor / customer / total / line items /
+  dates from any invoice PDF. Same async pattern as other CU analyzers:
+  submit URL → poll → read `result.contents[0].fields`.
+
+  IMPORTANT: CU fetches the URL server-side. `file://` URLs won't work.
+  Upload your invoice PDF to Blob Storage, generate a SAS URL, and set
+  `SAMPLE_INVOICE_URL` in your environment.
 """
+import os
+
 from _shared.config import SAMPLE_DATA
 from _shared.cu_client import analyze
 
-# For a demo, host the invoice publicly (SAS URL / static site) — CU's REST
-# route takes a URL, not raw bytes for `analyzers/{id}:analyze`. If you want
-# a fully local demo, use the ContentUnderstandingClient SDK's begin_analyze_binary.
-# We keep the file path here for reference in the docs.
-_INVOICE_LOCAL = SAMPLE_DATA / "invoices" / "northwind_sample_invoice.pdf"
-
 
 def main() -> None:
-    # Replace with the accessible URL of the invoice PDF (Blob SAS is easiest).
-    invoice_url = f"file://{_INVOICE_LOCAL}"  # placeholder; upload + swap
+    invoice_url = os.environ.get("SAMPLE_INVOICE_URL")
+    if not invoice_url:
+        local = SAMPLE_DATA / "invoices" / "northwind_sample_invoice.pdf"
+        raise SystemExit(
+            "Set SAMPLE_INVOICE_URL to a Blob SAS URL of an invoice PDF.\n"
+            f"  Example candidate to upload: {local}"
+        )
+    if invoice_url.startswith("file://"):
+        raise SystemExit("CU cannot fetch file:// URLs — upload to Blob and use a SAS URL.")
+
     result = analyze("prebuilt-invoice", invoice_url)
     print("status:", result.get("status"))
     contents = result.get("result", {}).get("contents", [])

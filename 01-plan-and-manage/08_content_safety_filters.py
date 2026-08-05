@@ -62,8 +62,8 @@ def _image_via_content_safety_api() -> None:
 
 
 def main() -> None:
-    _text_via_guardrail()
-    _text_via_content_safety_api()
+    # _text_via_guardrail()
+    # _text_via_content_safety_api()
     _image_via_content_safety_api()
 
 
