@@ -1,16 +1,8 @@
 # AI-103 runnable study repository
 
-Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md).
-It has **149 numbered Python lessons** across five exam domains, three
-supplemental domains, and a production-platform IaC lab.
-Lessons use
-Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many
-make billable remote calls or change persistent cloud state.
+Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md). It has **149 numbered Python lessons** across five exam domains, three supplemental domains, and a production-platform IaC lab. Lessons use Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many make billable remote calls or change persistent cloud state.
 
-Read [`docs/coverage.md`](docs/coverage.md) for an objective-by-objective,
-evidence-based map. A lesson existing here does not mean its Azure API,
-region, model, preview feature, or permission has been exercised in your
-subscription.
+Read [`docs/coverage.md`](docs/coverage.md) for an objective-by-objective, evidence-based map. A lesson existing here does not mean its Azure API, region, model, preview feature, or permission has been exercised in your subscription.
 
 ## Repository map
 
@@ -26,11 +18,7 @@ subscription.
 | [08 Advanced agents and current Foundry operations](08-advanced-agents-other/README.md) | Supplemental | 6 | `01_foundry_iq_connection_preflight.py`, `03_a2a_agent_card_preflight.py`, `04_routines_preflight.py` |
 | [09 Current Azure AI Document Intelligence](09-current-ai-services-other/README.md) | Supplemental | 6 | `01_read_ocr.py`, `02_layout_markdown_tables.py`, `05_custom_neural_preflight.py` |
 
-Shared clients live in [`_shared/`](./_shared/); sample inputs live under
-`_shared/sample_data/`. `AI-103.md` is local study-guide source, `Slides.md`
-is extracted study material, and `.context/azure-ai-docs/` is local reference
-documentation. Domain READMEs are source of truth for individual prerequisites,
-preview status, input formats, and side effects.
+Shared clients live in [`_shared/`](./_shared/); sample inputs live under `_shared/sample_data/`. `AI-103.md` is local study-guide source, `Slides.md` is extracted study material, and `.context/azure-ai-docs/` is local reference documentation. Domain READMEs are source of truth for individual prerequisites, preview status, input formats, and side effects.
 
 ## Resource topology
 
@@ -72,16 +60,13 @@ Do not exchange these endpoints:
 | Document Intelligence v4.0 | `DOCUMENT_INTELLIGENCE_ENDPOINT` | single-service `https://<resource>.cognitiveservices.azure.com` | D9 lessons |
 | AI Search | `SEARCH_ENDPOINT` | `https://<search>.search.windows.net` | `_shared/search_client.py` |
 
-`FOUNDRY_ENDPOINT` is not interchangeable with `PROJECT_ENDPOINT`; direct
-OpenAI code does not use either one. Deployment variables are deployment names,
-not model-family labels.
+`FOUNDRY_ENDPOINT` is not interchangeable with `PROJECT_ENDPOINT`; direct OpenAI code does not use either one. Deployment variables are deployment names, not model-family labels.
 
 ## Setup
 
 ### Install and authenticate
 
-Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/), and
-[Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli).
+Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/), and [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli).
 
 ```bash
 uv sync
@@ -89,15 +74,11 @@ cp .env.example .env
 az login
 ```
 
-`DefaultAzureCredential` is used throughout. Locally it commonly obtains an
-Azure CLI token; deployed workloads can use managed identity. Credential-chain
-selection does not prove which credential succeeded.
+`DefaultAzureCredential` is used throughout. Locally it commonly obtains an Azure CLI token; deployed workloads can use managed identity. Credential-chain selection does not prove which credential succeeded.
 
 ### Configure `.env`
 
-Start from [`.env.example`](.env.example). It contains endpoint/name
-placeholders and no keys. Do not commit `.env`, connection strings, Blob SAS
-URLs, or production data.
+Start from [`.env.example`](.env.example). It contains endpoint/name placeholders and no keys. Do not commit `.env`, connection strings, Blob SAS URLs, or production data.
 
 | Group | Variables |
 |---|---|
@@ -115,11 +96,7 @@ URLs, or production data.
 | Domain 2 OpenAPI sample | `ORDERS_FN_ENDPOINT` |
 | Domain 8 advanced Foundry-agent labs | `FOUNDRY_IQ_SEARCH_ENDPOINT`, `FOUNDRY_IQ_KNOWLEDGE_BASE`, `FOUNDRY_IQ_CONNECTION_NAME`, `FOUNDRY_TOOLBOX_NAME`, `FOUNDRY_AGENT_NAME` |
 
-Template defaults currently include `gpt-4.1-mini`, `o4-mini`, `gpt-image-1`,
-`sora`, `text-embedding-3-large`, `model-router`, `northwind-docs`, and
-`northwind-docs-vector`. Replace model values with deployment names available
-to your resource. `settings()` treats placeholder values beginning with `<` as
-unset.
+Template defaults currently include `gpt-4.1-mini`, `o4-mini`, `gpt-image-1`, `sora`, `text-embedding-3-large`, `model-router`, `northwind-docs`, and `northwind-docs-vector`. Replace model values with deployment names available to your resource. `settings()` treats placeholder values beginning with `<` as unset.
 
 Lesson-local environment inputs are deliberately not template defaults:
 
@@ -132,10 +109,7 @@ Lesson-local environment inputs are deliberately not template defaults:
 | Translator document batch | `TRANSLATOR_DOCUMENT_KEY`: runtime-only secret for D4 L23; use Key Vault/CI secret store, never `.env.example` or source |
 | OpenAPI agent | `ORDERS_FN_ENDPOINT`: deployed Function URL; Agent Service cannot call `localhost` |
 
-Set `CU_API_VERSION=2025-11-01` for standard CU lessons. Domain 5 lesson 13
-requires its documented preview value, `2025-05-01-preview`. `SPEECH_REGION`
-is needed by batch Speech REST and LLM Speech preview URLs; normal
-`SpeechConfig` uses `SPEECH_ENDPOINT`.
+Set `CU_API_VERSION=2025-11-01` for standard CU lessons. Domain 5 lesson 13 requires its documented preview value, `2025-05-01-preview`. `SPEECH_REGION` is needed by batch Speech REST and LLM Speech preview URLs; normal `SpeechConfig` uses `SPEECH_ENDPOINT`.
 
 ### Minimal path versus full path
 
@@ -147,14 +121,11 @@ is needed by batch Speech REST and LLM Speech preview URLs; normal
 | Foundry tools | Add Language, Speech, Content Safety, and CU endpoints as needed | D1 safety, D3 CU/moderation, D4 Language/Speech. |
 | Full retrieval path | Add Search, Storage, embedding deployment, subscription/resource-group values, and managed-identity roles | D5 Search pipeline and manual RAG. |
 
-Do not set `STORAGE_CONNECTION_STRING` merely because it exists in the
-template: Search pipeline JSON uses managed identity and a storage resource-ID
-connection, not a stored storage key.
+Do not set `STORAGE_CONNECTION_STRING` merely because it exists in the template: Search pipeline JSON uses managed identity and a storage resource-ID connection, not a stored storage key.
 
 ## Authentication and RBAC
 
-Use least privilege at project/resource scope. Domain 1 documents these
-starting roles; exact assignments depend on your resource configuration.
+Use least privilege at project/resource scope. Domain 1 documents these starting roles; exact assignments depend on your resource configuration.
 
 | Operation | Starting role | Scope |
 |---|---|---|
@@ -166,9 +137,7 @@ starting roles; exact assignments depend on your resource configuration.
 | Search ingestion identity reads Blob | `Storage Blob Data Reader` | storage account/container |
 | Search ingestion identity calls embeddings | `Cognitive Services OpenAI User` | Azure OpenAI/Foundry resource |
 
-For managed identity, enable or attach identity first and assign roles to its
-**principal object ID**, not client ID. D1 lesson 08 reads assignments by
-default; its mutation helper remains commented out.
+For managed identity, enable or attach identity first and assign roles to its **principal object ID**, not client ID. D1 lesson 08 reads assignments by default; its mutation helper remains commented out.
 
 ## Safe run sequence
 
@@ -183,34 +152,23 @@ uv run python 02-generative-ai-and-agents/01_first_api_call.py
 Then follow each domain README:
 
 1. Domain 1: learn deployment types, quota reads, identity, safety, and
-   telemetry before creating deployments or persistent blocklists.
+telemetry before creating deployments or persistent blocklists.
 2. Domain 2: run Responses lessons 01–07, then agents 08–13. Lessons 23–25
-   and 29 default to local preflights; use `--apply` only after their
-   connection, data, RBAC, lifecycle, and cost checks. Lessons 26–28 validate
-   local hosted-agent assets; their contained deploy wrapper also requires
-   `--apply`.
+and 29 default to local preflights; use `--apply` only after their connection, data, RBAC, lifecycle, and cost checks. Lessons 26–28 validate local hosted-agent assets; their contained deploy wrapper also requires `--apply`.
 3. Domain 3: run L10, L12–L15 without `--apply`/`--run` first, then
-   local-image understanding/captions before image/video generation or CU URL
-   analysis.
+local-image understanding/captions before image/video generation or CU URL analysis.
 4. Domain 4: work through Language/Translator before Speech. Run
-   `20_language_sentiment.py` after L07. L21–L25 default to local
-   preflights; use their remote flags only after their domain README checks.
+`20_language_sentiment.py` after L07. L21–L25 default to local preflights; use their remote flags only after their domain README checks.
 5. Domain 5: provision index, skillset, then indexer (`--run`); wait for its
-   successful run before vector, hybrid, or manual-RAG queries. Lessons 16–20
-   default to local preflights; use their documented explicit flags for any
-   remote call.
+successful run before vector, hybrid, or manual-RAG queries. Lessons 16–20 default to local preflights; use their documented explicit flags for any remote call.
 6. Domain 6: run dataset and delivery preflights first. Every cloud action
-   requires `--apply`; validate data, baseline, model support, quota/capacity,
-   region, roles, retention, and cost before applying.
+requires `--apply`; validate data, baseline, model support, quota/capacity, region, roles, retention, and cost before applying.
 7. Domain 7: run offline preflight, select Bicep or Terraform, then run
-   `what-if`/`plan`. Its explicit `--apply` gate follows networking, CMK,
-   policy, diagnostics, and DR review.
+`what-if`/`plan`. Its explicit `--apply` gate follows networking, CMK, policy, diagnostics, and DR review.
 8. Domain 8: run current Foundry-agent preflights before `--apply`. Confirm
-   feature availability, region, role assignments, gateway state, and cost;
-   these labs use current agent endpoints, never Agent Applications.
+feature availability, region, role assignments, gateway state, and cost; these labs use current agent endpoints, never Agent Applications.
 9. Domain 9: run every Document Intelligence preflight first. Use
-   `--apply` only after identity, document-data, Storage, network, region, quota,
-   and cost review. The local DI-versus-CU chooser never calls Azure.
+`--apply` only after identity, document-data, Storage, network, region, quota, and cost review. The local DI-versus-CU chooser never calls Azure.
 
 Examples:
 
@@ -275,11 +233,7 @@ uv run python 09-current-ai-services-other/06_di_vs_cu_decision.py --scenario st
 | D8 | All six labs default to local preflight. `--apply` can create a Foundry IQ connection or Toolbox, patch an A2A card or stable endpoint, create/dispatch a routine, or start/apply an Agent Optimizer candidate. These operations can persist cloud state or bill; no successful live operation is evidenced. M365/Teams distribution remains an explicit Foundry portal step. |
 | D9 | All six labs default to local preflight or a local decision. `--apply` submits one Document Intelligence v4 analysis or starts one custom neural build. These operations can bill or persist a model; no successful live operation is evidenced. |
 
-Preview examples include Foundry Memory, workflows, agent evaluators, Sora 2,
-Content Understanding, MAI-Transcribe, Language/Speech MCP, Voice Live, and
-several D1 guardrail features. Their availability changes independently of this
-repository. Use disposable study resources, short prompts, small sample files,
-and delete lab-created resources when finished.
+Preview examples include Foundry Memory, workflows, agent evaluators, Sora 2, Content Understanding, MAI-Transcribe, Language/Speech MCP, Voice Live, and several D1 guardrail features. Their availability changes independently of this repository. Use disposable study resources, short prompts, small sample files, and delete lab-created resources when finished.
 
 ## Practical checks
 
@@ -297,5 +251,4 @@ az bicep build --file 07-production-platform-other/bicep/main.bicep --stdout >/d
 terraform -chdir=07-production-platform-other/terraform validate
 ```
 
-Use `uv run python <lesson>` only after the lesson's domain README confirms
-its resource, role, endpoint, preview, and data-handling prerequisites.
+Use `uv run python <lesson>` only after the lesson's domain README confirms its resource, role, endpoint, preview, and data-handling prerequisites.

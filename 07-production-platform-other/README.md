@@ -1,21 +1,12 @@
 # Domain 7: Production Foundry platform
 
-Production platform lab for Microsoft Foundry. It provisions one private,
-keyless regional cell using **one** IaC engine: Bicep **or** Terraform. It
-uses current `AIServices` resource and project APIs. It contains no Azure ML
-workspace, hub, classic agent, API key, connection string, model deployment,
-or stored secret.
+Production platform lab for Microsoft Foundry. It provisions one private, keyless regional cell using **one** IaC engine: Bicep **or** Terraform. It uses current `AIServices` resource and project APIs. It contains no Azure ML workspace, hub, classic agent, API key, connection string, model deployment, or stored secret.
 
-The lab is intentionally a platform baseline, not an application deployment.
-Bring model deployments, agents, Standard Agent Service capability hosts, data
-schemas, and workload-specific RBAC only after this baseline passes review.
+The lab is intentionally a platform baseline, not an application deployment. Bring model deployments, agents, Standard Agent Service capability hosts, data schemas, and workload-specific RBAC only after this baseline passes review.
 
 ## Numbered local entrypoints
 
-Each numbered entrypoint reads repository assets only and ends with `No cloud
-calls made.` It accepts no secrets. Only Bicep, Terraform, and policy support
-`--apply`; that explicit flag invokes persistent Azure changes. CI/CD,
-diagnostics, and HA/DR remain reviewed local guidance.
+Each numbered entrypoint reads repository assets only and ends with `No cloud calls made.` It accepts no secrets. Only Bicep, Terraform, and policy support `--apply`; that explicit flag invokes persistent Azure changes. CI/CD, diagnostics, and HA/DR remain reviewed local guidance.
 
 | Lab | Asset | Default |
 |---|---|---|
@@ -35,11 +26,7 @@ python 07-production-platform-other/05_diagnostics_preflight.py
 python 07-production-platform-other/06_ha_dr_preflight.py
 ```
 
-For a reviewed Bicep deployment, `--apply` still requires
-`--resource-group`, `--location`, and `--prefix`. Policy also requires an
-explicit `--allowed-category`; Terraform reads its uncommitted local
-`terraform.tfvars`. Run `scripts/deploy.py` without `--apply` for its
-cloud-read-only Bicep what-if or Terraform plan.
+For a reviewed Bicep deployment, `--apply` still requires `--resource-group`, `--location`, and `--prefix`. Policy also requires an explicit `--allowed-category`; Terraform reads its uncommitted local `terraform.tfvars`. Run `scripts/deploy.py` without `--apply` for its cloud-read-only Bicep what-if or Terraform plan.
 
 ## What deploys
 
@@ -63,29 +50,15 @@ Storage account (GZRS) + private Blob endpoint
 Private DNS zones linked to VNet
 ```
 
-The account endpoint uses three private zones:
-`privatelink.cognitiveservices.azure.com`,
-`privatelink.openai.azure.com`, and
-`privatelink.services.ai.azure.com`. The private endpoint uses group ID
-`account`. Key Vault and Blob use their own private zones. Private DNS changes
-only resolve private IPs from linked networks; test them from the VNet, VPN,
-or ExpressRoute-connected network.
+The account endpoint uses three private zones: `privatelink.cognitiveservices.azure.com`, `privatelink.openai.azure.com`, and `privatelink.services.ai.azure.com`. The private endpoint uses group ID `account`. Key Vault and Blob use their own private zones. Private DNS changes only resolve private IPs from linked networks; test them from the VNet, VPN, or ExpressRoute-connected network.
 
-The Bicep and Terraform configurations are alternatives. Do not apply both to
-the same resource group.
+The Bicep and Terraform configurations are alternatives. Do not apply both to the same resource group.
 
-Network injection is created with the account and can't be added or changed
-later. Recreate a project in a new account to change this decision. The
-dedicated subnet is delegated to `Microsoft.App/environments`; use RFC 1918
-space and size it beyond the `/27` minimum when hosted agents need production
-headroom.
+Network injection is created with the account and can't be added or changed later. Recreate a project in a new account to change this decision. The dedicated subnet is delegated to `Microsoft.App/environments`; use RFC 1918 space and size it beyond the `/27` minimum when hosted agents need production headroom.
 
 ## Before any Azure change
 
-Use a subscription where selected region supports Foundry, CMK, and required
-models. CMK requires Key Vault and Foundry in same region. CMK availability is
-limited by underlying Azure AI Search regional capacity. Enabling CMK on a
-project is one-way; it can't return to Microsoft-managed keys.
+Use a subscription where selected region supports Foundry, CMK, and required models. CMK requires Key Vault and Foundry in same region. CMK availability is limited by underlying Azure AI Search regional capacity. Enabling CMK on a project is one-way; it can't return to Microsoft-managed keys.
 
 Required control-plane access spans resources:
 
@@ -97,10 +70,7 @@ Required control-plane access spans resources:
 | Create or assign policy | `Resource Policy Contributor` or `Owner`. |
 | Deploy or use project | Assign Foundry and data-plane roles separately, at smallest scope. |
 
-Do not grant broad standing delete rights. Delete locks protect ARM resources,
-not data-plane deletes. Use a dedicated user-assigned identity per project;
-recreating a system-assigned identity changes its principal ID and makes
-recovery slower.
+Do not grant broad standing delete rights. Delete locks protect ARM resources, not data-plane deletes. Use a dedicated user-assigned identity per project; recreating a system-assigned identity changes its principal ID and makes recovery slower.
 
 Run offline preflight first. It reads local files only:
 
@@ -113,8 +83,7 @@ Expected final line: `Offline preflight passed; no Azure requests or changes mad
 
 ## Bicep: plan, then apply
 
-Create a resource group first. Replace placeholders with nonsecret identifiers.
-Never put a key, connection string, token, or SAS URL in parameter files.
+Create a resource group first. Replace placeholders with nonsecret identifiers. Never put a key, connection string, token, or SAS URL in parameter files.
 
 ```bash
 az group create --name <production-resource-group> --location <primary-region>
@@ -134,12 +103,9 @@ python 07-production-platform-other/scripts/deploy.py \
   --prefix <unique-production-prefix>
 ```
 
-`bicep/main.bicep` creates no model deployment. Check Foundry model and quota
-availability before creating a separate workload deployment. Do not substitute
-a model family name for a deployment name in applications.
+`bicep/main.bicep` creates no model deployment. Check Foundry model and quota availability before creating a separate workload deployment. Do not substitute a model family name for a deployment name in applications.
 
-Deploy policy as a separately reviewed subscription deployment. Test categories
-and scope in nonproduction before this step because `Deny` blocks deployment:
+Deploy policy as a separately reviewed subscription deployment. Test categories and scope in nonproduction before this step because `Deny` blocks deployment:
 
 ```bash
 # What-if
@@ -157,15 +123,11 @@ az deployment sub create \
                allowedCategories='["<approved-category>"]'
 ```
 
-The policy denies only Foundry account and project connection categories not
-listed in `allowedCategories`. It does not pretend to enforce private endpoint
-or CMK aliases that must be validated for your tenant before use.
+The policy denies only Foundry account and project connection categories not listed in `allowedCategories`. It does not pretend to enforce private endpoint or CMK aliases that must be validated for your tenant before use.
 
 ## Terraform: plan, then apply
 
-Terraform state can contain sensitive resource metadata. Use an approved,
-encrypted remote backend with least-privilege access before team use. Backend
-configuration is deliberately not hardcoded because organization backends vary.
+Terraform state can contain sensitive resource metadata. Use an approved, encrypted remote backend with least-privilege access before team use. Backend configuration is deliberately not hardcoded because organization backends vary.
 
 ```bash
 cd 07-production-platform-other/terraform
@@ -184,38 +146,24 @@ python 07-production-platform-other/scripts/deploy.py --engine terraform
 python 07-production-platform-other/scripts/deploy.py --engine terraform --apply
 ```
 
-Terraform defaults `assign_connection_policy` to `false`. First create and
-review definition only. Set it to `true` only after testing an explicit
-`allowed_connection_categories` list in nonproduction. Never use an empty
-allow-list in a production assignment unless blocking every new connection is
-intentional.
+Terraform defaults `assign_connection_policy` to `false`. First create and review definition only. Set it to `true` only after testing an explicit `allowed_connection_categories` list in nonproduction. Never use an empty allow-list in a production assignment unless blocking every new connection is intentional.
 
 ## CI/CD
 
-`github/workflows/production-platform.yml` is a contained reference, not an
-active repository workflow. Copy it to `.github/workflows/` only after:
+`github/workflows/production-platform.yml` is a contained reference, not an active repository workflow. Copy it to `.github/workflows/` only after:
 
 1. Creating Azure OIDC federated credentials for GitHub Actions.
 1. Setting nonsecret repository variables: `AZURE_CLIENT_ID`,
-   `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `PLATFORM_RESOURCE_GROUP`,
-   `PLATFORM_LOCATION`, and `PLATFORM_PREFIX`.
+`AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `PLATFORM_RESOURCE_GROUP`, `PLATFORM_LOCATION`, and `PLATFORM_PREFIX`.
 1. Installing a self-hosted runner labeled `foundry-vnet` inside the private
-   DNS/VNet path.
+DNS/VNet path.
 1. Configuring approved remote Terraform state if Terraform is selected.
 
-The workflow runs offline preflight, then `what-if` or `terraform plan` by
-default. An operator must choose `apply: true` in manual dispatch to mutate
-Azure. OIDC replaces stored Azure credentials. Private endpoints mean a
-public GitHub-hosted runner can't resolve or reach Foundry, Key Vault, or
-private ACR data planes.
+The workflow runs offline preflight, then `what-if` or `terraform plan` by default. An operator must choose `apply: true` in manual dispatch to mutate Azure. OIDC replaces stored Azure credentials. Private endpoints mean a public GitHub-hosted runner can't resolve or reach Foundry, Key Vault, or private ACR data planes.
 
 ## Diagnostics and operational checks
 
-The baseline sends `Audit`, `RequestResponse`, `AzureOpenAIRequestUsage`, and
-`AllMetrics` to Log Analytics. Request/response logs can contain sensitive
-operational data. Set workspace retention, RBAC, export, and query access to
-your organization policy. Do not write prompt or completion content to custom
-application telemetry by default.
+The baseline sends `Audit`, `RequestResponse`, `AzureOpenAIRequestUsage`, and `AllMetrics` to Log Analytics. Request/response logs can contain sensitive operational data. Set workspace retention, RBAC, export, and query access to your organization policy. Do not write prompt or completion content to custom application telemetry by default.
 
 After apply, run from a principal and network with appropriate access:
 
@@ -237,46 +185,28 @@ az monitor diagnostic-settings list \
 az lock list --resource-group <production-resource-group> --output table
 ```
 
-From inside linked network, resolve the normal hostname, not a `privatelink`
-hostname. Confirm it resolves to private IP, then test TCP 443. An approved
-private endpoint does not grant RBAC. A successful DNS lookup does not prove
-model, project, Key Vault, Storage, or agent authorization.
+From inside linked network, resolve the normal hostname, not a `privatelink` hostname. Confirm it resolves to private IP, then test TCP 443. An approved private endpoint does not grant RBAC. A successful DNS lookup does not prove model, project, Key Vault, Storage, or agent authorization.
 
 ## HA and DR lab
 
-Foundry has no automatic failover or disaster recovery. A Foundry project is
-regional. Treat a regional cell and its project as an independent recovery
-unit.
+Foundry has no automatic failover or disaster recovery. A Foundry project is regional. Treat a regional cell and its project as an independent recovery unit.
 
 1. Deploy reviewed, equivalent cells in two supported regions. Maintain both
-   configurations from same revision, but use different globally unique
-   Foundry, Key Vault, and Storage names.
+configurations from same revision, but use different globally unique Foundry, Key Vault, and Storage names.
 1. Keep a documented application traffic switch or gateway failover decision.
-   This IaC intentionally does not silently redirect production traffic.
+This IaC intentionally does not silently redirect production traffic.
 1. Deploy required model deployments in each region after capacity and quota
-   review. Keep endpoint/deployment routing outside client source code.
+review. Keep endpoint/deployment routing outside client source code.
 1. For Standard Agent Service, bring your own Azure Cosmos DB, Azure AI
-   Search, and Storage resources. Configure Cosmos DB continuous backup and
-   zone-redundant, automatic multi-region failover; configure zone redundancy
-   for Search and GZRS for Storage where supported. Add their private
-   endpoints and zones in each cell. Do not claim this baseline's Blob storage
-   makes Agent Service state replicated.
+Search, and Storage resources. Configure Cosmos DB continuous backup and zone-redundant, automatic multi-region failover; configure zone redundancy for Search and GZRS for Storage where supported. Add their private endpoints and zones in each cell. Do not claim this baseline's Blob storage makes Agent Service state replicated.
 1. Store agent definitions, tool bindings, index schemas, ingestion manifests,
-   and infrastructure in source control. Azure AI Search is a derived index,
-   not the authoritative store.
+and infrastructure in source control. Azure AI Search is a derived index, not the authoritative store.
 1. Exercise recovery periodically: deploy standby cell, recreate
-   infrastructure and agents, rebuild indexes from source data, test private
-   DNS/RBAC, move traffic, then record actual RTO/RPO.
+infrastructure and agents, rebuild indexes from source data, test private DNS/RBAC, move traffic, then record actual RTO/RPO.
 
-Warm standby is reconstruction, not promotion of replicated Foundry project
-state. Cross-region agent state migration, active-active replication, and
-thread recovery aren't supported. User-uploaded thread files can be lost.
-Define a business fallback such as human support before incident day.
+Warm standby is reconstruction, not promotion of replicated Foundry project state. Cross-region agent state migration, active-active replication, and thread recovery aren't supported. User-uploaded thread files can be lost. Define a business fallback such as human support before incident day.
 
-The Bicep cell uses GZRS for its Storage account, but GZRS does not
-automatically fail over a Foundry project storage binding. Select workload
-recovery topology deliberately; never use a generic storage setting as proof
-of complete application DR.
+The Bicep cell uses GZRS for its Storage account, but GZRS does not automatically fail over a Foundry project storage binding. Select workload recovery topology deliberately; never use a generic storage setting as proof of complete application DR.
 
 ## Local references used
 

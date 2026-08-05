@@ -1,24 +1,10 @@
 # Domain 5: Information extraction
 
-> Study guide and runnable labs for Azure AI Search retrieval and Azure
-> Content Understanding in Foundry Tools. Run commands from repository root:
-> `uv run python 05-information-extraction/<lesson>.py`.
+> Study guide and runnable labs for Azure AI Search retrieval and Azure Content Understanding in Foundry Tools. Run commands from repository root: `uv run python 05-information-extraction/<lesson>.py`.
 >
-> This guide explains service behavior and documents this repository's exact
-> implementation. A lesson proves only its stated path. Region, feature,
-> pricing, quota, API version, and permission availability remain
-> subscription-specific. A successful call is not an extraction-quality,
-> grounding, authorization, or production-readiness result.
+> This guide explains service behavior and documents this repository's exact implementation. A lesson proves only its stated path. Region, feature, pricing, quota, API version, and permission availability remain subscription-specific. A successful call is not an extraction-quality, grounding, authorization, or production-readiness result.
 
-> **Current runtime boundary.** `_search_rest.py`, L17's REST helper, and
-> `_shared/cu_client.py` acquire an Entra token but currently send the literal
-> redacted `Authorization: ******` header. Their live REST calls (L00, L04,
-> L05, L09–L17) therefore cannot authenticate as checked in. This guide
-> describes their intended service architecture and marks durable effects that
-> occur only after that header is repaired to send the acquired bearer token.
-> SDK-backed Search queries/status (L01–L03, L18), Blob check (L19), and
-> project-client agent paths (L07, L08, L15, L20) have separate credential
-> paths. Never copy a real token into source merely to make a sample run.
+> **Current runtime boundary.** `_search_rest.py`, L17's REST helper, and `_shared/cu_client.py` acquire an Entra token but currently send the literal redacted `Authorization: ******` header. Their live REST calls (L00, L04, L05, L09–L17) therefore cannot authenticate as checked in. This guide describes their intended service architecture and marks durable effects that occur only after that header is repaired to send the acquired bearer token. SDK-backed Search queries/status (L01–L03, L18), Blob check (L19), and project-client agent paths (L07, L08, L15, L20) have separate credential paths. Never copy a real token into source merely to make a sample run.
 
 ## What this domain teaches
 
@@ -34,10 +20,7 @@ Search: Blob files → indexer → skillset → chunk/vector index → retrieve 
 CU:     reachable file URL → analyzer → asynchronous result → Markdown/fields → application or RAG
 ```
 
-Search is a retrieval system, not a document field-extraction service. Content
-Understanding (CU) is an extraction system, not a corpus search engine. A
-production system can use both: CU preserves difficult document structure,
-then an embedding-capable ingestion path indexes that representation.
+Search is a retrieval system, not a document field-extraction service. Content Understanding (CU) is an extraction system, not a corpus search engine. A production system can use both: CU preserves difficult document structure, then an embedding-capable ingestion path indexes that representation.
 
 ## Mental model
 
@@ -54,10 +37,7 @@ Azure Blob Storage container
                            └─ keyword, vector, hybrid, semantic reranking
 ```
 
-The indexer drives the pipeline. A skillset runs during indexing, never when a
-user searches. A query searches already stored fields and vectors. The
-vectorizer configured on the index turns query text into a vector at query
-time; it does not create document vectors for a direct upload.
+The indexer drives the pipeline. A skillset runs during indexing, never when a user searches. A query searches already stored fields and vectors. The vectorizer configured on the index turns query text into a vector at query time; it does not create document vectors for a direct upload.
 
 ### Document-to-answer boundary
 
@@ -70,9 +50,7 @@ Untrusted source document
   → retain request, result IDs, source version, and policy decision for audit
 ```
 
-Grounding improves answer quality; it does not replace authorization,
-provenance, evaluation, prompt-injection defenses, or application-level
-citations.
+Grounding improves answer quality; it does not replace authorization, provenance, evaluation, prompt-injection defenses, or application-level citations.
 
 ## Glossary
 
@@ -105,9 +83,7 @@ citations.
 | CU | `httpx` REST wrapper; asynchronous `Operation-Location` polling | `DefaultAzureCredential` requests `https://cognitiveservices.azure.com/.default`; CU fetches URL itself | Submit background jobs, store job/source/version state, poll with bounded retry, then validate result. |
 | Blob | Search MI resource-ID connection; L19 Azure Storage SDK with Entra | Blob role and network path are independent of Search/CU roles | Prefer MI for workloads. Use one-object, read-only, short-lived SAS only when CU must fetch private input. |
 
-**Portal / CLI / IaC split.** Use Foundry and Azure portals to verify supported
-regions, model deployments, semantic ranker, CU analyzer runs, indexer history,
-and costs. Use Azure CLI for identity and discovery, not secret-bearing URLs:
+**Portal / CLI / IaC split.** Use Foundry and Azure portals to verify supported regions, model deployments, semantic ranker, CU analyzer runs, indexer history, and costs. Use Azure CLI for identity and discovery, not secret-bearing URLs:
 
 ```bash
 az account show --query "{subscription:id,tenant:tenantId,user:user.name}" -o json
@@ -116,11 +92,7 @@ az search service show -g <resource-group> -n <search-service> -o json
 az storage container show --account-name <storage-account> -n <container> --auth-mode login
 ```
 
-Use Bicep, Terraform, or ARM for resource kind/SKU, tags, diagnostics,
-private endpoints/DNS, managed identities, RBAC, firewall policy, and budgets.
-Keep index JSON, skillset JSON, and indexer JSON versioned and deploy them via
-reviewed REST/SDK automation. IaC cannot make a model, semantic ranker, CU
-feature, or private-link path available in an unsupported region.
+Use Bicep, Terraform, or ARM for resource kind/SKU, tags, diagnostics, private endpoints/DNS, managed identities, RBAC, firewall policy, and budgets. Keep index JSON, skillset JSON, and indexer JSON versioned and deploy them via reviewed REST/SDK automation. IaC cannot make a model, semantic ranker, CU feature, or private-link path available in an unsupported region.
 
 ## Choose a path
 
@@ -159,10 +131,7 @@ cp .env.example .env
 az login
 ```
 
-`DefaultAzureCredential` supplies the user token after `az login` on a
-workstation. In Azure, use a workload or managed identity. Successful token
-acquisition does not prove that identity has the required service data-plane
-role.
+`DefaultAzureCredential` supplies the user token after `az login` on a workstation. In Azure, use a workload or managed identity. Successful token acquisition does not prove that identity has the required service data-plane role.
 
 Set values in `.env`; do not commit it:
 
@@ -190,17 +159,11 @@ CU_ENDPOINT=https://<resource>.services.ai.azure.com
 CU_API_VERSION=2025-11-01
 ```
 
-The checked-in `.env.example` and `_shared.config.settings()` currently
-default `CU_API_VERSION` to `2025-11-15-preview`. Local CU reference material
-documents standard GA as `2025-11-01`; use the API version supported by the
-target resource and analyzer. L13 requires the separate
-`2025-05-01-preview` API for Pro mode. Restore the standard value after L13.
+The checked-in `.env.example` and `_shared.config.settings()` currently default `CU_API_VERSION` to `2025-11-15-preview`. Local CU reference material documents standard GA as `2025-11-01`; use the API version supported by the target resource and analyzer. L13 requires the separate `2025-05-01-preview` API for Pro mode. Restore the standard value after L13.
 
 ### Resources, RBAC, network, and storage
 
-Create a nonproduction Azure AI Search service that supports vector workloads
-and, for L03, semantic ranking in its region. Create a Blob account/container,
-then upload PDFs from:
+Create a nonproduction Azure AI Search service that supports vector workloads and, for L03, semantic ranking in its region. Create a Blob account/container, then upload PDFs from:
 
 ```text
 _shared/sample_data/northwind_docs/
@@ -209,8 +172,7 @@ _shared/sample_data/invoices/northwind_sample_invoice.pdf
 _shared/sample_data/invoices/northwind_scanned_support_notice.pdf
 ```
 
-Enable the **system-assigned managed identity** on the Search service. Grant
-that identity:
+Enable the **system-assigned managed identity** on the Search service. Grant that identity:
 
 | Principal | Scope | Minimum role for this lab | Why |
 |---|---|---|---|
@@ -220,10 +182,7 @@ that identity:
 | Lab user/workload | Foundry project/resource | **Foundry User** or equivalent project access | Creates L07 agent and calls project Responses API. |
 | CU caller | CU resource | **Cognitive Services Content Understanding Contributor** for L12/L13 creation; **Reader** can analyze existing analyzers | Calls CU data plane. |
 
-You need **Owner**, **User Access Administrator**, or an equivalent role to
-create role assignments. Search resource configuration and Search index data
-operations are separate permissions. Grant least privilege and scope roles to
-the narrowest resource/container practical.
+You need **Owner**, **User Access Administrator**, or an equivalent role to create role assignments. Search resource configuration and Search index data operations are separate permissions. Grant least privilege and scope roles to the narrowest resource/container practical.
 
 The Blob data source contains a managed-identity resource-ID connection string:
 
@@ -231,18 +190,9 @@ The Blob data source contains a managed-identity resource-ID connection string:
 ResourceId=/subscriptions/<subscription>/resourceGroups/<resource-group>/providers/Microsoft.Storage/storageAccounts/<storage-account>/;
 ```
 
-It intentionally contains no storage key. Do not replace it with a secret
-connection string or add a secret to source control. For a network-protected
-same-region storage account, configure the documented trusted-service or
-resource-instance path; a public URL alone does not grant the indexer access.
-Use shared private links/private endpoints where policy requires private Search
-to Azure OpenAI connectivity.
+It intentionally contains no storage key. Do not replace it with a secret connection string or add a secret to source control. For a network-protected same-region storage account, configure the documented trusted-service or resource-instance path; a public URL alone does not grant the indexer access. Use shared private links/private endpoints where policy requires private Search to Azure OpenAI connectivity.
 
-CU's `analyze` call operates on a service-reachable HTTPS URL. For private
-Blob input, issue a short-lived, read-only SAS URL containing only the required
-object. Do not put a broad account SAS in a shell history, committed `.env`, a
-model prompt, or a citation. A `file://` path is local to the caller and does
-not work for CU.
+CU's `analyze` call operates on a service-reachable HTTPS URL. For private Blob input, issue a short-lived, read-only SAS URL containing only the required object. Do not put a broad account SAS in a shell history, committed `.env`, a model prompt, or a citation. A `file://` path is local to the caller and does not work for CU.
 
 ### Costs and side effects
 
@@ -256,8 +206,7 @@ not work for CU.
 | L07 | Creates an agent version. |
 | L09–L15 | CU analysis processes supplied content; L12/L13 create or replace analyzers; L15 also makes a model call. |
 
-Use short sample files, bounded `top` values, and a disposable lab
-environment. Delete lab resources and revoke SAS tokens when finished.
+Use short sample files, bounded `top` values, and a disposable lab environment. Delete lab resources and revoke SAS tokens when finished.
 
 ## Exact Search build and run order
 
@@ -267,30 +216,21 @@ The four JSON assets are one contract. Do not provision only part of it:
 1. Enable the Search identity and assign Blob/OpenAI roles.
 1. Create the index before its skillset or indexer:
 
-   ```bash
-   uv run python 05-information-extraction/00_search_index_setup.py
-   ```
+```bash uv run python 05-information-extraction/00_search_index_setup.py ```
 
 1. Create the skillset:
 
-   ```bash
-   uv run python 05-information-extraction/05_search_skillset.py
-   ```
+```bash uv run python 05-information-extraction/05_search_skillset.py ```
 
 1. Create data source and indexer, then begin indexing:
 
-   ```bash
-   uv run python 05-information-extraction/04_search_indexer_setup.py --run
-   ```
+```bash uv run python 05-information-extraction/04_search_indexer_setup.py --run ```
 
 1. Wait for a **successful** indexer run in Azure portal or inspect
-   `get_indexer_status()` through `indexer_client()`. Do not treat "run
-   started" as indexed content.
+`get_indexer_status()` through `indexer_client()`. Do not treat "run started" as indexed content.
 1. Run L01–L03, then create L07 agent and run L08.
 
-The scripts use Search REST API version `2026-04-01` for definitions because
-the JSON assets use REST camel-case properties. They do not deserialize those
-assets into Python SDK snake-case constructors.
+The scripts use Search REST API version `2026-04-01` for definitions because the JSON assets use REST camel-case properties. They do not deserialize those assets into Python SDK snake-case constructors.
 
 ### Schema contract
 
@@ -301,17 +241,9 @@ assets into Python SDK snake-case constructors.
 | `skillset.json` | Character-based SplitSkill: 2,000 characters, 500 overlap; Azure OpenAI embedding for each `/document/pages/*`; projects chunks, vector, filename, and Blob path. |
 | `indexer.json` | Connects data source, target index, and skillset; extracts content and metadata with default parsing. |
 
-`text-embedding-3-large` has a 3072-dimension default used by this index. If
-you select a model or configured embedding dimension that differs, update the
-vector field and embedding skill together. The query vectorizer and indexing
-embedding skill must use compatible model, deployment, dimensions, and
-distance assumptions.
+`text-embedding-3-large` has a 3072-dimension default used by this index. If you select a model or configured embedding dimension that differs, update the vector field and embedding skill together. The query vectorizer and indexing embedding skill must use compatible model, deployment, dimensions, and distance assumptions.
 
-Index projection creates one child Search document per page chunk. It repeats
-`title` and `source_url`, maps `parent_id` automatically, and uses
-`skipIndexingParentDocuments` so null-chunk parent records do not pollute
-retrieval. Do not add a manual mapping for `parent_id`; that breaks projection
-change tracking. If you add ACL metadata, project it to **every child chunk**.
+Index projection creates one child Search document per page chunk. It repeats `title` and `source_url`, maps `parent_id` automatically, and uses `skipIndexingParentDocuments` so null-chunk parent records do not pollute retrieval. Do not add a manual mapping for `parent_id`; that breaks projection change tracking. If you add ACL metadata, project it to **every child chunk**.
 
 ## Search retrieval and ranking
 
@@ -322,75 +254,39 @@ change tracking. If you add ACL metadata, project it to **every child chunk**.
 | Hybrid | L03/L08 | BM25 and vector candidates combine by RRF. | Candidate quality still depends on chunking and source content. |
 | Semantic | L03 | Semantic ranker reranks an initial BM25/RRF result set based on configured `title` and `chunk`. | Does not retrieve new corpus matches; only top candidates progress. |
 
-`k_nearest_neighbors` controls vector candidates, while `top` controls how
-many results the application receives. L03's semantic output has
-`@search.reranker_score`; keyword/vector output has `@search.score`. A
-reranker score is not comparable to a BM25/vector score, and score thresholds
-need evaluation data rather than guessed constants.
+`k_nearest_neighbors` controls vector candidates, while `top` controls how many results the application receives. L03's semantic output has `@search.reranker_score`; keyword/vector output has `@search.score`. A reranker score is not comparable to a BM25/vector score, and score thresholds need evaluation data rather than guessed constants.
 
-Semantic ranker uses text in its semantic configuration. This index's
-`default` configuration prioritizes `title` and `chunk`. It can provide
-captions and answers when requested, but semantic answers/captions are
-extractive Search output, not generated answers.
+Semantic ranker uses text in its semantic configuration. This index's `default` configuration prioritizes `title` and `chunk`. It can provide captions and answers when requested, but semantic answers/captions are extractive Search output, not generated answers.
 
 ## Evidence, citation, ACL, and provenance
 
-L08 retrieves `chunk`, `title`, `parent_id`, and `source_url`, then includes
-them in its prompt. This is application-owned provenance. The agent is told to
-cite source URLs, but L08 does not validate that each answer claim maps to a
-source or render structured citation annotations.
+L08 retrieves `chunk`, `title`, `parent_id`, and `source_url`, then includes them in its prompt. This is application-owned provenance. The agent is told to cite source URLs, but L08 does not validate that each answer claim maps to a source or render structured citation annotations.
 
-Production retrieval must enforce access **before** prompt construction.
-This lab index has no ACL field and L08 sends no filter, so it is unsuitable
-for mixed-permission content. Choose a supported native ACL ingestion path, or
-store a nonretrievable, filterable `Collection(Edm.String)` of caller/group
-identifiers on each chunk and apply an OData security filter such as
-`group_ids/any(g:search.in(g, '<caller-group-ids>'))`. Derive identities from
-trusted authentication context, not model or client text.
+Production retrieval must enforce access **before** prompt construction. This lab index has no ACL field and L08 sends no filter, so it is unsuitable for mixed-permission content. Choose a supported native ACL ingestion path, or store a nonretrievable, filterable `Collection(Edm.String)` of caller/group identifiers on each chunk and apply an OData security filter such as `group_ids/any(g:search.in(g, '<caller-group-ids>'))`. Derive identities from trusted authentication context, not model or client text.
 
-At ingestion, retain immutable source identifier/version, Blob path or
-business source URI, content hash, indexer/skillset version, chunk ID,
-parent ID, ACL version, and ingestion timestamp. At answer time, record user
-or tenant, normalized query, effective authorization filter, index version,
-retrieved chunk IDs/source URLs, ranking configuration, model/agent version,
-and citation rendering. Redact or access-control logs containing sensitive
-prompts or document text. Reindex when source permissions change.
+At ingestion, retain immutable source identifier/version, Blob path or business source URI, content hash, indexer/skillset version, chunk ID, parent ID, ACL version, and ingestion timestamp. At answer time, record user or tenant, normalized query, effective authorization filter, index version, retrieved chunk IDs/source URLs, ranking configuration, model/agent version, and citation rendering. Redact or access-control logs containing sensitive prompts or document text. Reindex when source permissions change.
 
 ## Manual RAG versus managed Search tools
 
-L07 and L08 implement **manual RAG**, not a managed Azure AI Search agent
-tool:
+L07 and L08 implement **manual RAG**, not a managed Azure AI Search agent tool:
 
 ```text
 L08 application → hybrid Search query → prompt contains source blocks
                 → Foundry prompt agent → answer text
 ```
 
-The application chooses query parameters, applies filters, limits chunks, and
-must enforce ACLs, cite sources, handle no-result cases, and evaluate quality.
-Use this pattern when those controls are product requirements.
+The application chooses query parameters, applies filters, limits chunks, and must enforce ACLs, cite sources, handle no-result cases, and evaluate quality. Use this pattern when those controls are product requirements.
 
-A managed Foundry Azure AI Search tool is different; L20 supplies an explicit
-opt-in example:
+A managed Foundry Azure AI Search tool is different; L20 supplies an explicit opt-in example:
 
 ```text
 Agent → configured Azure AI Search tool/project connection → Search index
       → tool result and URL citation annotations → agent response
 ```
 
-It requires a Foundry project connection, supported Search index fields
-(retrievable content and source URL), tool configuration, and project
-managed-identity roles for the selected keyless setup. L20 creates a persistent
-agent version only with `--enable --apply`, and invokes it only with
-`--enable --run`; it prints URL citations when returned. It does not replace
-index-level ACL design, citation evaluation, or tool-result authorization.
-Do not claim that L07's agent autonomously searches the index.
+It requires a Foundry project connection, supported Search index fields (retrievable content and source URL), tool configuration, and project managed-identity roles for the selected keyless setup. L20 creates a persistent agent version only with `--enable --apply`, and invokes it only with `--enable --run`; it prints URL citations when returned. It does not replace index-level ACL design, citation evaluation, or tool-result authorization. Do not claim that L07's agent autonomously searches the index.
 
-Azure AI Search agentic retrieval/knowledge bases are another, separate
-managed preview path: Search can plan subqueries, execute them, semantically
-rerank results, return source references/activity, and supply grounding data
-to an agent. This repository does not create a knowledge source, knowledge
-base, MCP connection, or agentic-retrieval call.
+Azure AI Search agentic retrieval/knowledge bases are another, separate managed preview path: Search can plan subqueries, execute them, semantically rerank results, return source references/activity, and supply grounding data to an agent. This repository does not create a knowledge source, knowledge base, MCP connection, or agentic-retrieval call.
 
 ## Custom skill boundary
 
@@ -407,13 +303,7 @@ L06 is a local demonstration of a **Web API custom-skill payload contract**:
 }
 ```
 
-L17 creates a derived skillset with that `WebApiSkill`, retargets the indexer,
-and starts it only with `--apply --run`; default mode is local preflight. It
-does **not** deploy an Azure Function or authenticate its inbound endpoint.
-To make it production-ready, host HTTPS code, validate its batch contract,
-configure Entra ID/`authResourceId` support where available, bound batch,
-timeout, and parallelism, and return per-record errors instead of failing
-unrelated records. Never use a function key or static bearer token in source.
+L17 creates a derived skillset with that `WebApiSkill`, retargets the indexer, and starts it only with `--apply --run`; default mode is local preflight. It does **not** deploy an Azure Function or authenticate its inbound endpoint. To make it production-ready, host HTTPS code, validate its batch contract, configure Entra ID/`authResourceId` support where available, bound batch, timeout, and parallelism, and return per-record errors instead of failing unrelated records. Never use a function key or static bearer token in source.
 
 ## Content Understanding: API, inputs, and modes
 
@@ -423,17 +313,9 @@ unrelated records. Never use a function key or static bearer token in source.
 {"inputs": [{"url": "https://<reachable-file>"}]}
 ```
 
-It receives `202 Accepted`, reads `Operation-Location`, and polls every two
-seconds until `succeeded`, `failed`, or `canceled`. The helper accepts either
-one URL or a list. This is important: standard GA `2025-11-01` accepts one
-input item, while L13 changes the configured API version to Pro preview, where
-the helper's URL list represents multi-document input.
+It receives `202 Accepted`, reads `Operation-Location`, and polls every two seconds until `succeeded`, `failed`, or `canceled`. The helper accepts either one URL or a list. This is important: standard GA `2025-11-01` accepts one input item, while L13 changes the configured API version to Pro preview, where the helper's URL list represents multi-document input.
 
-CU uses `DefaultAzureCredential` for
-`https://cognitiveservices.azure.com/.default`. It does not use a Foundry
-project endpoint or an Azure OpenAI endpoint as a substitute for `CU_ENDPOINT`.
-For production, add bounded polling timeout/backoff, cancellation, failure
-diagnostics, and a queue/job store rather than holding a web request open.
+CU uses `DefaultAzureCredential` for `https://cognitiveservices.azure.com/.default`. It does not use a Foundry project endpoint or an Azure OpenAI endpoint as a substitute for `CU_ENDPOINT`. For production, add bounded polling timeout/backoff, cancellation, failure diagnostics, and a queue/job store rather than holding a web request open.
 
 | Capability | Standard | Pro preview |
 |---|---|---|
@@ -444,32 +326,17 @@ diagnostics, and a queue/job store rather than holding a web request open.
 | Confidence/source grounding | Available when explicitly enabled for document fields. | Unavailable. |
 | Reasoning/reference data | Per-input extraction. | Multi-step cross-document reasoning and reference data. |
 
-Use standard for high-volume extraction and Pro only when a cross-document
-decision actually needs it. Pro is preview, has higher latency/cost, and is
-not a "better one-document OCR" switch.
+Use standard for high-volume extraction and Pro only when a cross-document decision actually needs it. Pro is preview, has higher latency/cost, and is not a "better one-document OCR" switch.
 
 ## Markdown RAG and reasoning boundary
 
-L14 calls `prebuilt-layout`, header-splits returned Markdown, then applies an
-800-character recursive splitter with 100-character overlap. It prints chunk
-count and first chunk. It **does not upload, embed, or index** those chunks.
+L14 calls `prebuilt-layout`, header-splits returned Markdown, then applies an 800-character recursive splitter with 100-character overlap. It prints chunk count and first chunk. It **does not upload, embed, or index** those chunks.
 
-That boundary is intentional. This index requires `text_vector`; a direct
-Search upload of only `chunk` cannot participate in vector retrieval. To use
-the repository's integrated pipeline, upload the original source document to
-Blob and rerun L05/L04 so Search creates vectors. For a direct Markdown
-ingestion design, create client-side embeddings and upload a valid complete
-document shape, including source/provenance and ACL fields.
+That boundary is intentional. This index requires `text_vector`; a direct Search upload of only `chunk` cannot participate in vector retrieval. To use the repository's integrated pipeline, upload the original source document to Blob and rerun L05/L04 so Search creates vectors. For a direct Markdown ingestion design, create client-side embeddings and upload a valid complete document shape, including source/provenance and ACL fields.
 
-CU Markdown retains headings, tables (including HTML for merged cells),
-figures, formulas, selection marks, links, and page metadata. It is better
-evidence than flattened text, but still inspect chunk boundaries, table splits,
-figure references, prompt injection in source text, and retrieval quality.
+CU Markdown retains headings, tables (including HTML for merged cells), figures, formulas, selection marks, links, and page metadata. It is better evidence than flattened text, but still inspect chunk boundaries, table splits, figure references, prompt injection in source text, and retrieval quality.
 
-L15 is a different pattern: CU extracts invoice fields, then an ephemeral
-Responses call produces a review. CU performs extraction; the language model
-performs bounded business reasoning. Treat model approval status as a proposed
-decision unless deterministic controls or human review validate it.
+L15 is a different pattern: CU extracts invoice fields, then an ephemeral Responses call produces a review. CU performs extraction; the language model performs bounded business reasoning. Treat model approval status as a proposed decision unless deterministic controls or human review validate it.
 
 ## Lesson map and run order
 
@@ -497,325 +364,160 @@ decision unless deterministic controls or human review validate it.
 | 19 | Which identity reads Blob at runtime? | `uv run python 05-information-extraction/19_blob_identity_paths.py` | Local preflight; `--run` reads container properties. | Tests operator/runtime identity, not Search MI. |
 | 20 | How does a managed agent call Search? | `uv run python 05-information-extraction/20_managed_search_agent_tool.py` | Local preflight; explicit enable/apply/run creates or invokes agent. | Tool use does not enforce application ACLs. |
 
-Run L00, L05, L04 `--run --wait`, then L01–L03. Run L07 before L08. CU
-lessons are independent after endpoint/authentication setup; run L13 with its
-preview version and return `.env` to a standard API version afterward.
+Run L00, L05, L04 `--run --wait`, then L01–L03. Run L07 before L08. CU lessons are independent after endpoint/authentication setup; run L13 with its preview version and return `.env` to a standard API version afterward.
 
 ## Detailed lesson walkthroughs
 
-Each lesson below states its **what/why**, **architecture and code path**,
-**use / do not use**, and **output, security, cost, and production pitfall**.
-All cloud actions use configured nonproduction resources; default preflight
-paths in L16–L20 make no cloud request.
+Each lesson below states its **what/why**, **architecture and code path**, **use / do not use**, and **output, security, cost, and production pitfall**. All cloud actions use configured nonproduction resources; default preflight paths in L16–L20 make no cloud request.
 
 ### 00 — Create vector index
 
-**What / why.** Creates or replaces schema before ingestion, so vector,
-semantic, filter, and retrieval contracts agree. **Path.**
-`index.json` → `_search_rest.load_definition()` replaces environment markers
-→ Entra REST `PUT /indexes` → saved-name output. **Use** to establish a clean
-disposable lab index; **not** for additive production schema migration.
+**What / why.** Creates or replaces schema before ingestion, so vector, semantic, filter, and retrieval contracts agree. **Path.** `index.json` → `_search_rest.load_definition()` replaces environment markers → Entra REST `PUT /indexes` → saved-name output. **Use** to establish a clean disposable lab index; **not** for additive production schema migration.
 
-**Security, cost, pitfall.** Requires index-management permission and changes a
-persistent resource; vector/semantic capability affects service cost. Preserve
-ACL/provenance fields in a production schema before first ingestion. Current
-asset key is `chunk_id`, not `id`; changing dimensions/model requires a
-compatible skill, vectorizer, and index rebuild.
+**Security, cost, pitfall.** Requires index-management permission and changes a persistent resource; vector/semantic capability affects service cost. Preserve ACL/provenance fields in a production schema before first ingestion. Current asset key is `chunk_id`, not `id`; changing dimensions/model requires a compatible skill, vectorizer, and index rebuild.
 
 ### 01 — Keyword/BM25 query
 
-**What / why.** Sends `refund` to `search_text` to demonstrate lexical ranking
-for exact policy terms, identifiers, and rare vocabulary. **Path.**
-`search_client(index)` → `search(search_text, select=chunk,title)` → score and
-preview stdout. **Use** exact-token retrieval or as hybrid's lexical leg;
-**not** paraphrase-only retrieval or access control.
+**What / why.** Sends `refund` to `search_text` to demonstrate lexical ranking for exact policy terms, identifiers, and rare vocabulary. **Path.** `search_client(index)` → `search(search_text, select=chunk,title)` → score and preview stdout. **Use** exact-token retrieval or as hybrid's lexical leg; **not** paraphrase-only retrieval or access control.
 
-**Security, cost, pitfall.** Query role is required and returned chunks may be
-sensitive; do not log them blindly. Search query capacity is consumed. This
-lesson has no security filter, `top`, citation validation, retry, or empty
-result policy; apply trusted caller/tenant filters before requesting fields.
+**Security, cost, pitfall.** Query role is required and returned chunks may be sensitive; do not log them blindly. Search query capacity is consumed. This lesson has no security filter, `top`, citation validation, retry, or empty result policy; apply trusted caller/tenant filters before requesting fields.
 
 ### 02 — Vector query
 
-**What / why.** Retrieves paraphrases using server-side query embedding rather
-than a literal match. **Path.** `VectorizableTextQuery(text, fields=text_vector,
-k=5)` → index vectorizer → HNSW nearest neighbors → scores/previews. **Use**
-semantic similarity; **not** when exact codes dominate or model/vectorizer
-compatibility is unknown.
+**What / why.** Retrieves paraphrases using server-side query embedding rather than a literal match. **Path.** `VectorizableTextQuery(text, fields=text_vector, k=5)` → index vectorizer → HNSW nearest neighbors → scores/previews. **Use** semantic similarity; **not** when exact codes dominate or model/vectorizer compatibility is unknown.
 
-**Security, cost, pitfall.** Query text reaches embedding service; protect it
-as customer data. Search/vectorizer and embedding capacity can bill. It needs
-finished ingestion, populated vectors, matching 3072 dimensions, deployment,
-and MI access; `k` candidates are not a relevance or authorization guarantee.
+**Security, cost, pitfall.** Query text reaches embedding service; protect it as customer data. Search/vectorizer and embedding capacity can bill. It needs finished ingestion, populated vectors, matching 3072 dimensions, deployment, and MI access; `k` candidates are not a relevance or authorization guarantee.
 
 ### 03 — Hybrid plus semantic reranking
 
-**What / why.** Compares lexical, vector, then RRF hybrid candidates reranked
-by semantic configuration, teaching why one score does not fit all modes.
-**Path.** Three `client.search()` calls; final call combines text and
-`VectorizableTextQuery`, `QueryType.SEMANTIC`, and `default` config. **Use**
-general RAG baseline after evaluation; **not** as proof semantic ranker finds
-documents absent from initial candidates.
+**What / why.** Compares lexical, vector, then RRF hybrid candidates reranked by semantic configuration, teaching why one score does not fit all modes. **Path.** Three `client.search()` calls; final call combines text and `VectorizableTextQuery`, `QueryType.SEMANTIC`, and `default` config. **Use** general RAG baseline after evaluation; **not** as proof semantic ranker finds documents absent from initial candidates.
 
-**Security, cost, pitfall.** Same unfiltered-result exposure as L01/L02.
-Semantic ranker availability and billing are region/SKU dependent. Do not
-compare reranker and BM25/vector scores or hard-code an arbitrary cutoff;
-evaluate recall, citations, latency, and no-answer behavior on labeled data.
+**Security, cost, pitfall.** Same unfiltered-result exposure as L01/L02. Semantic ranker availability and billing are region/SKU dependent. Do not compare reranker and BM25/vector scores or hard-code an arbitrary cutoff; evaluate recall, citations, latency, and no-answer behavior on labeled data.
 
 ### 04 — Blob data source and indexer
 
-**What / why.** Provisions ingestion connection/job and optionally starts it.
-**Path.** `data_source.json` + `indexer.json` → REST `PUT` resources →
-`run_indexer()`; `--wait` polls `last_result` to success/failure/timeout.
-**Use** managed Blob ingestion; **not** a synchronous request path.
+**What / why.** Provisions ingestion connection/job and optionally starts it. **Path.** `data_source.json` + `indexer.json` → REST `PUT` resources → `run_indexer()`; `--wait` polls `last_result` to success/failure/timeout. **Use** managed Blob ingestion; **not** a synchronous request path.
 
-**Security, cost, pitfall.** Search MI needs Blob Data Reader and OpenAI User;
-network/DNS/firewall reachability remains separate. Blob reads, enrichment,
-and embeddings cost money. Starting is not complete ingestion without
-`--wait`; production should schedule, alert, retain failure diagnostics, and
-handle deletes, change detection, poison documents, and reindexing.
+**Security, cost, pitfall.** Search MI needs Blob Data Reader and OpenAI User; network/DNS/firewall reachability remains separate. Blob reads, enrichment, and embeddings cost money. Starting is not complete ingestion without `--wait`; production should schedule, alert, retain failure diagnostics, and handle deletes, change detection, poison documents, and reindexing.
 
 ### 05 — Split and embedding skillset
 
-**What / why.** Defines repeatable chunks and document embeddings at index
-time. **Path.** JSON SplitSkill `/document/content` → overlapping `pages` →
-AzureOpenAIEmbeddingSkill → index projection child chunks. **Use** integrated
-text vectorization; **not** a query-time transform or CU layout pipeline.
+**What / why.** Defines repeatable chunks and document embeddings at index time. **Path.** JSON SplitSkill `/document/content` → overlapping `pages` → AzureOpenAIEmbeddingSkill → index projection child chunks. **Use** integrated text vectorization; **not** a query-time transform or CU layout pipeline.
 
-**Security, cost, pitfall.** Search MI calls Azure OpenAI, so private endpoint,
-role, and deployment must all work. Every chunk consumes embedding capacity.
-Character chunks can split tables/semantics; tune against documents, retain
-parent/provenance/ACL metadata on every child, and never map `parent_id`
-manually in index projections.
+**Security, cost, pitfall.** Search MI calls Azure OpenAI, so private endpoint, role, and deployment must all work. Every chunk consumes embedding capacity. Character chunks can split tables/semantics; tune against documents, retain parent/provenance/ACL metadata on every child, and never map `parent_id` manually in index projections.
 
 ### 06 — Custom-skill contract
 
-**What / why.** Demonstrates WebApiSkill's batched record-in/record-out shape
-without cloud dependencies. **Path.** sample `values[]` → `handle_batch()` →
-`transform()` normalizes text/identifies tier → JSON output. **Use** to test
-deterministic enrichment contract; **not** as hosted, authenticated enrichment.
+**What / why.** Demonstrates WebApiSkill's batched record-in/record-out shape without cloud dependencies. **Path.** sample `values[]` → `handle_batch()` → `transform()` normalizes text/identifies tier → JSON output. **Use** to test deterministic enrichment contract; **not** as hosted, authenticated enrichment.
 
-**Security, cost, pitfall.** Default path is free/local but source text is
-untrusted. A deployed skill must authenticate Search, validate size/content,
-bound work, and return per-record errors/warnings. Do not expose secrets or
-make external network calls for each record without throttling/idempotency.
+**Security, cost, pitfall.** Default path is free/local but source text is untrusted. A deployed skill must authenticate Search, validate size/content, bound work, and return per-record errors/warnings. Do not expose secrets or make external network calls for each record without throttling/idempotency.
 
 ### 07 — Manual-RAG prompt agent
 
-**What / why.** Stores a constrained agent definition that answers only from
-evidence later supplied by application code. **Path.** `project_client()` →
-`PromptAgentDefinition(model,instructions)` → `agents.create_version()` →
-name/version. **Use** versioned response policy with application-owned search;
-**not** autonomous Search retrieval.
+**What / why.** Stores a constrained agent definition that answers only from evidence later supplied by application code. **Path.** `project_client()` → `PromptAgentDefinition(model,instructions)` → `agents.create_version()` → name/version. **Use** versioned response policy with application-owned search; **not** autonomous Search retrieval.
 
-**Security, cost, pitfall.** Requires Foundry project access and creates a
-persistent agent version; inference occurs only later. Instructions do not
-prevent poisoned retrieved text, ACL bypass, or fabricated citations. Version
-and evaluate prompts; separately authorize retrieval and enforce structured
-claim/citation checks.
+**Security, cost, pitfall.** Requires Foundry project access and creates a persistent agent version; inference occurs only later. Instructions do not prevent poisoned retrieved text, ACL bypass, or fabricated citations. Version and evaluate prompts; separately authorize retrieval and enforce structured claim/citation checks.
 
 ### 08 — Application-owned RAG
 
-**What / why.** Shows retrieval before generation when product owns ranking
-and filters. **Path.** `_retrieve()` runs hybrid query → builds source blocks
-with title/parent/URL → Responses call references L07 agent → output text.
-**Use** custom filters, ranking, deterministic prompt budget, and audit;
-**not** an excuse to send unbounded corpus text to a model.
+**What / why.** Shows retrieval before generation when product owns ranking and filters. **Path.** `_retrieve()` runs hybrid query → builds source blocks with title/parent/URL → Responses call references L07 agent → output text. **Use** custom filters, ranking, deterministic prompt budget, and audit; **not** an excuse to send unbounded corpus text to a model.
 
-**Security, cost, pitfall.** Search plus model calls incur two services'
-latency/cost and retrieved text may inject instructions. Current code has no
-ACL filter, token budget, duplicate removal, citation parser, or evaluation.
-Apply authorization before `select`, retain chunk IDs/index version, cap and
-sanitize evidence, and refuse when evidence is insufficient.
+**Security, cost, pitfall.** Search plus model calls incur two services' latency/cost and retrieved text may inject instructions. Current code has no ACL filter, token budget, duplicate removal, citation parser, or evaluation. Apply authorization before `select`, retain chunk IDs/index version, cap and sanitize evidence, and refuse when evidence is insufficient.
 
 ### 09 — CU prebuilt-read
 
-**What / why.** Extracts basic readable text/Markdown from one remotely
-reachable document. **Path.** source URL → `analyze("prebuilt-read")` →
-async CU submit/poll → status plus first 500 Markdown characters. **Use** OCR
-baseline; **not** table/figure-aware extraction or corpus search.
+**What / why.** Extracts basic readable text/Markdown from one remotely reachable document. **Path.** source URL → `analyze("prebuilt-read")` → async CU submit/poll → status plus first 500 Markdown characters. **Use** OCR baseline; **not** table/figure-aware extraction or corpus search.
 
-**Security, cost, pitfall.** Default public sample still sends its URL to CU;
-private data needs short-lived read-only HTTPS SAS. CU processing is billable.
-OCR errors, reading order, and injection text remain possible; validate
-quality/language/limits and do not treat preview output as authoritative facts.
+**Security, cost, pitfall.** Default public sample still sends its URL to CU; private data needs short-lived read-only HTTPS SAS. CU processing is billable. OCR errors, reading order, and injection text remain possible; validate quality/language/limits and do not treat preview output as authoritative facts.
 
 ### 10 — CU prebuilt-layout
 
-**What / why.** Preserves pages, tables, figures, sections, and Markdown for
-structure-aware downstream processing. **Path.** `CU_LAYOUT_SOURCE_URL` →
-`analyze("prebuilt-layout")` → first content object's counts/Markdown.
-**Use** layout-aware document representation; **not** direct vector indexing.
+**What / why.** Preserves pages, tables, figures, sections, and Markdown for structure-aware downstream processing. **Path.** `CU_LAYOUT_SOURCE_URL` → `analyze("prebuilt-layout")` → first content object's counts/Markdown. **Use** layout-aware document representation; **not** direct vector indexing.
 
-**Security, cost, pitfall.** CU must resolve URL through network/firewall/SAS
-before expiry; content processing costs apply. Output counts are not accuracy
-metrics. Inspect table/header/figure boundaries and page references; preserve
-source/version metadata and route low-confidence or consequential fields to
-human review.
+**Security, cost, pitfall.** CU must resolve URL through network/firewall/SAS before expiry; content processing costs apply. Output counts are not accuracy metrics. Inspect table/header/figure boundaries and page references; preserve source/version metadata and route low-confidence or consequential fields to human review.
 
 ### 11 — CU prebuilt-invoice
 
-**What / why.** Extracts invoice vendor, customer, totals, dates, and line
-items from one invoice. **Path.** `SAMPLE_INVOICE_URL` validation →
-`analyze("prebuilt-invoice")` → print `contents[0].fields`. **Use** standard
-invoice schema; **not** payment approval, fraud decision, or local-file input.
+**What / why.** Extracts invoice vendor, customer, totals, dates, and line items from one invoice. **Path.** `SAMPLE_INVOICE_URL` validation → `analyze("prebuilt-invoice")` → print `contents[0].fields`. **Use** standard invoice schema; **not** payment approval, fraud decision, or local-file input.
 
-**Security, cost, pitfall.** Invoice data is sensitive; use one-object SAS,
-redact logs, and restrict result access. CU calls are billable. A field's
-presence/score does not prove correctness; check totals/currency/vendor
-against deterministic business rules and retain source/page evidence.
+**Security, cost, pitfall.** Invoice data is sensitive; use one-object SAS, redact logs, and restrict result access. CU calls are billable. A field's presence/score does not prove correctness; check totals/currency/vendor against deterministic business rules and retain source/page evidence.
 
 ### 12 — Custom standard analyzer
 
-**What / why.** Creates reusable `prebuilt-document`-based schema for support
-notice extraction/classification/generation. **Path.** `_DEFINITION` →
-`create_analyzer()` → optional URL → `analyze()` → fields. **Use** a tested
-domain schema; **not** Pro cross-document logic or unreviewed production
-generation.
+**What / why.** Creates reusable `prebuilt-document`-based schema for support notice extraction/classification/generation. **Path.** `_DEFINITION` → `create_analyzer()` → optional URL → `analyze()` → fields. **Use** a tested domain schema; **not** Pro cross-document logic or unreviewed production generation.
 
-**Security, cost, pitfall.** Creation needs CU Contributor and creates
-persistent state; analysis can bill. Generated `summary` is model output, not
-source truth. Version analyzer/schema/examples, evaluate precision/recall by
-field, track analyzer ID/version, and avoid silently replacing a production
-definition.
+**Security, cost, pitfall.** Creation needs CU Contributor and creates persistent state; analysis can bill. Generated `summary` is model output, not source truth. Version analyzer/schema/examples, evaluate precision/recall by field, track analyzer ID/version, and avoid silently replacing a production definition.
 
 ### 13 — CU Pro cross-document review
 
-**What / why.** Uses preview Pro mode to generate one consistency summary over
-related mortgage documents. **Path.** comma-separated URLs →
-`create_analyzer(mode="pro")` → multi-input `analyze()` → fields. **Use**
-bounded related-document reasoning; **not** normal single-file OCR.
+**What / why.** Uses preview Pro mode to generate one consistency summary over related mortgage documents. **Path.** comma-separated URLs → `create_analyzer(mode="pro")` → multi-input `analyze()` → fields. **Use** bounded related-document reasoning; **not** normal single-file OCR.
 
-**Security, cost, pitfall.** Set `CU_API_VERSION=2025-05-01-preview` only for
-this run and restore standard configuration after it. Preview has feature,
-region, latency, input, and billing constraints; keep highly sensitive
-documents segregated. Pro lacks standard grounding/confidence behavior and
-supports generate/classify, not extract; require human/deterministic review.
+**Security, cost, pitfall.** Set `CU_API_VERSION=2025-05-01-preview` only for this run and restore standard configuration after it. Preview has feature, region, latency, input, and billing constraints; keep highly sensitive documents segregated. Pro lacks standard grounding/confidence behavior and supports generate/classify, not extract; require human/deterministic review.
 
 ### 14 — CU Markdown chunk inspection
 
-**What / why.** Demonstrates structure-aware splitting without pretending
-printed chunks are indexed. **Path.** layout analysis → Markdown header splitter
-→ recursive 800/100 character splitter → count/first chunk. **Use** to inspect
-chunk policy; **not** direct upload to this vector index.
+**What / why.** Demonstrates structure-aware splitting without pretending printed chunks are indexed. **Path.** layout analysis → Markdown header splitter → recursive 800/100 character splitter → count/first chunk. **Use** to inspect chunk policy; **not** direct upload to this vector index.
 
-**Security, cost, pitfall.** CU input and Markdown may contain secrets or
-injections; do not print/store raw production text casually. CU costs apply;
-local splitting does not. Tables and headings can still split badly. For
-production, evaluate chunks/retrieval and generate valid vectors plus complete
-ACL/provenance records, or feed original files through L04/L05.
+**Security, cost, pitfall.** CU input and Markdown may contain secrets or injections; do not print/store raw production text casually. CU costs apply; local splitting does not. Tables and headings can still split badly. For production, evaluate chunks/retrieval and generate valid vectors plus complete ACL/provenance records, or feed original files through L04/L05.
 
 ### 15 — CU fields to model review
 
-**What / why.** Separates extraction from bounded language reasoning over
-invoice fields. **Path.** CU invoice fields → formatted field dump →
-project Responses `instructions` + input → business-style review. **Use**
-draft triage with review; **not** an automated approval authority.
+**What / why.** Separates extraction from bounded language reasoning over invoice fields. **Path.** CU invoice fields → formatted field dump → project Responses `instructions` + input → business-style review. **Use** draft triage with review; **not** an automated approval authority.
 
-**Security, cost, pitfall.** Two data services process invoice information;
-minimize prompts, log safely, and enforce access before model call. CU and
-model tokens cost money. The prompt cannot repair bad extraction or prevent
-unsupported inference; validate fields/thresholds, require policy checks and
-human approval for consequential action.
+**Security, cost, pitfall.** Two data services process invoice information; minimize prompts, log safely, and enforce access before model call. CU and model tokens cost money. The prompt cannot repair bad extraction or prevent unsupported inference; validate fields/thresholds, require policy checks and human approval for consequential action.
 
 ### 16 — Multimodal CU-to-RAG handoff
 
-**What / why.** Selects prebuilt layout/imageSearch/videoSearch by extension
-and converts one CU result to bounded, provenance-aware records. **Path.**
-HTTPS source → analyzer choice → `analyze()` → max 20 records of max 4,000
-characters with SAS-free source metadata. **Use** controlled ingestion-worker
-handoff; **not** direct Search upload or universal media routing.
+**What / why.** Selects prebuilt layout/imageSearch/videoSearch by extension and converts one CU result to bounded, provenance-aware records. **Path.** HTTPS source → analyzer choice → `analyze()` → max 20 records of max 4,000 characters with SAS-free source metadata. **Use** controlled ingestion-worker handoff; **not** direct Search upload or universal media routing.
 
-**Security, cost, pitfall.** `--apply` submits content; source query credentials
-are intentionally omitted from output. CU media processing costs and limits
-vary. Extension is not trusted MIME validation; production validates media,
-malware, ownership, tenancy, time ranges, retention, embeddings, ACLs, and
-chunk/citation quality before indexing.
+**Security, cost, pitfall.** `--apply` submits content; source query credentials are intentionally omitted from output. CU media processing costs and limits vary. Extension is not trusted MIME validation; production validates media, malware, ownership, tenancy, time ranges, retention, embeddings, ACLs, and chunk/citation quality before indexing.
 
 ### 17 — Deploy derived Web API skill pipeline
 
-**What / why.** Bridges L06's contract into Search enrichment only after
-explicit mutation consent. **Path.** local preflight → HTTPS URL validation →
-clone skillset, insert WebApiSkill, retarget indexer → REST `PUT`; optional
-`run_indexer()`. **Use** verified deterministic preprocessing; **not** localhost
-or a function endpoint without authentication.
+**What / why.** Bridges L06's contract into Search enrichment only after explicit mutation consent. **Path.** local preflight → HTTPS URL validation → clone skillset, insert WebApiSkill, retarget indexer → REST `PUT`; optional `run_indexer()`. **Use** verified deterministic preprocessing; **not** localhost or a function endpoint without authentication.
 
-**Security, cost, pitfall.** `--apply` changes persistent skillset/indexer and
-`--run` can invoke it per batch; manage endpoint ingress, Entra auth, timeout,
-rate, and least privilege. Test rollback because derived skillset changes text
-that gets embedded. Current HTTP helper intentionally redacts authorization in
-source; verify real token/header behavior in integration tests.
+**Security, cost, pitfall.** `--apply` changes persistent skillset/indexer and `--run` can invoke it per batch; manage endpoint ingress, Entra auth, timeout, rate, and least privilege. Test rollback because derived skillset changes text that gets embedded. Current HTTP helper intentionally redacts authorization in source; verify real token/header behavior in integration tests.
 
 ### 18 — Search monitoring snapshot
 
-**What / why.** Reads indexer health and document count without exposing
-indexed content. **Path.** `get_indexer_status()` + `get_document_count()` →
-`status_summary()` → regex-redacted error message. **Use** a smoke diagnostic;
-**not** complete observability or SLO evidence.
+**What / why.** Reads indexer health and document count without exposing indexed content. **Path.** `get_indexer_status()` + `get_document_count()` → `status_summary()` → regex-redacted error message. **Use** a smoke diagnostic; **not** complete observability or SLO evidence.
 
-**Security, cost, pitfall.** `--run` is read-only but status errors can contain
-URLs/secrets, hence redaction; restrict monitoring-log access. Read calls use
-service capacity. Production alerts on failed/stale runs, failed-item ratio,
-unexpected count delta, latency, quota, and query/retrieval quality; export
-minimal telemetry to approved retention/storage.
+**Security, cost, pitfall.** `--run` is read-only but status errors can contain URLs/secrets, hence redaction; restrict monitoring-log access. Read calls use service capacity. Production alerts on failed/stale runs, failed-item ratio, unexpected count delta, latency, quota, and query/retrieval quality; export minimal telemetry to approved retention/storage.
 
 ### 19 — Blob identity-path check
 
-**What / why.** Distinguishes application/operator Blob access from indexer's
-Search MI access. **Path.** account-name validation → `BlobServiceClient` with
-`DefaultAzureCredential` → `get_container_properties()` → name/timestamp.
-**Use** to prove current runtime's Entra data path; **not** to prove indexer
-access.
+**What / why.** Distinguishes application/operator Blob access from indexer's Search MI access. **Path.** account-name validation → `BlobServiceClient` with `DefaultAzureCredential` → `get_container_properties()` → name/timestamp. **Use** to prove current runtime's Entra data path; **not** to prove indexer access.
 
-**Security, cost, pitfall.** `--run` requires container-scoped Blob Data Reader
-and network/DNS access but no account key. It is a small read transaction.
-Do not broaden roles after failure: inspect effective principal, scope, tenant,
-firewall/private endpoint, and separately validate Search service MI.
+**Security, cost, pitfall.** `--run` requires container-scoped Blob Data Reader and network/DNS access but no account key. It is a small read transaction. Do not broaden roles after failure: inspect effective principal, scope, tenant, firewall/private endpoint, and separately validate Search service MI.
 
 ### 20 — Managed Azure AI Search agent tool
 
-**What / why.** Creates a Foundry prompt-agent version with an Azure AI Search
-vector-semantic-hybrid tool, then optionally invokes it. **Path.** connection
-name + index → project connection lookup → tool resource → `create_version()`
-→ Responses `agent_reference` with required tool choice → URL citations.
-**Use** supported managed retrieval integration; **not** replacement for
-application authorization/control requirements.
+**What / why.** Creates a Foundry prompt-agent version with an Azure AI Search vector-semantic-hybrid tool, then optionally invokes it. **Path.** connection name + index → project connection lookup → tool resource → `create_version()` → Responses `agent_reference` with required tool choice → URL citations. **Use** supported managed retrieval integration; **not** replacement for application authorization/control requirements.
 
-**Security, cost, pitfall.** `--enable` makes mutation/invocation deliberate;
-agent creation persists and invocation consumes Search/model capacity. Project
-connection, project identity, Search role, source URL policy, network path,
-and index ACL design must all align. Test tool failures/no-result/citation
-accuracy and retain agent/index/config versions; never let agent instructions
-substitute for security trimming.
+**Security, cost, pitfall.** `--enable` makes mutation/invocation deliberate; agent creation persists and invocation consumes Search/model capacity. Project connection, project identity, Search role, source URL policy, network path, and index ACL design must all align. Test tool failures/no-result/citation accuracy and retain agent/index/config versions; never let agent instructions substitute for security trimming.
 
 ## Security and ingestion hygiene
 
 - Treat Blob documents, OCR text, Markdown, custom-skill payloads, and Search
-  chunks as untrusted input. A document can contain indirect prompt injection.
+chunks as untrusted input. A document can contain indirect prompt injection.
 - Validate MIME type, size, page/count limits, malware-scanning policy, and
-  tenant/source ownership before indexing. Reject password-protected or
-  malformed content according to policy.
+tenant/source ownership before indexing. Reject password-protected or malformed content according to policy.
 - Use managed identities and short-lived SAS URLs. Scope SAS to one object,
-  read only, short expiry, HTTPS, and no account-wide permission.
+read only, short expiry, HTTPS, and no account-wide permission.
 - Store exceptional third-party secrets, Function credentials, and any
-  connection material in Azure Key Vault or a Foundry connection backed by it;
-  grant the runtime identity `get` only. A Key Vault secret or Foundry
-  connection does not grant its caller permission to Blob, Search, or CU.
+connection material in Azure Key Vault or a Foundry connection backed by it; grant the runtime identity `get` only. A Key Vault secret or Foundry connection does not grant its caller permission to Blob, Search, or CU.
 - For private deployments, create and test private endpoints plus private DNS
-  separately for Search, Storage, Azure OpenAI, Foundry/CU, Key Vault, and
-  monitoring. Confirm the actual indexer/agent/runtime egress path; private
-  endpoint and RBAC solve different problems.
+separately for Search, Storage, Azure OpenAI, Foundry/CU, Key Vault, and monitoring. Confirm the actual indexer/agent/runtime egress path; private endpoint and RBAC solve different problems.
 - Separate customer/tenant indexes or apply enforced filters. Never rely on an
-  instruction such as "only answer authorized content."
+instruction such as "only answer authorized content."
 - Project ACL/provenance fields to every chunk. Reindex/revoke when source
-  access changes. Do not expose nonretrievable ACLs in answer payloads.
+access changes. Do not expose nonretrievable ACLs in answer payloads.
 - Keep source URL citations meaningful but avoid leaking signed URLs. Render a
-  stable business/source link or opaque source identifier when necessary.
+stable business/source link or opaque source identifier when necessary.
 - Redact/minimize logs; prompts and retrieved chunks can contain confidential
-  data. Apply retention, deletion, and data-residency requirements.
+data. Apply retention, deletion, and data-residency requirements.
 - Evaluate retrieval recall, citation correctness, answer groundedness, ACL
-  enforcement, extraction accuracy, latency, cost, and failure behavior with
-  representative documents before production.
+enforcement, extraction accuracy, latency, cost, and failure behavior with representative documents before production.
 
 ## Troubleshooting
 
@@ -885,35 +587,30 @@ python -m compileall -q 05-information-extraction
 **AI-103 decision prompts.**
 
 - Need exact lookup plus paraphrase recall? Select hybrid retrieval; semantic
-  ranker reranks candidates and does not replace vector search.
+ranker reranks candidates and does not replace vector search.
 - Need structured fields or layout from one submitted invoice? Select CU
-  analyzer; need answers over many files? Index then retrieve with Search.
+analyzer; need answers over many files? Index then retrieve with Search.
 - Need pre-query authorization? Put tenant/group ACL metadata on every child
-  chunk and apply trusted OData filter before prompt/tool input.
+chunk and apply trusted OData filter before prompt/tool input.
 - Need indexer Blob access without a key? Enable Search MI, grant narrowly
-  scoped Blob Data Reader, configure resource-ID connection and network path.
+scoped Blob Data Reader, configure resource-ID connection and network path.
 - Need CU private input? Give CU a service-reachable, short-lived, read-only
-  object SAS; never a local path or broad account SAS.
+object SAS; never a local path or broad account SAS.
 - Need app-controlled ranking/citations? Manual RAG. Need Foundry-managed
-  Search tool behavior? Configure project connection/tool, then still test
-  ACL, citations, costs, and lifecycle.
+Search tool behavior? Configure project connection/tool, then still test ACL, citations, costs, and lifecycle.
 
 **Interview questions.**
 
 1. Why use an embedding skill and a vectorizer? Document vectors are created
-   at ingestion; vectorizer embeds query text at query time.
+at ingestion; vectorizer embeds query text at query time.
 2. How do you prevent RAG data leakage? Derive identity externally, filter
-   chunks before retrieval/model input, project ACLs to children, and test
-   cross-tenant negatives.
+chunks before retrieval/model input, project ACLs to children, and test cross-tenant negatives.
 3. Why is `--wait` not enough for production indexing? A web process should
-   not own long jobs; use scheduling/queue state, retries, metrics, alerts,
-   poison-document handling, and an idempotent reindex plan.
+not own long jobs; use scheduling/queue state, retries, metrics, alerts, poison-document handling, and an idempotent reindex plan.
 4. When choose CU Markdown rather than flattened OCR? When headings, tables,
-   figures, and reading order help chunk/retrieval quality; still evaluate
-   extraction and chunk boundaries.
+figures, and reading order help chunk/retrieval quality; still evaluate extraction and chunk boundaries.
 5. How investigate a 403? Identify endpoint, effective principal, requested
-   data-plane action, scope, firewall/DNS path, and whether runtime identity
-   differs from developer/CI/Search MI.
+data-plane action, scope, firewall/DNS path, and whether runtime identity differs from developer/CI/Search MI.
 
 ## Official references
 

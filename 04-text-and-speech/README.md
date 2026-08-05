@@ -1,19 +1,10 @@
 # Domain 4 — Implement Text Analysis + Speech Solutions (10–15%)
 
-> Run any lesson: `uv run python 04-text-and-speech/<file>.py`
-> Prereqs: `.env` filled, `az login` completed. See root [README.md](../README.md).
+> Run any lesson: `uv run python 04-text-and-speech/<file>.py` Prereqs: `.env` filled, `az login` completed. See root [README.md](../README.md).
 
-25 lessons cover three separate services—Azure Language in Foundry Tools
-(Language), Azure Translator in Foundry Tools (Translator), and Azure Speech
-in Foundry Tools (Speech)—plus LLM alternatives for NER, sentiment, and
-translation; a Language MCP example; and Voice Live.
+25 lessons cover three separate services—Azure Language in Foundry Tools (Language), Azure Translator in Foundry Tools (Translator), and Azure Speech in Foundry Tools (Speech)—plus LLM alternatives for NER, sentiment, and translation; a Language MCP example; and Voice Live.
 
-> **Lesson boundary:** these are runnable learning samples, not a production
-> architecture, compliance implementation, or accuracy benchmark. They send
-> sample content to remote services, print service output, and intentionally
-> omit retries, telemetry, policy enforcement, consent, human review, and
-> output evaluation. Treat every model result, including a redaction result,
-> as output to validate for its intended workflow.
+> **Lesson boundary:** these are runnable learning samples, not a production architecture, compliance implementation, or accuracy benchmark. They send sample content to remote services, print service output, and intentionally omit retries, telemetry, policy enforcement, consent, human review, and output evaluation. Treat every model result, including a redaction result, as output to validate for its intended workflow.
 
 ---
 
@@ -22,72 +13,45 @@ translation; a Language MCP example; and Voice Live.
 Every way to process **text** and **speech** in Foundry, from two angles:
 
 - **Task-specific** (structured) — Language (NER / PII / sentiment /
-  language detection / summarization / Text Analytics for Health), Translator,
-  Speech SDK (STT / TTS / Speech Translation), and Custom Speech.
+language detection / summarization / Text Analytics for Health), Translator, Speech SDK (STT / TTS / Speech Translation), and Custom Speech.
 - **Generative** (LLM prompt, expensive, flexible) — Responses API with a
-  system prompt for the same tasks; audio input through the LLM Speech API
-  (MAI-Transcribe); Voice Live for real-time
-  speech-to-speech.
+system prompt for the same tasks; audio input through the LLM Speech API (MAI-Transcribe); Voice Live for real-time speech-to-speech.
 
-You'll learn WHICH TO PICK for each task — because the exam tests that
-choice, not the code.
+You'll learn WHICH TO PICK for each task — because the exam tests that choice, not the code.
 
 ---
 
 ## Text + Speech in 90 seconds
 
 - **Language** — one service endpoint (`.cognitiveservices.azure.com`) with
-  task-specific SDK/REST operations,
-  many `kind` values (`EntityRecognition`, `PiiEntityRecognition`,
-  `SentimentAnalysis`, `LanguageDetection`, `KeyPhraseExtraction`,
-  `ExtractiveSummarization`, `AbstractiveSummarization`, `EntityLinking`,
-  `Healthcare`). Task-specific models return structured output. PII
-  detection returns a redacted copy, but that result alone does not make a
-  workflow compliant or safe to disclose.
+task-specific SDK/REST operations, many `kind` values (`EntityRecognition`, `PiiEntityRecognition`, `SentimentAnalysis`, `LanguageDetection`, `KeyPhraseExtraction`, `ExtractiveSummarization`, `AbstractiveSummarization`, `EntityLinking`, `Healthcare`). Task-specific models return structured output. PII detection returns a redacted copy, but that result alone does not make a workflow compliant or safe to disclose.
 - **Translator** — separate REST service. Text translation, document
-  translation, transliteration, and dictionary operations have different
-  contracts. L04 specifically calls Text Translation v3's global
-  `/translate` route and reads its list response; it is not a document or
-  glossary sample.
+translation, transliteration, and dictionary operations have different contracts. L04 specifically calls Text Translation v3's global `/translate` route and reads its list response; it is not a document or glossary sample.
 - **Speech SDK** — three STT modes: **Fast** (sync, one file), **Real-time**
-  (streaming from mic/network), **Batch** (async, many files). Two TTS
-  examples: **Neural** (plain text) and **Neural HD with SSML** (voice
-  capabilities vary by region).
-  Also handles **Speech Translation** via `TranslationRecognizer` (NOT the
-  same as Azure Translator).
+(streaming from mic/network), **Batch** (async, many files). Two TTS examples: **Neural** (plain text) and **Neural HD with SSML** (voice capabilities vary by region). Also handles **Speech Translation** via `TranslationRecognizer` (NOT the same as Azure Translator).
 - **MAI-Transcribe** — preview speech-recognition models available through
-  the LLM Speech API. L17 uses `mai-transcribe-1.5` with a phrase list;
-  MAI does not support prompt-tuning or diarization.
+the LLM Speech API. L17 uses `mai-transcribe-1.5` with a phrase list; MAI does not support prompt-tuning or diarization.
 - **Voice Live** — bidirectional WebSocket for real-time audio. L18 is a
-  protocol demo: it sends a prerecorded PCM file and logs events; it does
-  not capture microphone input or play returned audio.
+protocol demo: it sends a prerecorded PCM file and logs events; it does not capture microphone input or play returned audio.
 - **Custom Speech** — train a model in Speech Studio for domain jargon or
-  accents; deploy → get an endpoint GUID; set `endpoint_id` on the
-  standard config. Everything else stays the same.
+accents; deploy → get an endpoint GUID; set `endpoint_id` on the standard config. Everything else stays the same.
 
-**Beginner shortcut:** *Choose a task-specific service when its supported
-input and output contract fits. Choose an LLM for a new schema or combined
-reasoning task, then constrain and evaluate it. Speech modes are one-file
-sync / stream / batch async—pick by input shape and latency.*
+**Beginner shortcut:** *Choose a task-specific service when its supported input and output contract fits. Choose an LLM for a new schema or combined reasoning task, then constrain and evaluate it. Speech modes are one-file sync / stream / batch async—pick by input shape and latency.*
 
 ## Read outputs as evidence, not decisions
 
 Use this order before turning a lesson into an application:
 
 1. Define the input boundary: text, audio file, microphone stream, Blob
-   container, or WebSocket frames.
+container, or WebSocket frames.
 1. Select the service by supported feature, locale, region, latency, and
-   data-handling requirement—not only apparent output quality.
+data-handling requirement—not only apparent output quality.
 1. Test representative and adversarial samples. Record false positives,
-   false negatives, unsupported languages, and empty/canceled results.
+false negatives, unsupported languages, and empty/canceled results.
 1. Add application controls that these samples lack: authentication,
-   authorization, input limits, retries/backoff, audit policy, retention,
-   monitoring, escalation, and human review where consequences matter.
+authorization, input limits, retries/backoff, audit policy, retention, monitoring, escalation, and human review where consequences matter.
 
-For example, L05 masks detected spans, but an undetected identifier can still
-remain in `redacted_text`. L10 extracts health concepts; it does not validate
-clinical facts, provide medical advice, determine eligibility, or establish a
-health-data compliance posture.
+For example, L05 masks detected spans, but an undetected identifier can still remain in `redacted_text`. L10 extracts health concepts; it does not validate clinical facts, provide medical advice, determine eligibility, or establish a health-data compliance posture.
 
 ---
 
@@ -182,10 +146,7 @@ Steps 1–4 come from Domain 1. Steps 5–8 are Domain 4 additions.
 1. **Azure subscription** with billing.
 2. **Foundry resource** + `az login`.
 3. **Roles for the identity used by `az login`:** `Foundry User` for the
-   project/agent calls in L09 and L18, and `Cognitive Services User` on the
-   resource serving Language, Speech, and Translator requests. Voice Live's
-   keyless flow explicitly requires both roles. Role assignment is necessary
-   but does not bypass service, model, region, quota, or network restrictions.
+project/agent calls in L09 and L18, and `Cognitive Services User` on the resource serving Language, Speech, and Translator requests. Voice Live's keyless flow explicitly requires both roles. Role assignment is necessary but does not bypass service, model, region, quota, or network restrictions.
 4. **`.env` core:** `FOUNDRY_ENDPOINT`, `AZURE_OPENAI_ENDPOINT`, `DEFAULT_MODEL`.
 5. **`.env` Domain 4:**
    - `LANGUAGE_ENDPOINT` — Language service, `cognitiveservices.azure.com`.
@@ -205,26 +166,16 @@ Steps 1–4 come from Domain 1. Steps 5–8 are Domain 4 additions.
    - `CUSTOM_SPEECH_ENDPOINT_ID` — GUID from Speech Studio (only for L19).
 6. **Sample audio present:** `_shared/sample_data/audio/` — `conversation.wav`, `northwind_support_message.wav`.
 7. **For L12 and L16 only** — allow your terminal or IDE microphone access
-   in your operating system. L18 doesn't use your microphone.
+in your operating system. L18 doesn't use your microphone.
 8. **For L13 (Batch STT)** — create a Blob *container* SAS with **read**
-   and **list** permissions for only the input container. Set
-   `BATCH_STT_CONTAINER_SAS` only through your shell, Key Vault, or CI secret
-   store; never add it to `.env.example` or source. Make its expiry outlast
-   the batch job, then revoke or let it expire. A SAS is a bearer secret: do
-   not commit it, put it in command history, print it, or attach it to support
-   tickets.
+and **list** permissions for only the input container. Set `BATCH_STT_CONTAINER_SAS` only through your shell, Key Vault, or CI secret store; never add it to `.env.example` or source. Make its expiry outlast the batch job, then revoke or let it expire. A SAS is a bearer secret: do not commit it, put it in command history, print it, or attach it to support tickets.
 9. **For L19 (Custom Speech)** — train + deploy a model in Speech Studio, paste the endpoint GUID.
 10. **For L23 (Document Translation)** — use separate short-lived HTTPS Blob
     SAS URLs: source requires `r` and `l`, target requires `w` and `l`, and every target
     container is unique per batch. Supply `TRANSLATOR_DOCUMENT_KEY` only at
     runtime or through Key Vault-backed configuration; never commit it.
 
-Sanity check: `uv run python 01-plan-and-manage/07_managed_identity_agent.py`
-must pass. The scripts obtain a Microsoft Entra token through
-`DefaultAzureCredential`; that credential must resolve to an identity with
-the roles above. This proves neither Translator resource-ID configuration,
-Speech regional availability, Blob reachability, nor MCP/Voice Live preview
-availability.
+Sanity check: `uv run python 01-plan-and-manage/07_managed_identity_agent.py` must pass. The scripts obtain a Microsoft Entra token through `DefaultAzureCredential`; that credential must resolve to an identity with the roles above. This proves neither Translator resource-ID configuration, Speech regional availability, Blob reachability, nor MCP/Voice Live preview availability.
 
 ### Endpoint and role checklist
 
@@ -242,10 +193,7 @@ availability.
 
 ### Portal, CLI, IaC, identity, network, and secret handoff
 
-Use **Foundry/Azure portal** to confirm supported resource, model, locale,
-voice/style, quota, region, private-endpoint, and preview combinations. Use
-**Azure CLI** for repeatable identity/resource inspection, never to paste
-secrets:
+Use **Foundry/Azure portal** to confirm supported resource, model, locale, voice/style, quota, region, private-endpoint, and preview combinations. Use **Azure CLI** for repeatable identity/resource inspection, never to paste secrets:
 
 ```bash
 az account show --query "{subscription:id,tenant:tenantId,user:user.name}" -o json
@@ -253,42 +201,15 @@ az role assignment list --assignee <principal-object-id> --all -o table
 az cognitiveservices account list -g <resource-group> -o table
 ```
 
-Use reviewed **Bicep/ARM/Terraform** as production source of truth for resource
-kind/region, tags, diagnostic settings, public-network policy, private
-endpoints/private DNS, role assignments, Storage lifecycle, Key Vault, and
-budget/alert resources. Portal exploration and CLI discovery do not replace
-IaC drift control; IaC does not make an unsupported voice/model/preview
-available.
+Use reviewed **Bicep/ARM/Terraform** as production source of truth for resource kind/region, tags, diagnostic settings, public-network policy, private endpoints/private DNS, role assignments, Storage lifecycle, Key Vault, and budget/alert resources. Portal exploration and CLI discovery do not replace IaC drift control; IaC does not make an unsupported voice/model/preview available.
 
-Use Azure CLI credentials only on a developer workstation. Deployed code uses
-managed identity or workload identity; assign smallest data-plane role at
-resource/project/container scope. A managed identity removes stored login
-secrets, not role, service authorization, or network work. Use Key Vault
-references for unavoidable `TRANSLATOR_DOCUMENT_KEY`, certificates, or
-third-party secrets; grant secret-read access to runtime identity only. Never
-place those values in source, MCP tool schema, prompts, `.env.example`,
-telemetry, or support tickets.
+Use Azure CLI credentials only on a developer workstation. Deployed code uses managed identity or workload identity; assign smallest data-plane role at resource/project/container scope. A managed identity removes stored login secrets, not role, service authorization, or network work. Use Key Vault references for unavoidable `TRANSLATOR_DOCUMENT_KEY`, certificates, or third-party secrets; grant secret-read access to runtime identity only. Never place those values in source, MCP tool schema, prompts, `.env.example`, telemetry, or support tickets.
 
-For Blob, application upload identity normally needs narrow
-`Storage Blob Data Contributor`; direct application read needs narrow
-`Storage Blob Data Reader`; service-fetch flows require their own supported
-access path. A SAS is bearer delegation, not RBAC: scope one resource/container,
-HTTPS, minimum permissions and expiry, then redact full query strings.
-Private endpoint does not grant a role; RBAC does not create route/DNS. Test
-private DNS, ingress, and egress for Language, Translator, Speech/Voice Live,
-Storage, Key Vault, Foundry, and Azure Monitor from the actual workload
-network.
+For Blob, application upload identity normally needs narrow `Storage Blob Data Contributor`; direct application read needs narrow `Storage Blob Data Reader`; service-fetch flows require their own supported access path. A SAS is bearer delegation, not RBAC: scope one resource/container, HTTPS, minimum permissions and expiry, then redact full query strings. Private endpoint does not grant a role; RBAC does not create route/DNS. Test private DNS, ingress, and egress for Language, Translator, Speech/Voice Live, Storage, Key Vault, Foundry, and Azure Monitor from the actual workload network.
 
 ### Cost and feature status
 
-L01–L03 consume model tokens; L04/L22 consume Translator characters when
-run; L05–L10/L20 consume Language transactions; L11–L17/L19 consume Speech;
-L13 consumes Speech plus Blob Storage; L18 creates then deletes an agent
-version and uses Voice Live; L23 can create billable Document Translation
-batches and Blob output; L24 uses Voice Live. L21/L25 are local by default.
-The samples do not configure budgets, quotas, diagnostic settings, or alerts.
-Check pricing, regional/model availability, and quotas before `--run` or
-`--apply`.
+L01–L03 consume model tokens; L04/L22 consume Translator characters when run; L05–L10/L20 consume Language transactions; L11–L17/L19 consume Speech; L13 consumes Speech plus Blob Storage; L18 creates then deletes an agent version and uses Voice Live; L23 can create billable Document Translation batches and Blob output; L24 uses Voice Live. L21/L25 are local by default. The samples do not configure budgets, quotas, diagnostic settings, or alerts. Check pricing, regional/model availability, and quotas before `--run` or `--apply`.
 
 | Feature | Preview or availability status |
 |---|---|
@@ -301,20 +222,15 @@ Check pricing, regional/model availability, and quotas before `--run` or
 ### Data, microphone, and network prerequisites
 
 - Use synthetic or authorized test data. Audio, transcripts, medical text,
-  names, email addresses, and SAS URLs can be sensitive.
+names, email addresses, and SAS URLs can be sensitive.
 - L12 and L16 open the operating system's **default microphone**. Grant
-  microphone permission to the terminal or IDE only after confirming the
-  selected device and local recording policy. Stop the process when testing
-  ends. L18 reads a bundled WAV; it does not open a microphone.
+microphone permission to the terminal or IDE only after confirming the selected device and local recording policy. Stop the process when testing ends. L18 reads a bundled WAV; it does not open a microphone.
 - The samples call public service endpoints. Private endpoints, firewalls,
-  DNS, and regional restrictions can block them. Do not weaken network
-  controls only to make a lesson run.
+DNS, and regional restrictions can block them. Do not weaken network controls only to make a lesson run.
 - L13 places input media behind a container SAS. Blob access is separate from
-  service authorization. Scope its permissions, expiry, and storage
-  lifecycle independently.
+service authorization. Scope its permissions, expiry, and storage lifecycle independently.
 - Review service logging and retention settings before using live data.
-  Custom Speech endpoint logging is optional in the service; L19 neither
-  configures nor audits it.
+Custom Speech endpoint logging is optional in the service; L19 neither configures nor audits it.
 
 ---
 
@@ -439,8 +355,7 @@ This table records current behavior without changing lesson code.
 
 ### Official Microsoft references
 
-Validate API version, model/voice/locale/region support, limits, pricing, and
-preview status at release time:
+Validate API version, model/voice/locale/region support, limits, pricing, and preview status at release time:
 
 - [Azure Language overview](https://learn.microsoft.com/azure/ai-services/language-service/overview)
 - [Language Foundry tools and agents](https://learn.microsoft.com/azure/ai-services/language-service/concepts/foundry-tools-agents)
@@ -573,10 +488,7 @@ Audio output — what do you need?
 
 ## 25-lab implementation contract
 
-Every row supplies the compact **what/why → prereqs/code path → output → use,
-security, cost, and production boundary** that applies while reading the
-deeper lesson walkthrough. “Do not use” means the runnable sample does not
-prove that broader scenario.
+Every row supplies the compact **what/why → prereqs/code path → output → use, security, cost, and production boundary** that applies while reading the deeper lesson walkthrough. “Do not use” means the runnable sample does not prove that broader scenario.
 
 | Lab | What / why | Prereqs and code path → expected output | Use, security, cost, and production boundary |
 |---:|---|---|---|
@@ -610,14 +522,9 @@ prove that broader scenario.
 
 # Lesson 01 — LLM NER (Generative Path)
 
-**You'll learn:** entity extraction via a system prompt on the Responses API; the free-form counterpart to L07's discriminative Language SDK path.
-**Prereqs:** `DEFAULT_MODEL` deployed.
-**Time:** ~5 min.
+**You'll learn:** entity extraction via a system prompt on the Responses API; the free-form counterpart to L07's discriminative Language SDK path. **Prereqs:** `DEFAULT_MODEL` deployed. **Time:** ~5 min.
 
-**Concept:** Describe the entity categories you want in a system prompt;
-the model is asked to return JSON. It is flexible on
-categories your data cares about (`ticket_id`, `sla_tier`,
-`monetary_amount` — none of which Azure Language's prebuilt NER knows).
+**Concept:** Describe the entity categories you want in a system prompt; the model is asked to return JSON. It is flexible on categories your data cares about (`ticket_id`, `sla_tier`, `monetary_amount` — none of which Azure Language's prebuilt NER knows).
 
 **Code:**
 
@@ -642,31 +549,23 @@ r = client.responses.create(
 print(r.output_text)
 ```
 
-**Expected output:** model text that is intended to be JSON with an entity list
-(Sarah Chen / Acme Logistics / TKT-1042 / Gold / Northwind Connect / $500)
-and topics. Parse it only after validating it.
+**Expected output:** model text that is intended to be JSON with an entity list (Sarah Chen / Acme Logistics / TKT-1042 / Gold / Northwind Connect / $500) and topics. Parse it only after validating it.
 
 **Key points:**
 - The current code asks for JSON in prose only. For a machine consumer, add a
-  response schema and validate the parsed result; see Domain 2 L07. Do not
-  assume prompt wording alone guarantees valid JSON.
+response schema and validate the parsed result; see Domain 2 L07. Do not assume prompt wording alone guarantees valid JSON.
 - LLM NER can invent categories your data doesn't have. Great for novelty;
-  validate it before automating a consequence.
+validate it before automating a consequence.
 - Compare with L07 — same ticket, a fixed service schema and confidence
-  signals rather than prompt-defined categories.
+signals rather than prompt-defined categories.
 
 ---
 
 # Lesson 02 — LLM Sentiment (Generative)
 
-**You'll learn:** per-topic sentiment + overall tone from a prompt; the LLM alternative to Azure Language Sentiment.
-**Prereqs:** L01 works.
-**Time:** ~5 min.
+**You'll learn:** per-topic sentiment + overall tone from a prompt; the LLM alternative to Azure Language Sentiment. **Prereqs:** L01 works. **Time:** ~5 min.
 
-**Concept:** Ask the model to break a message into concerns/topics and
-score each one (sentiment + intensity + rationale). Something Azure
-Language's Sentiment Analysis + Opinion Mining does structurally — but
-the LLM version can explain its reasoning in prose.
+**Concept:** Ask the model to break a message into concerns/topics and score each one (sentiment + intensity + rationale). Something Azure Language's Sentiment Analysis + Opinion Mining does structurally — but the LLM version can explain its reasoning in prose.
 
 **Code:**
 
@@ -682,8 +581,7 @@ r = client.responses.create(model=settings().default_model, input=[...])
 print(r.output_text)
 ```
 
-**Expected output:** several per-topic entries (SLA breach → frustrated,
-Marcus's help → grateful) + an overall tone.
+**Expected output:** several per-topic entries (SLA breach → frustrated, Marcus's help → grateful) + an overall tone.
 
 **Key points:**
 - Use Azure Language `SentimentAnalysis` + `opinionMining=true` for cost + structured spans; use LLM for explainability.
@@ -693,13 +591,9 @@ Marcus's help → grateful) + an overall tone.
 
 # Lesson 03 — LLM Translation
 
-**You'll learn:** LLM translation that preserves tone and register; a soft alternative to Azure Translator when nuance matters.
-**Prereqs:** L01 works.
-**Time:** ~5 min.
+**You'll learn:** LLM translation that preserves tone and register; a soft alternative to Azure Translator when nuance matters. **Prereqs:** L01 works. **Time:** ~5 min.
 
-**Concept:** Ask the model to translate while keeping tone/register
-(formal, urgent, casual). Contrast with L04's deterministic Translator Text
-REST request for selected target languages.
+**Concept:** Ask the model to translate while keeping tone/register (formal, urgent, casual). Contrast with L04's deterministic Translator Text REST request for selected target languages.
 
 **Code:**
 
@@ -732,20 +626,9 @@ TRANSLATION: <the translated text>
 
 # Lesson 04 — Azure Translator (REST)
 
-**You'll learn:** read a Translator Text v3 REST response containing multiple
-targets.
-**Prereqs:** Translator resource, `az login` (or workload/managed identity),
-the appropriate Translator/Cognitive Services data role, and full
-`TRANSLATOR_RESOURCE_ID` in `.env`. No `TRANSLATOR_ENDPOINT` setting is used:
-the helper calls the documented global route with Entra bearer token plus
-`Ocp-Apim-ResourceId`.
-**Time:** ~5 min.
+**You'll learn:** read a Translator Text v3 REST response containing multiple targets. **Prereqs:** Translator resource, `az login` (or workload/managed identity), the appropriate Translator/Cognitive Services data role, and full `TRANSLATOR_RESOURCE_ID` in `.env`. No `TRANSLATOR_ENDPOINT` setting is used: the helper calls the documented global route with Entra bearer token plus `Ocp-Apim-ResourceId`. **Time:** ~5 min.
 
-**Concept:** Translator is a separate REST service. The shared helper POSTs
-`[{"Text": text}]` to the global `/translate` endpoint with `api-version=3.0`,
-one `from` parameter, and repeated `to` parameters. A successful response is
-a list: each input item contains its `translations` list. The script does not
-implement glossary, document translation, or custom translation configuration.
+**Concept:** Translator is a separate REST service. The shared helper POSTs `[{"Text": text}]` to the global `/translate` endpoint with `api-version=3.0`, one `from` parameter, and repeated `to` parameters. A successful response is a list: each input item contains its `translations` list. The script does not implement glossary, document translation, or custom translation configuration.
 
 **Code:**
 
@@ -769,9 +652,9 @@ def main() -> None:
 **Key points:**
 - `targets=[...]` becomes repeated `to` query parameters in one v3 request.
 - The shared helper validates the full Translator ARM ID before sending it in
-  `Ocp-Apim-ResourceId`; do not put keys in this sample.
+`Ocp-Apim-ResourceId`; do not put keys in this sample.
 - The response is a list, so read `result[0]["translations"]`; its language
-  key is `to`, not `language`.
+key is `to`, not `language`.
 - For document-level translation (PDF, DOCX), use the **Document Translation** API on the same service.
 - **Speech Translation is NOT Azure Translator** — different service (see L16).
 
@@ -779,18 +662,13 @@ def main() -> None:
 
 # Lesson 05 — Azure Language — PII Detection
 
-**You'll learn:** text PII detection plus service-produced redaction through
-the Language SDK.
-**Prereqs:** `LANGUAGE_ENDPOINT` in `.env`.
-**Time:** ~5 min.
+**You'll learn:** text PII detection plus service-produced redaction through the Language SDK. **Prereqs:** `LANGUAGE_ENDPOINT` in `.env`. **Time:** ~5 min.
 
 **Concept:** `recognize_pii_entities` returns both:
 - `entities` — spans with category (Person / Email / Phone / SSN / ...) + confidence,
 - `redacted_text` — the original text with PII masked.
 
-This is a prebuilt detection feature, not a full privacy/compliance control.
-GPT can also miss or alter sensitive content; neither sample substitutes for
-data governance, evaluation, and human review.
+This is a prebuilt detection feature, not a full privacy/compliance control. GPT can also miss or alter sensitive content; neither sample substitutes for data governance, evaluation, and human review.
 
 **Code:**
 
@@ -820,19 +698,15 @@ def main() -> None:
 
 **Key points:**
 - `redacted_text` is a service-produced masked copy, not proof that all
-  sensitive data is absent. Do not label it “safe” without measuring
-  detection quality and applying your retention/access policies.
+sensitive data is absent. Do not label it “safe” without measuring detection quality and applying your retention/access policies.
 - For domain-specific identifiers, evaluate a custom NER model or a
-  purpose-built rule/model pipeline. An LLM can help classify novel patterns,
-  but it does not provide a compliance guarantee.
+purpose-built rule/model pipeline. An LLM can help classify novel patterns, but it does not provide a compliance guarantee.
 
 ---
 
 # Lesson 06 — Language Detection
 
-**You'll learn:** identify a document's primary language and confidence score; useful as a router step before invoking language-specific tools.
-**Prereqs:** L05 works.
-**Time:** ~3 min.
+**You'll learn:** identify a document's primary language and confidence score; useful as a router step before invoking language-specific tools. **Prereqs:** L05 works. **Time:** ~3 min.
 
 **Concept:** `detect_language()` returns `primary_language` with `iso6391_name` (2-letter code) + `confidence_score`. Good for routing: detect first, then dispatch to a Translator/summarizer/etc.
 
@@ -869,15 +743,9 @@ def main() -> None:
 
 # Lesson 07 — Azure Language — NER (Discriminative)
 
-**You'll learn:** prebuilt NER with fixed categories, confidence scores per
-entity, and optional subcategories (Person → EMPLOYEE, Location → CITY, ...).
-**Prereqs:** L05 works.
-**Time:** ~5 min.
+**You'll learn:** prebuilt NER with fixed categories, confidence scores per entity, and optional subcategories (Person → EMPLOYEE, Location → CITY, ...). **Prereqs:** L05 works. **Time:** ~5 min.
 
-**Concept:** `recognize_entities()` returns categorized entities with
-subcategories and confidence. Contrast with L01's LLM path: this gives a
-documented fixed schema; L01 can request novel categories. Confidence is a
-model signal, not an audit conclusion or accuracy guarantee.
+**Concept:** `recognize_entities()` returns categorized entities with subcategories and confidence. Contrast with L01's LLM path: this gives a documented fixed schema; L01 can request novel categories. Confidence is a model signal, not an audit conclusion or accuracy guarantee.
 
 **Code:**
 
@@ -904,16 +772,9 @@ def main() -> None:
 
 # Lesson 20 — Azure Language sentiment + opinion mining
 
-**You'll learn:** return document and sentence sentiment, then associate an
-opinion assessment with its target. Run this after L07, before the MCP
-lessons.
-**Prereqs:** `LANGUAGE_ENDPOINT` in `.env`.
-**Time:** ~5 min.
+**You'll learn:** return document and sentence sentiment, then associate an opinion assessment with its target. Run this after L07, before the MCP lessons. **Prereqs:** `LANGUAGE_ENDPOINT` in `.env`. **Time:** ~5 min.
 
-**Concept:** `analyze_sentiment(..., show_opinion_mining=True)` returns
-positive, neutral, negative, or mixed document and sentence labels with
-confidence scores. Opinion mining adds targets and assessments; for example,
-it can associate `frustrating` with `onboarding process`.
+**Concept:** `analyze_sentiment(..., show_opinion_mining=True)` returns positive, neutral, negative, or mixed document and sentence labels with confidence scores. Opinion mining adds targets and assessments; for example, it can associate `frustrating` with `onboarding process`.
 
 **Code:**
 
@@ -938,32 +799,23 @@ for idx, doc in enumerate(response):
             print(f"    {target.text} ({target.sentiment}): {assessments}")
 ```
 
-**Expected output:** sentence sentiment plus target/assessment pairs, such
-as `onboarding process (negative): frustrating (negative)`.
+**Expected output:** sentence sentiment plus target/assessment pairs, such as `onboarding process (negative): frustrating (negative)`.
 
 **Key points:**
 - Opinion mining is enabled by `show_opinion_mining=True`; it isn't a
-  separate Language task.
+separate Language task.
 - This feature has a published retirement date of March 31, 2029. Prefer
-  Foundry models for new production workloads.
+Foundry models for new production workloads.
 - L02 remains useful when you need free-form rationale or custom topic
-  grouping rather than fixed sentiment results.
+grouping rather than fixed sentiment results.
 
 ---
 
 # Lesson 08 — List Language MCP Tools
 
-**You'll learn:** discover the tools exposed by the Azure Language MCP server; the exam expects you to know MCP is available for Language + Speech.
-**Prereqs:** `LANGUAGE_MCP_URL` in `.env`; `mcp` Python package installed.
-Language MCP is preview. L08 makes a direct authenticated client call; it does
-not prove that a Foundry project has the connection required by L09.
-**Time:** ~5 min.
+**You'll learn:** discover the tools exposed by the Azure Language MCP server; the exam expects you to know MCP is available for Language + Speech. **Prereqs:** `LANGUAGE_MCP_URL` in `.env`; `mcp` Python package installed. Language MCP is preview. L08 makes a direct authenticated client call; it does not prove that a Foundry project has the connection required by L09. **Time:** ~5 min.
 
-**Concept:** The repository configures Language and Speech MCP URLs, but this
-lesson discovers **Language** only. Language MCP is a preview endpoint that
-exposes Language capabilities as agent tools. It reduces custom REST plumbing
-for an MCP-compatible consumer; it does not remove authentication,
-authorization, data-sharing review, or preview risk.
+**Concept:** The repository configures Language and Speech MCP URLs, but this lesson discovers **Language** only. Language MCP is a preview endpoint that exposes Language capabilities as agent tools. It reduces custom REST plumbing for an MCP-compatible consumer; it does not remove authentication, authorization, data-sharing review, or preview risk.
 
 **Endpoints:**
 
@@ -992,22 +844,16 @@ async def _list_tools() -> None:
 
 **Key points:**
 - L08 obtains an Entra bearer token and uses `/language/mcp`. The repository
-  supplies a different `/speech/mcp` URL, but this directory does not verify
-  its authentication or tool list.
+supplies a different `/speech/mcp` URL, but this directory does not verify its authentication or tool list.
 - Use MCP when the tool consumer is another agent or an off-Azure client.
 
 ---
 
 # Lesson 09 — Language MCP Inside a Foundry Agent
 
-**You'll learn:** attach the Language MCP server to a Prompt Agent as an `McpTool`; let the model pick which language tool to invoke per turn.
-**Prereqs:** L08 works; configure the Foundry project connection required for
-Language MCP authentication. The code does not create that connection.
-**Time:** ~5 min.
+**You'll learn:** attach the Language MCP server to a Prompt Agent as an `McpTool`; let the model pick which language tool to invoke per turn. **Prereqs:** L08 works; configure the Foundry project connection required for Language MCP authentication. The code does not create that connection. **Time:** ~5 min.
 
-**Concept:** Same MCP endpoint, but wrapped as an `McpTool` on a
-registered agent. The agent's system prompt tells it which class of
-questions map to which tool.
+**Concept:** Same MCP endpoint, but wrapped as an `McpTool` on a registered agent. The agent's system prompt tells it which class of questions map to which tool.
 
 **Code:**
 
@@ -1040,16 +886,9 @@ r = openai.responses.create(
 
 # Lesson 10 — Text Analytics for Health
 
-**You'll learn:** extract clinical entities (medication, dosage, condition,
-symptom) and inspect returned normalized text when present.
-**Prereqs:** L05 works.
-**Time:** ~5 min.
+**You'll learn:** extract clinical entities (medication, dosage, condition, symptom) and inspect returned normalized text when present. **Prereqs:** L05 works. **Time:** ~5 min.
 
-**Concept:** `begin_analyze_healthcare_entities` is async (poller-based).
-Returns clinical entities with `category`, `confidence_score`, and sometimes
-`normalized_text`. It is an extraction aid, not a diagnosis, coding decision,
-or clinical validation workflow. Handle health data only under an approved
-privacy, access, and human-review process.
+**Concept:** `begin_analyze_healthcare_entities` is async (poller-based). Returns clinical entities with `category`, `confidence_score`, and sometimes `normalized_text`. It is an extraction aid, not a diagnosis, coding decision, or clinical validation workflow. Handle health data only under an approved privacy, access, and human-review process.
 
 **Code:**
 
@@ -1078,13 +917,9 @@ def main() -> None:
 
 # Lesson 11 — STT Fast Transcription (Sync REST)
 
-**You'll learn:** synchronous transcription of a single audio file via the Fast Transcription REST endpoint.
-**Prereqs:** `SPEECH_ENDPOINT` in `.env` or a valid matching `SPEECH_REGION`
-for regional fallback; `_shared/sample_data/audio/conversation.wav` present.
-**Time:** ~5 min.
+**You'll learn:** synchronous transcription of a single audio file via the Fast Transcription REST endpoint. **Prereqs:** `SPEECH_ENDPOINT` in `.env` or a valid matching `SPEECH_REGION` for regional fallback; `_shared/sample_data/audio/conversation.wav` present. **Time:** ~5 min.
 
-**Concept:** POST an audio file to `/speechtotext/transcriptions:transcribe?api-version=2025-10-15`
-with a JSON `definition` describing locales. Response is the transcript in one call. Limits: ~2 hr / 300 MB per file.
+**Concept:** POST an audio file to `/speechtotext/transcriptions:transcribe?api-version=2025-10-15` with a JSON `definition` describing locales. Response is the transcript in one call. Limits: ~2 hr / 300 MB per file.
 
 **Code:**
 
@@ -1107,7 +942,7 @@ def transcribe(audio_path: Path, locale: str = "en-US") -> str:
 
 **Key points:**
 - **API version:** `2025-10-15`. `_endpoint_base()` uses configured Speech
-  endpoint or safely derives `https://<region>.stt.speech.microsoft.com`.
+endpoint or safely derives `https://<region>.stt.speech.microsoft.com`.
 - `definition` is multipart JSON — locales, diarization flags, custom endpoint id all go here.
 - Fast Transcription does NOT support real-time streaming — use L12 for that.
 
@@ -1115,15 +950,9 @@ def transcribe(audio_path: Path, locale: str = "en-US") -> str:
 
 # Lesson 12 — Real-Time STT (Streaming)
 
-**You'll learn:** continuous recognition from the default microphone via the Speech SDK's `SpeechRecognizer`.
-**Prereqs:** `SPEECH_ENDPOINT`; microphone access on your machine.
-`SPEECH_REGION` is not read by this script.
-**Time:** ~5 min.
+**You'll learn:** continuous recognition from the default microphone via the Speech SDK's `SpeechRecognizer`. **Prereqs:** `SPEECH_ENDPOINT`; microphone access on your machine. `SPEECH_REGION` is not read by this script. **Time:** ~5 min.
 
-**Concept:** `SpeechRecognizer` with `AudioConfig(use_default_microphone=True)`
-subscribes to `recognized` events. `start_continuous_recognition()` runs
-until you call `stop_continuous_recognition()`. Good for meeting
-transcription, live captions, dictation.
+**Concept:** `SpeechRecognizer` with `AudioConfig(use_default_microphone=True)` subscribes to `recognized` events. `start_continuous_recognition()` runs until you call `stop_continuous_recognition()`. Good for meeting transcription, live captions, dictation.
 
 **Code:**
 
@@ -1146,30 +975,22 @@ print("Listening — press Ctrl+C to stop.")
 - Different subscription events: `recognizing` (partial), `recognized` (final), `session_stopped`, `canceled`. Wire what you need.
 - For network-source audio (not mic) use `PushAudioInputStream` or `PullAudioInputStream`.
 - This sample does not handle Ctrl+C with `try`/`finally`; see
-  [known code and documentation mismatches](#known-code-and-documentation-mismatches).
+[known code and documentation mismatches](#known-code-and-documentation-mismatches).
 
 ---
 
 # Lesson 13 — Batch Transcription (Async REST)
 
-**You'll learn:** submit many audio files at once via the async Speech REST
-endpoint; poll until done; list and download each transcription JSON file.
-**Prereqs:** `SPEECH_REGION` in `.env`; runtime-only
-`BATCH_STT_CONTAINER_SAS` set to a Blob container SAS with read and list
-permissions.
-**Time:** ~30 min (batch runs in the background, region-serial).
+**You'll learn:** submit many audio files at once via the async Speech REST endpoint; poll until done; list and download each transcription JSON file. **Prereqs:** `SPEECH_REGION` in `.env`; runtime-only `BATCH_STT_CONTAINER_SAS` set to a Blob container SAS with read and list permissions. **Time:** ~30 min (batch runs in the background, region-serial).
 
 **Concept:** Three steps:
 1. POST `/speechtotext/transcriptions?api-version=2024-11-15` with the
-   container SAS + config.
+container SAS + config.
 2. Poll `GET <returned job URL>` until `status = Succeeded`.
 3. GET the `links.files` URL, select files where `kind` is `Transcription`,
-   then GET each file's `links.contentUrl`.
+then GET each file's `links.contentUrl`.
 
-Use for backlogs, weekly archives, and work with no interactive caller.
-Batch scheduling is best effort: files in a job can process concurrently, but
-jobs can queue. Spread submissions and do not infer throughput from this
-single-job sample.
+Use for backlogs, weekly archives, and work with no interactive caller. Batch scheduling is best effort: files in a job can process concurrently, but jobs can queue. Spread submissions and do not infer throughput from this single-job sample.
 
 **Code:**
 
@@ -1213,34 +1034,25 @@ def _print_transcripts(files_url: str) -> None:
         print(item["name"], result["combinedRecognizedPhrases"])
 ```
 
-**Expected output:** job URL, `status=Running — waiting <60–600>s` polls,
-then one printed transcription per result file. The `finally` block deletes
-the remote job and its service-managed results.
+**Expected output:** job URL, `status=Running — waiting <60–600>s` polls, then one printed transcription per result file. The `finally` block deletes the remote job and its service-managed results.
 
 **Key points:**
 - The current script uses `api-version=2024-11-15`, not the older v3.2 route.
 - `diarizationEnabled` requests per-speaker labels ("Speaker 1", "Speaker 2")
-  in the transcript; validate supported configuration and output for your
-  locale and audio.
+in the transcript; validate supported configuration and output for your locale and audio.
 - `links.files` is an index, not a transcript. Download each
-  `kind: Transcription` item's `links.contentUrl`.
+`kind: Transcription` item's `links.contentUrl`.
 - `_poll_delay()` honors `Retry-After` and otherwise uses bounded exponential
-  delay. Copy approved results before cleanup; a production job must persist
-  its state and reconcile client interruption.
+delay. Copy approved results before cleanup; a production job must persist its state and reconcile client interruption.
 - Batch does not need a custom endpoint even when using a Custom Speech model (unlike real-time).
 
 ---
 
 # Lesson 14 — TTS Neural Voice
 
-**You'll learn:** synthesize speech with a neural voice — plain text in, WAV out.
-**Prereqs:** `SPEECH_ENDPOINT` in `.env`.
-**Time:** ~3 min.
+**You'll learn:** synthesize speech with a neural voice — plain text in, WAV out. **Prereqs:** `SPEECH_ENDPOINT` in `.env`. **Time:** ~3 min.
 
-**Concept:** `SpeechSynthesizer` writes audio to a file or stream.
-`speech_synthesis_voice_name` picks the voice. Plain text works for the
-selected neural voice; voice inventory and availability vary by locale and
-region.
+**Concept:** `SpeechSynthesizer` writes audio to a file or stream. `speech_synthesis_voice_name` picks the voice. Plain text works for the selected neural voice; voice inventory and availability vary by locale and region.
 
 **Code:**
 
@@ -1264,15 +1076,9 @@ result = synth.speak_text_async(_TEXT).get()
 
 # Lesson 15 — TTS with SSML + Neural HD
 
-**You'll learn:** send SSML to a selected Neural HD voice and use
-`<prosody>`, `<break>`, and `<mstts:express-as style="friendly">` for control.
-**Prereqs:** L14 works.
-**Time:** ~5 min.
+**You'll learn:** send SSML to a selected Neural HD voice and use `<prosody>`, `<break>`, and `<mstts:express-as style="friendly">` for control. **Prereqs:** L14 works. **Time:** ~5 min.
 
-**Concept:** The lesson's HD voice and expressive controls are requested in
-SSML. SSML lets you control selected words, break points, rate, and style.
-Quality, supported styles, and regional availability are properties to check
-for the selected voice, not guarantees from this sample.
+**Concept:** The lesson's HD voice and expressive controls are requested in SSML. SSML lets you control selected words, break points, rate, and style. Quality, supported styles, and regional availability are properties to check for the selected voice, not guarantees from this sample.
 
 **Code:**
 
@@ -1306,14 +1112,9 @@ synth.speak_ssml_async(_SSML).get()
 
 # Lesson 16 — Speech Translation
 
-**You'll learn:** `TranslationRecognizer` recognizes speech AND translates in one call. Different service from Azure Translator.
-**Prereqs:** `SPEECH_REGION` in `.env`; mic access.
-**Time:** ~5 min.
+**You'll learn:** `TranslationRecognizer` recognizes speech AND translates in one call. Different service from Azure Translator. **Prereqs:** `SPEECH_REGION` in `.env`; mic access. **Time:** ~5 min.
 
-**Concept:** `speechsdk.translation.TranslationRecognizer` uses the Speech
-SDK for continuous or one-shot translation from audio. Set the source
-language, add one or more `target_language`s, invoke; result carries
-the recognized source text AND every requested translation.
+**Concept:** `speechsdk.translation.TranslationRecognizer` uses the Speech SDK for continuous or one-shot translation from audio. Set the source language, add one or more `target_language`s, invoke; result carries the recognized source text AND every requested translation.
 
 **Code:**
 
@@ -1346,16 +1147,9 @@ if result.reason == speechsdk.ResultReason.TranslatedSpeech:
 
 # Lesson 17 — MAI-Transcribe 1.5 preview
 
-**You'll learn:** file transcription with `mai-transcribe-1.5` through the
-LLM Speech API, including phrase-list entity biasing.
-**Prereqs:** `SPEECH_ENDPOINT` in `.env`; sample audio.
-**Time:** ~10 min.
+**You'll learn:** file transcription with `mai-transcribe-1.5` through the LLM Speech API, including phrase-list entity biasing. **Prereqs:** `SPEECH_ENDPOINT` in `.env`; sample audio. **Time:** ~10 min.
 
-**Concept:** MAI-Transcribe is a preview speech-recognition model. L17 uses
-the `mai-transcribe-1.5` enhanced mode on the same REST route as Fast
-Transcription. The model supports a phrase list to bias named entities and
-can support `transcribeStyle`; the checked-in request does not set a style.
-It doesn't support prompt-tuning or diarization.
+**Concept:** MAI-Transcribe is a preview speech-recognition model. L17 uses the `mai-transcribe-1.5` enhanced mode on the same REST route as Fast Transcription. The model supports a phrase list to bias named entities and can support `transcribeStyle`; the checked-in request does not set a style. It doesn't support prompt-tuning or diarization.
 
 **Code:**
 
@@ -1378,31 +1172,22 @@ with audio.open("rb") as f:
     r = httpx.post(url, headers={"Authorization": f"Bearer {_token()}"}, files=files, timeout=180.0)
 ```
 
-**Expected output:** transcript with phrase-list terms such as `Northwind
-Connect` recognized accurately when the audio contains them.
+**Expected output:** transcript with phrase-list terms such as `Northwind Connect` recognized accurately when the audio contains them.
 
 **Key points:**
 - This lesson uses REST API version `2025-10-15`; verify regional model
-  availability and the current preview contract before depending on it.
+availability and the current preview contract before depending on it.
 - `mai-transcribe-1.5` is preview-only. Confirm model and regional
-  availability before relying on it.
+availability before relying on it.
 - A phrase list isn't a prompt and doesn't replace Custom Speech training.
 
 ---
 
 # Lesson 18 — Voice Live protocol demo for a Prompt Agent
 
-**You'll learn:** connect a WebSocket to a Foundry Prompt Agent, send
-prerecorded PCM audio, and inspect Voice Live events.
-**Prereqs:** `VOICE_LIVE_ENDPOINT` in `.env`; `PROJECT_ENDPOINT` in `.env`.
-**Time:** ~15 min.
+**You'll learn:** connect a WebSocket to a Foundry Prompt Agent, send prerecorded PCM audio, and inspect Voice Live events. **Prereqs:** `VOICE_LIVE_ENDPOINT` in `.env`; `PROJECT_ENDPOINT` in `.env`. **Time:** ~15 min.
 
-**Concept:** Voice Live can stream audio to an agent and return audio deltas.
-This lesson is deliberately protocol-only: it sends the bundled 16-kHz mono
-PCM16 sample, prints events, and stops at `response.done`. It does **not**
-capture microphone input, decode `response.audio.delta`, or play audio.
-It creates a Prompt Agent whose model is `DEFAULT_MODEL`; it is therefore not
-accurate to describe this request as model-free.
+**Concept:** Voice Live can stream audio to an agent and return audio deltas. This lesson is deliberately protocol-only: it sends the bundled 16-kHz mono PCM16 sample, prints events, and stops at `response.done`. It does **not** capture microphone input, decode `response.audio.delta`, or play audio. It creates a Prompt Agent whose model is `DEFAULT_MODEL`; it is therefore not accurate to describe this request as model-free.
 
 Current URL (verified in `speech-service/voice-live-how-to.md`):
 
@@ -1447,34 +1232,26 @@ async def _run() -> None:
         project.agents.delete_version(agent.name, agent.version)
 ```
 
-**Expected output:** several WebSocket events (`session.created`,
-`input_audio_buffer.committed`, `response.audio.delta`, `response.done`).
-Audio deltas are logged only; no sound plays.
+**Expected output:** several WebSocket events (`session.created`, `input_audio_buffer.committed`, `response.audio.delta`, `response.done`). Audio deltas are logged only; no sound plays.
 
 **Key points:**
 - **URL correction:** `/voice-live/realtime?api-version=2026-04-10`; params `agent_id` + `project_id` (not `agent_name`).
 - For non-agent scenarios pass a supported `model` query parameter instead of
-  the agent parameters. Confirm model/region support; this README does not
-  claim a particular model is available.
+the agent parameters. Confirm model/region support; this README does not claim a particular model is available.
 - Two subdomain options: `services.ai.azure.com` (current) or `cognitiveservices.azure.com` (older resources).
 - `websockets` 15 uses `additional_headers`, not `extra_headers`.
 - The temporary agent version is deleted in `finally`; still inventory
-  interrupted runs and use a controlled version/reuse/cleanup policy.
+interrupted runs and use a controlled version/reuse/cleanup policy.
 - Build a microphone capture, PCM framing, audio-delta decoding, and output
-  playback loop before describing an application as end-to-end voice.
+playback loop before describing an application as end-to-end voice.
 
 ---
 
 # Lesson 19 — Custom Speech Model
 
-**You'll learn:** point the Speech SDK at a Custom Speech model you've trained in Speech Studio — same code, one extra config line.
-**Prereqs:** trained + deployed Custom Speech model; `CUSTOM_SPEECH_ENDPOINT_ID` in `.env` (GUID).
-**Time:** ~5 min (assuming model already deployed; training itself is separate).
+**You'll learn:** point the Speech SDK at a Custom Speech model you've trained in Speech Studio — same code, one extra config line. **Prereqs:** trained + deployed Custom Speech model; `CUSTOM_SPEECH_ENDPOINT_ID` in `.env` (GUID). **Time:** ~5 min (assuming model already deployed; training itself is separate).
 
-**Concept:** Setting `speech_config.endpoint_id = "<guid>"` routes
-recognition to your custom acoustic/language model. Every other SDK
-call is identical to standard STT. Use for domain jargon, accented
-speech, unusual product names.
+**Concept:** Setting `speech_config.endpoint_id = "<guid>"` routes recognition to your custom acoustic/language model. Every other SDK call is identical to standard STT. Use for domain jargon, accented speech, unusual product names.
 
 **Code:**
 
@@ -1496,17 +1273,14 @@ def recognize_with_custom_model(audio_path: str) -> str:
     return f"[recognition did not complete: {result.reason}]"
 ```
 
-**Expected output:** one recognition result routed to the configured endpoint.
-It might improve domain-specific terms, but this sample has no base-model
-comparison or word-error-rate measurement and cannot demonstrate improvement.
+**Expected output:** one recognition result routed to the configured endpoint. It might improve domain-specific terms, but this sample has no base-model comparison or word-error-rate measurement and cannot demonstrate improvement.
 
 **Key points:**
 - Batch Transcription does NOT need a custom endpoint even when using your custom model — you reference the model directly in the batch request.
 - MAI-Transcribe phrase lists (L17) can improve recognition of known terms
-  without training.
+without training.
 - Custom Speech has three stages: **train** (Speech Studio, needs labeled
-  data) → **test** (for example, word error rate against a held-out set) →
-  **deploy** (get endpoint GUID). L19 implements only the final consume step.
+data) → **test** (for example, word error rate against a held-out set) → **deploy** (get endpoint GUID). L19 implements only the final consume step.
 
 ---
 
@@ -1524,38 +1298,17 @@ Discover tools only after review:
 uv run python 04-text-and-speech/21_speech_mcp_preflight.py --run
 ```
 
-**What and why.** MCP exposes remote Speech capabilities as tools for an
-MCP-compatible client. It can reduce one-off REST adapters, but it does not
-make remote tools trusted, authorized, stable, or free. This lesson makes the
-safe first step explicit: default mode makes no network call; `--run` only
-lists tool metadata and never invokes a tool.
+**What and why.** MCP exposes remote Speech capabilities as tools for an MCP-compatible client. It can reduce one-off REST adapters, but it does not make remote tools trusted, authorized, stable, or free. This lesson makes the safe first step explicit: default mode makes no network call; `--run` only lists tool metadata and never invokes a tool.
 
-**Prereqs.** Set `SPEECH_MCP_URL` to documented HTTPS endpoint including
-`api-version`; use an Entra identity with the documented least-privilege
-Speech/Cognitive Services data role. Preview availability, region, project
-connection requirements, DNS, firewall, and service support remain separate
-checks. Do not use localhost as a stand-in for a remote client path.
+**Prereqs.** Set `SPEECH_MCP_URL` to documented HTTPS endpoint including `api-version`; use an Entra identity with the documented least-privilege Speech/Cognitive Services data role. Preview availability, region, project connection requirements, DNS, firewall, and service support remain separate checks. Do not use localhost as a stand-in for a remote client path.
 
-**Code path and output.** `preflight()` reads configuration only. With `--run`,
-`speech_mcp_url()` rejects non-HTTPS, localhost, and unversioned URLs;
-`DefaultAzureCredential` obtains a Cognitive Services token; streamable HTTP
-initializes `ClientSession`; `list_tools()` prints each name and description.
-Expected output is `Discovered N Speech MCP tool(s); none invoked.`
+**Code path and output.** `preflight()` reads configuration only. With `--run`, `speech_mcp_url()` rejects non-HTTPS, localhost, and unversioned URLs; `DefaultAzureCredential` obtains a Cognitive Services token; streamable HTTP initializes `ClientSession`; `list_tools()` prints each name and description. Expected output is `Discovered N Speech MCP tool(s); none invoked.`
 
-**Use / do not use.** Use to inventory an approved preview server before an
-agent/tool integration. Do not use it as a permission check, a production
-health probe, or unattended approval for a discovered tool.
+**Use / do not use.** Use to inventory an approved preview server before an agent/tool integration. Do not use it as a permission check, a production health probe, or unattended approval for a discovered tool.
 
-**Security, cost, production pitfalls.** Treat server descriptions and tool
-results as untrusted input. Allowlist operation names, validate arguments,
-reauthorize against end-user identity in the backend, bound time/result size,
-and require approval for side effects. Discovery can incur service/network
-usage; invoked tools may incur Speech/model costs. Pin and regression-test the
-preview contract, test private DNS/egress from actual runtime, and log only
-redacted correlation metadata.
+**Security, cost, production pitfalls.** Treat server descriptions and tool results as untrusted input. Allowlist operation names, validate arguments, reauthorize against end-user identity in the backend, bound time/result size, and require approval for side effects. Discovery can incur service/network usage; invoked tools may incur Speech/model costs. Pin and regression-test the preview contract, test private DNS/egress from actual runtime, and log only redacted correlation metadata.
 
-**AI-103/interview takeaway.** MCP standardizes tool transport; it does not
-replace RBAC, application authorization, network reachability, or tool policy.
+**AI-103/interview takeaway.** MCP standardizes tool transport; it does not replace RBAC, application authorization, network reachability, or tool policy.
 
 ---
 
@@ -1567,42 +1320,17 @@ uv run python 04-text-and-speech/22_translator_secure_config.py \
   --run --text "Approved sample." --source en --targets fr,ja
 ```
 
-**What and why.** This is a guarded Text Translation v3 entry point for
-reviewed text. It demonstrates keyless global-endpoint Microsoft Entra
-authentication through the shared Translator client and keeps routine
-translation separate from L23's document-batch/key contract.
+**What and why.** This is a guarded Text Translation v3 entry point for reviewed text. It demonstrates keyless global-endpoint Microsoft Entra authentication through the shared Translator client and keeps routine translation separate from L23's document-batch/key contract.
 
-**Prereqs.** `az login` locally or managed/workload identity in Azure;
-`TRANSLATOR_RESOURCE_ID` set to the full Translator ARM ID; appropriate
-Translator/Cognitive Services data role; and reviewed text only. The global
-endpoint uses the resource ID header so identity is routed to the intended
-Translator resource. A custom domain, private endpoint, or residency
-requirement may require a different supported design; validate current
-service documentation first.
+**Prereqs.** `az login` locally or managed/workload identity in Azure; `TRANSLATOR_RESOURCE_ID` set to the full Translator ARM ID; appropriate Translator/Cognitive Services data role; and reviewed text only. The global endpoint uses the resource ID header so identity is routed to the intended Translator resource. A custom domain, private endpoint, or residency requirement may require a different supported design; validate current service documentation first.
 
-**Code path and output.** Default `preflight()` prints `No cloud calls made.`
-With `--run`, `_language_tags()` limits source/target input to language-tag
-syntax, then `translate()` receives text, target list, and source tag. The
-shared client requests an Entra token, validates ARM-ID shape, POSTs
-`/translate?api-version=3.0` with repeated `to` parameters and
-`Ocp-Apim-ResourceId`, then prints `[fr] ...` and `[ja] ...`.
+**Code path and output.** Default `preflight()` prints `No cloud calls made.` With `--run`, `_language_tags()` limits source/target input to language-tag syntax, then `translate()` receives text, target list, and source tag. The shared client requests an Entra token, validates ARM-ID shape, POSTs `/translate?api-version=3.0` with repeated `to` parameters and `Ocp-Apim-ResourceId`, then prints `[fr] ...` and `[ja] ...`.
 
-**Use / do not use.** Use for controlled plain-text translation and a
-keyless-auth smoke path. Do not use for documents, glossaries, keys in
-source, sensitive text without data approval, or a claim that translation is
-semantically/culturally correct.
+**Use / do not use.** Use for controlled plain-text translation and a keyless-auth smoke path. Do not use for documents, glossaries, keys in source, sensitive text without data approval, or a claim that translation is semantically/culturally correct.
 
-**Security, cost, production pitfalls.** Translator charges by characters.
-Redact payloads from logs/traces, use managed identity where supported, keep
-role scope narrow, and place exceptional secrets in Key Vault—not source or
-environment files. Validate source/target locale behavior, terminology,
-unsupported languages, rate limits, output quality, residency, private DNS,
-and retention. Human-review regulated, legal, medical, safety-critical, or
-customer-facing translations.
+**Security, cost, production pitfalls.** Translator charges by characters. Redact payloads from logs/traces, use managed identity where supported, keep role scope narrow, and place exceptional secrets in Key Vault—not source or environment files. Validate source/target locale behavior, terminology, unsupported languages, rate limits, output quality, residency, private DNS, and retention. Human-review regulated, legal, medical, safety-critical, or customer-facing translations.
 
-**AI-103/interview takeaway.** Entra token is insufficient for global
-Translator endpoint: documented global flow also requires the target resource
-ARM ID in `Ocp-Apim-ResourceId`.
+**AI-103/interview takeaway.** Entra token is insufficient for global Translator endpoint: documented global flow also requires the target resource ARM ID in `Ocp-Apim-ResourceId`.
 
 ---
 
@@ -1623,42 +1351,17 @@ uv run python 04-text-and-speech/23_translator_batch_operations.py --apply \
   --source-url '<read-sas>' --target-url '<write-sas>' --language fr
 ```
 
-**What and why.** L23 manages Document Translation lifecycle: submit a
-Blob-to-Blob batch, inspect its `operation-location`, or cancel it. Document
-Translation is not L04 with a larger string: it has source/target storage,
-asynchronous state, output-retention, and API-key requirements.
+**What and why.** L23 manages Document Translation lifecycle: submit a Blob-to-Blob batch, inspect its `operation-location`, or cancel it. Document Translation is not L04 with a larger string: it has source/target storage, asynchronous state, output-retention, and API-key requirements.
 
-**Prereqs.** Use a supported Translator resource endpoint; source and target
-HTTPS Blob SAS URLs; `r` and `l` permissions on source and `w` and `l` on target; a unique
-target container for every batch; and `TRANSLATOR_DOCUMENT_KEY` supplied only
-at runtime or retrieved from Key Vault. Read current document translation
-requirements for file types, regions, managed identity alternatives, and
-limits. This lesson's `2026-03-01` request contract explicitly uses the
-document API key; do not confuse it with L04's Entra Text Translation client.
+**Prereqs.** Use a supported Translator resource endpoint; source and target HTTPS Blob SAS URLs; `r` and `l` permissions on source and `w` and `l` on target; a unique target container for every batch; and `TRANSLATOR_DOCUMENT_KEY` supplied only at runtime or retrieved from Key Vault. Read current document translation requirements for file types, regions, managed identity alternatives, and limits. This lesson's `2026-03-01` request contract explicitly uses the document API key; do not confuse it with L04's Entra Text Translation client.
 
-**Code path and output.** Default `preflight()` makes no request. `--apply`
-validates the HTTPS/SAS shape without printing credentials. Submission builds
-`inputs[].source.sourceUrl` and `targets[].targetUrl/language`, POSTs
-`/translator/document/batches?api-version=2026-03-01`, and prints the
-returned `operation-location`. Later `--operation-url` GETs status; adding
-`--cancel` DELETEs it. The client rejects an operation URL on another host.
+**Code path and output.** Default `preflight()` makes no request. `--apply` validates the HTTPS/SAS shape without printing credentials. Submission builds `inputs[].source.sourceUrl` and `targets[].targetUrl/language`, POSTs `/translator/document/batches?api-version=2026-03-01`, and prints the returned `operation-location`. Later `--operation-url` GETs status; adding `--cancel` DELETEs it. The client rejects an operation URL on another host.
 
-**Use / do not use.** Use for controlled document batches with a durable job
-owner. Do not use it as a text-translation shortcut, an automatic completion
-poller, an output-content reviewer, or a storage lifecycle manager.
+**Use / do not use.** Use for controlled document batches with a durable job owner. Do not use it as a text-translation shortcut, an automatic completion poller, an output-content reviewer, or a storage lifecycle manager.
 
-**Security, cost, production pitfalls.** Both SAS URLs and key are bearer
-secrets: do not put them in shell history, CI logs, tickets, or telemetry.
-Use per-batch containers, short expiry, HTTPS, least privileges, storage
-encryption/retention rules, private DNS/egress tests, and Key Vault access
-through managed identity. Batch submission/output is billable and persists in
-Blob; retain operation ID securely, poll with backoff, handle terminal
-`Succeeded`/`Failed`/`Cancelled`/`ValidationFailed`, validate output and
-cleanup it according to policy.
+**Security, cost, production pitfalls.** Both SAS URLs and key are bearer secrets: do not put them in shell history, CI logs, tickets, or telemetry. Use per-batch containers, short expiry, HTTPS, least privileges, storage encryption/retention rules, private DNS/egress tests, and Key Vault access through managed identity. Batch submission/output is billable and persists in Blob; retain operation ID securely, poll with backoff, handle terminal `Succeeded`/`Failed`/`Cancelled`/`ValidationFailed`, validate output and cleanup it according to policy.
 
-**AI-103/interview takeaway.** SAS grants delegated Blob access, not
-Translator authorization; managed identity/RBAC and network design for
-application, Translator, and Storage remain independent boundaries.
+**AI-103/interview takeaway.** SAS grants delegated Blob access, not Translator authorization; managed identity/RBAC and network design for application, Translator, and Storage remain independent boundaries.
 
 ---
 
@@ -1672,44 +1375,17 @@ uv run python 04-text-and-speech/24_voice_live_audio_flow.py --run \
   --output 04-text-and-speech/voice-response.pcm
 ```
 
-**What and why.** L24 turns prerecorded audio into Voice Live request frames
-and writes returned audio deltas as raw PCM. Unlike L18's Prompt-Agent
-protocol example, it uses `model=<name>` query parameter and demonstrates
-input chunking plus `response.audio.delta` decoding. It remains file-to-file:
-no microphone capture, browser/WebRTC transport, transcript store, or speaker
-playback.
+**What and why.** L24 turns prerecorded audio into Voice Live request frames and writes returned audio deltas as raw PCM. Unlike L18's Prompt-Agent protocol example, it uses `model=<name>` query parameter and demonstrates input chunking plus `response.audio.delta` decoding. It remains file-to-file: no microphone capture, browser/WebRTC transport, transcript store, or speaker playback.
 
-**Prereqs.** `VOICE_LIVE_ENDPOINT` must be `wss://...`; select a model
-supported by Voice Live in resource/region; authenticate with Entra
-`https://ai.azure.com/.default` scope and matching narrow roles; provide a
-new writable `.pcm` output path; and use authorized mono, 16-bit PCM WAV at
-16 or 24 kHz. Confirm consent, retention, and voice/model availability before
-streaming real audio.
+**Prereqs.** `VOICE_LIVE_ENDPOINT` must be `wss://...`; select a model supported by Voice Live in resource/region; authenticate with Entra `https://ai.azure.com/.default` scope and matching narrow roles; provide a new writable `.pcm` output path; and use authorized mono, 16-bit PCM WAV at 16 or 24 kHz. Confirm consent, retention, and voice/model availability before streaming real audio.
 
-**Code path and output.** Default `preflight()` has no cloud call and can
-locally validate audio. `pcm_wav()` enforces channel, sample width, and rate;
-`voice_live_url()` overwrites query with API version/model; `session_update()`
-requests PCM16 input/output and selected voice. `run()` obtains a token,
-opens WebSocket with `additional_headers`, base64-sends 256 KiB chunks,
-commits/creates response, decodes each audio delta, and refuses to overwrite
-existing output. Expected output: `Saved <N> PCM bytes to <path>.`
+**Code path and output.** Default `preflight()` has no cloud call and can locally validate audio. `pcm_wav()` enforces channel, sample width, and rate; `voice_live_url()` overwrites query with API version/model; `session_update()` requests PCM16 input/output and selected voice. `run()` obtains a token, opens WebSocket with `additional_headers`, base64-sends 256 KiB chunks, commits/creates response, decodes each audio delta, and refuses to overwrite existing output. Expected output: `Saved <N> PCM bytes to <path>.`
 
-**Use / do not use.** Use as a bounded protocol smoke test and to learn audio
-frame contracts. Do not use as a production voice client, a WAV exporter, or
-evidence that real-time latency, interruption, accessibility, or transcription
-requirements are met.
+**Use / do not use.** Use as a bounded protocol smoke test and to learn audio frame contracts. Do not use as a production voice client, a WAV exporter, or evidence that real-time latency, interruption, accessibility, or transcription requirements are met.
 
-**Security, cost, production pitfalls.** Audio/transcripts can be sensitive.
-Do not log base64, tokens, endpoints with secrets, or returned audio; use
-managed identity, scoped roles, consent, retention/deletion, and redacted
-telemetry. Voice Live/model use is billable; cap session duration/output,
-handle error/cancel/reconnect/timeout, pace frames, preserve codec metadata,
-and test private network DNS/egress from runtime. Wrap PCM with correct
-format metadata before playback.
+**Security, cost, production pitfalls.** Audio/transcripts can be sensitive. Do not log base64, tokens, endpoints with secrets, or returned audio; use managed identity, scoped roles, consent, retention/deletion, and redacted telemetry. Voice Live/model use is billable; cap session duration/output, handle error/cancel/reconnect/timeout, pace frames, preserve codec metadata, and test private network DNS/egress from runtime. Wrap PCM with correct format metadata before playback.
 
-**AI-103/interview takeaway.** A WebSocket stream requires explicit audio
-format, frame lifecycle, identity, model/agent selection, output handling,
-and cost/privacy controls—not only a speech recognizer.
+**AI-103/interview takeaway.** A WebSocket stream requires explicit audio format, frame lifecycle, identity, model/agent selection, output handling, and cost/privacy controls—not only a speech recognizer.
 
 ---
 
@@ -1719,40 +1395,21 @@ and cost/privacy controls—not only a speech recognizer.
 uv run python 04-text-and-speech/25_text_speech_governance_preflight.py
 ```
 
-**What and why.** This no-cloud-call preflight exposes whether local
-Application Insights, Speech, Voice Live, and Speech MCP settings exist. It
-is a release-review reminder that observability, privacy, network, RBAC,
-retention, and cost are distinct from one successful API call.
+**What and why.** This no-cloud-call preflight exposes whether local Application Insights, Speech, Voice Live, and Speech MCP settings exist. It is a release-review reminder that observability, privacy, network, RBAC, retention, and cost are distinct from one successful API call.
 
-**Prereqs and code path.** None beyond runnable repository environment.
-`preflight()` reads `settings()` and returns four booleans; `main()` prints
-them plus monitoring/governance handoff. Expected output starts `Text and
-speech monitoring/governance preflight. No cloud calls made.`
+**Prereqs and code path.** None beyond runnable repository environment. `preflight()` reads `settings()` and returns four booleans; `main()` prints them plus monitoring/governance handoff. Expected output starts `Text and speech monitoring/governance preflight. No cloud calls made.`
 
-**Use / do not use.** Use before a production review or CI preflight. Do not
-use as connectivity, authorization, policy, compliance, private-DNS, or
-health proof; it changes no Azure setting.
+**Use / do not use.** Use before a production review or CI preflight. Do not use as connectivity, authorization, policy, compliance, private-DNS, or health proof; it changes no Azure setting.
 
-**Security, cost, production pitfalls.** Create diagnostic settings, budget
-alerts, policy, private endpoints/DNS, role assignments, Key Vault secret
-references, retention/deletion rules, and alert ownership through reviewed
-portal change control or IaC—not this script. Export correlation ID, service,
-region, deployment/model/analyzer version, operation state, latency,
-throttle/error class, and cost estimate; never raw prompts, translations,
-audio, transcripts, SAS URLs, tokens, or keys without explicit approved
-governance. Alert on 401/403/404/429, batch terminal failure, anomalous
-access, latency, spend, and retention failure.
+**Security, cost, production pitfalls.** Create diagnostic settings, budget alerts, policy, private endpoints/DNS, role assignments, Key Vault secret references, retention/deletion rules, and alert ownership through reviewed portal change control or IaC—not this script. Export correlation ID, service, region, deployment/model/analyzer version, operation state, latency, throttle/error class, and cost estimate; never raw prompts, translations, audio, transcripts, SAS URLs, tokens, or keys without explicit approved governance. Alert on 401/403/404/429, batch terminal failure, anomalous access, latency, spend, and retention failure.
 
-**AI-103/interview takeaway.** Monitoring measures behavior; it does not
-grant access, prove correctness, or make data handling compliant.
+**AI-103/interview takeaway.** Monitoring measures behavior; it does not grant access, prove correctness, or make data handling compliant.
 
 ---
 
 ## Coverage gaps and best next lessons
 
-The 25 scripts demonstrate narrow API paths. Local Foundry documentation
-identifies these high-value additions; they are **not** claimed as implemented
-by this directory.
+The 25 scripts demonstrate narrow API paths. Local Foundry documentation identifies these high-value additions; they are **not** claimed as implemented by this directory.
 
 | Priority | Missing lesson | Why it matters | Local source |
 |---|---|---|---|
@@ -1765,11 +1422,7 @@ by this directory.
 | 7 | Voice Live client delivery | L18 proves a small WebSocket exchange, not a voice client. A next lesson should use the recommended browser/mobile transport where appropriate, add consent, frame pacing, playback, interruption, and failure handling. | [Voice Live WebRTC](../.context/azure-ai-docs/articles/ai-services/speech-service/voice-live-webrtc.md), [Voice Live customization](../.context/azure-ai-docs/articles/ai-services/speech-service/voice-live-how-to-customize.md) |
 | 8 | Current Translator API comparison | L04 deliberately stays on Text Translation v3. A separate lesson can compare the newer GA API only after choosing its contract and migration path. | [Text Translation 2026-06-06 REST guide](../.context/azure-ai-docs/articles/ai-services/translator/text-translation/2026-06-06/rest-api-guide.md) |
 
-Also absent: schema-constrained LLM output and evaluation for L01–L03,
-batch-job durability and cleanup for L13, TTS voice/style availability checks,
-Custom Speech train/test lifecycle automation, and an end-to-end
-transcript-to-PII privacy pipeline. Add these as separate lessons rather than
-quietly treating these short samples as coverage.
+Also absent: schema-constrained LLM output and evaluation for L01–L03, batch-job durability and cleanup for L13, TTS voice/style availability checks, Custom Speech train/test lifecycle automation, and an end-to-end transcript-to-PII privacy pipeline. Add these as separate lessons rather than quietly treating these short samples as coverage.
 
 ---
 
@@ -1792,5 +1445,4 @@ quietly treating these short samples as coverage.
 
 ---
 
-> The 30-second cheat sheet lives at the [top of this README](#30-second-domain-4-cheat-sheet)
-> — scroll up any time an exam question makes you second-guess which lesson covers it.
+> The 30-second cheat sheet lives at the [top of this README](#30-second-domain-4-cheat-sheet) — scroll up any time an exam question makes you second-guess which lesson covers it.
