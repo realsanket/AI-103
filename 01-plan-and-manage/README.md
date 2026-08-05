@@ -145,9 +145,10 @@ For a managed identity, enable or attach the identity, then assign roles to its
 4. Use **04**, **06**, **09–14**, **16**, and **17** with a low-cost,
    nonproduction deployment; each makes live service calls where stated.
 5. Review model, region, SKU, capacity, and cost before **03**.
-6. Treat **08** as an access review; leave its mutation helper commented unless
-   intentionally changing access.
-7. Run **15** only when ready to create a persistent lab blocklist.
+6. Treat **08** as an access review; use its `--apply`,
+   `--assign-principal-id`, and `--role` flags only when intentionally changing
+   access.
+7. Run **15 --apply** only when ready to create a persistent lab blocklist.
 8. Run **18** only after reviewing telemetry destination and data handling.
 9. Run **19–21** with `--run` only after reviewing Content Safety region,
    input, and Storage access requirements.
@@ -297,6 +298,206 @@ throughput differs by model and configuration.
 | 24 | [Human feedback](24_human_feedback.py) | Emit correlated end-user feedback to telemetry. | Integration reference; append-only telemetry event. |
 | 25 | [Red teaming](25_red_teaming.py) | Run a safe synthetic RedTeam target. | Preview/billable; purple environment; requires `--apply`. |
 | 26 | [Foundry tracing setup](26_foundry_tracing_setup.py) | Preflight project/App Insights tracing governance. | Local, read-only guidance; portal setup still required. |
+
+## Detailed implementation walkthroughs: lessons 01-18
+
+Read a lesson in this order: **background** explains why capability exists;
+**before code** lists resource/identity prerequisites; **code path** maps
+significant statements to Azure behavior; **interpretation** explains what the
+result means and what it does not prove. A successful lab is a narrow
+observation, not production certification.
+
+### 01 - Discover deployments before calling a model
+
+**Background.** A model family is a capability; a deployment is its callable
+application alias plus selected version, SKU, capacity, rate limits, and
+guardrail configuration. Azure lets one team deploy the same model several
+times because development, production, regional, and provisioned workloads
+need different operational contracts.
+
+**Before code.** Create a Foundry project, set `PROJECT_ENDPOINT`, authenticate
+with Entra ID, and grant the caller `Foundry User`. Do not start by guessing
+`DEFAULT_MODEL`: first discover what project administrators actually deployed.
+
+**Code path.**
+
+1. `project_client()` creates `AIProjectClient` with `DefaultAzureCredential`.
+2. `client.deployments.list()` asks the project data plane for visible
+   deployments.
+3. `name`, `model_name`, and type-like fields are read defensively because
+   service SDK shapes can evolve.
+4. Printed `name` becomes the value passed to later `model=` calls.
+
+**Interpretation and pitfalls.** Empty output can mean no deployment is
+visible *or* the identity lacks access. A listed deployment proves inventory
+visibility, not quota, regional eligibility, guardrail policy, or permission
+for a different endpoint. Record alias, underlying model/version, SKU, owner,
+and purpose in deployment configuration--not application literals.
+
+### 02 - Select a deployment type from constraints
+
+**Background.** Deployment type exists to make a trade-off explicit: where
+inference can process, how capacity is allocated, and how billing behaves.
+Global optimizes broad availability; Data Zone constrains processing to a
+geographic zone; Regional constrains it to one Azure region; Provisioned
+reserves PTUs; Batch exchanges latency for discounted asynchronous processing.
+
+**Code path.** This local lesson intentionally prints a matrix rather than
+calling Azure. `_MATRIX` is a study aid: `type`, `billing`, `residency`,
+`throughput`, `cost`, and `when` force each choice into comparable dimensions.
+Instant access is preview and uses a platform global pool without creating a
+deployment; Managed compute serves a different model/accelerator operating
+model from standard Azure OpenAI deployment.
+
+**Decision process.**
+
+1. Start with residency/compliance: single region, data zone, or permitted
+   global processing.
+2. Choose online versus asynchronous batch from interaction latency.
+3. Use Standard for variable demand; evaluate PTU only for sustained,
+   measured utilization and hourly-capacity economics.
+4. Validate model/SKU/region availability in portal before designing around it.
+
+**Do not assume** Data Zone means one region, PTU means prepaid tokens, or a
+provisioned deployment cannot return 429 under saturation.
+
+### 03 - Deploy a model through the management plane
+
+**Background.** Deployment creation is Azure resource management, not
+inference. It exists so deployment configuration can be reviewed, versioned,
+and automated through SDK/CLI/IaC instead of ad-hoc portal clicks.
+
+**Before code.** Use a nonproduction Foundry resource; set
+`AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `FOUNDRY_ENDPOINT`,
+`DEPLOYMENT_NAME`, and `DEPLOYMENT_MODEL_NAME`. Optionally pin
+`DEPLOYMENT_MODEL_VERSION`. Caller needs a suitable control-plane role such as
+`Cognitive Services Contributor`; that role does not grant model inference.
+
+**Code path.**
+
+1. `settings()` separates existing `DEFAULT_MODEL` deployment alias from the
+   model family being created.
+2. `foundry_account_name()` validates and extracts the resource name from the
+   Foundry endpoint instead of silently accepting an OpenAI/project URL.
+3. `CognitiveServicesManagementClient` targets the Azure management plane.
+4. `begin_create_or_update()` supplies `Sku(name="GlobalStandard")` and
+   `DeploymentModel(format="OpenAI", name=..., version=...)`.
+5. Waiting on `.result()` makes the script report actual provisioning state.
+
+**Production practice.** Pin or deliberately govern model versions, tags,
+region, SKU, capacity, rollback owner, and cleanup. A `Succeeded` deployment
+does not prove data-plane RBAC, cost fit, model quality, or an SLO.
+
+### 04 - Route mixed work with Model Router
+
+**Background.** Model Router is for workloads whose prompts vary in difficulty
+and where hard-coding one model wastes either cost or quality. It selects from
+an allowed set behind one router deployment; it is not an automatic production
+optimization strategy.
+
+**Before code.** Deploy supported `model-router`, set
+`MODEL_ROUTER_DEPLOYMENT`, and obtain Foundry project access. Configure and
+test routing mode, allowed model subset, version, residency, tools, safety,
+and fallback outside this small call.
+
+**Code path.**
+
+1. `project_client().get_openai_client()` obtains the project-scoped
+   OpenAI-compatible client.
+2. `responses.create(model=router, input=prompt)` invokes the router through
+   Responses API.
+3. `response.model` reports the model chosen for this request.
+4. `output_text` demonstrates that the application still receives a normal
+   response shape.
+
+**When not to use it.** Do not use a router when one approved/pinned model is
+required for validation, jurisdiction, deterministic behavior, or a narrow
+latency/cost SLO. The smallest model in the allowed set can limit usable
+context; exclude unsuitable models rather than discovering that limit in
+production.
+
+### 05 - Read quota before scaling demand
+
+**Background.** Quota is a subscription-level capacity permission measured in
+model/tier/location-specific units. It prevents one subscription from consuming
+unbounded shared service capacity. It is not a utilization dashboard, invoice,
+or per-deployment guarantee.
+
+**Code path.**
+
+1. The lesson validates subscription/resource-group settings and derives the
+   resource name.
+2. `accounts.get()` obtains the account location needed by management APIs.
+3. `deployments.list()` prints configured alias, model, SKU, and capacity.
+4. `usages.list(location)` prints current value, limit, and unit for quota
+   buckets visible in that location.
+
+**Use results with** application tokens, request rate, retry count, latency,
+and Cost Management data. Standard quota can be pooled; Instant access has a
+separate global pool; PTUs are a different capacity model. Quota increases can
+propagate after a delay, and a provisioned deployment can still saturate.
+
+### 06 - Retry transient failure without amplifying it
+
+**Background.** A 429 or connection interruption can be temporary. Retrying
+every error makes outages and misconfigurations worse. Backoff exists to give a
+shared service time to recover; jitter stops many clients from retrying in
+lockstep.
+
+**Code path.**
+
+1. Tenacity retries only `RateLimitError` and `APIConnectionError`.
+2. `retry_after_seconds()` reads `retry-after-ms`, `retry-after`, or a valid
+   HTTP date, bounds wait to 60 seconds, and falls back to jittered exponential
+   delay.
+3. `stop_after_attempt(6)` gives failure a bounded budget.
+4. `_ask()` remains small: it performs one Responses call; retry policy wraps
+   it rather than every caller reimplementing behavior.
+
+**Do not retry** 400/401/403/404: they require input, endpoint, deployment, or
+RBAC correction. For high volume add queueing, admission control, idempotency
+for mutations, circuit breaking, user degradation, and capacity/fallback
+design--not larger retry counts.
+
+### 07 - Prove keyless project access
+
+**Background.** `DefaultAzureCredential` lets local development use Azure CLI
+while deployed workloads use managed/workload identity. This removes stored
+secrets, but it does not remove the need to know exactly which principal and
+role the service receives.
+
+**Code path.**
+
+1. `project_client()` authenticates to `PROJECT_ENDPOINT`.
+2. `client.agents.list()` is a project API reachability check.
+3. `get_openai_client()` obtains project-scoped inference access.
+4. A small Responses request verifies configured deployment use.
+
+**Interpretation.** Passing proves that this credential chain can access this
+project and deployment now. It does not identify which credential won the
+chain, prove direct Azure OpenAI access, or prove production managed-identity
+assignment. Agents and evaluations require Entra ID; configure a custom
+subdomain and use `https://ai.azure.com/.default`.
+
+### 08 - Grant and review least privilege
+
+**Background.** Azure RBAC binds a principal, role definition, and scope.
+Least privilege limits blast radius: a user who invokes one agent should not
+also create deployments or query all resource-group assignments.
+
+**Code path.**
+
+1. `AuthorizationManagementClient` reads role assignments at configured
+   resource-group scope by default.
+2. `_ROLES` contains documented role IDs for Foundry and Search examples.
+3. `assign_role()` rejects unknown roles before any Azure call.
+4. `--apply --assign-principal-id <object-id> --role <role>` creates an
+   assignment; optional `--scope` permits a narrower target.
+
+Use the managed identity **principal object ID**, not client ID. Prefer
+agent/project/resource scope over resource group/subscription. `Foundry Agent
+Consumer` is appropriate for endpoint-only callers; `Foundry User` is for
+builders. Wait for propagation and test with intended workload identity.
 
 ## Lessons 01–08: plan, deploy, operate, secure
 
@@ -475,9 +676,9 @@ supported. Scope roles to project/resource and principal minimum needed.
 uv run python 01-plan-and-manage/08_rbac_role_policies.py
 ```
 
-The default behavior lists assignments. Its assignment helper is commented out
-because role mutation is an administrative action. Review target principal,
-role, scope, and propagation before enabling it.
+The default behavior lists assignments. Role mutation requires `--apply`,
+`--assign-principal-id`, and `--role` because it is an administrative action.
+Review target principal, role, scope, and propagation before running it.
 
 | Operation | Starting role | Scope | Why |
 |---|---|---|---|
@@ -493,7 +694,225 @@ and resource/project scope before subscription scope. An application needing
 one specific agent endpoint should not automatically receive resource-wide
 management access.
 
-## Lessons 09–15: defense in depth
+### 09 - Separate model guardrails from explicit moderation
+
+**Background.** Foundry deployment guardrails enforce configured policy while
+the Content Safety API gives application code a direct classification result.
+They solve different problems: a guardrail can stop a model response; an
+explicit check lets an application route, log safely, ask for clarification,
+or reject content before it reaches a model.
+
+**Code path.**
+
+1. Flow A uses Chat Completions so deployment filter annotations/block behavior
+   is observable. A blocked request is normally HTTP 400 `content_filter`.
+2. Flow B calls `ContentSafetyClient.analyze_text()` with four harm categories.
+3. Flow C calls `analyze_image()` with local bytes.
+4. Results print category severities; do not compare direct API integer scores
+   with deployment `Safe`/`Low`/`Medium`/`High` filter policy labels.
+
+**Use it:** explicit pre-screening, independent audit, or services outside a
+configured deployment. **Do not use it:** as a complete safety architecture.
+Image moderation does not detect an instruction hidden in OCR/RAG text; scan
+that as document attack instead. Use only approved synthetic unsafe examples.
+
+### 10 - Detect direct Prompt Shield attacks
+
+**Background.** A direct attack is authored by the user: "ignore previous
+instructions", authority spoofing, jailbreak framing, or attempts to bypass
+policy. Prompt Shields exist to detect attack patterns, not to classify harm
+severity or prove the user is malicious.
+
+**Code path.**
+
+1. `shield_user_prompt()` delegates to shared `shield_prompt()`.
+2. The helper enforces official 10,000-character user prompt and document
+   limits before an Azure request.
+3. It submits `userPrompt` and required empty `documents` array to
+   `text:shieldPrompt`.
+4. The response's `userPromptAnalysis.attackDetected` is printed for benign
+   and jailbreak samples.
+5. Optional Flow B reads deployment guardrail `jailbreak` annotations from
+   Chat Completions.
+
+Use explicit API when the application needs pre-model decision/audit; use
+deployment guardrail for uniform enforcement. Keep system instructions,
+tool allowlists, input validation, and least-privilege credentials: a shield
+detection does not authorize any action.
+
+### 11 - Detect indirect document attacks
+
+**Background.** Indirect injection arrives in content the user did not write:
+retrieved pages, OCR, uploaded files, tool output, or a poisoned knowledge
+base. The user's request may be harmless while the document tries to control
+the model. This is why source provenance and tool permissions matter.
+
+**Code path.**
+
+1. The lesson reads `data/malicious_ocr_sample.txt` as deliberately untrusted
+   OCR output.
+2. It keeps `_USER_PROMPT` benign and passes documents separately.
+3. Shared `shield_prompt()` validates maximum five documents/10,000 total
+   characters, then calls the direct Shield endpoint.
+4. `documentsAnalysis[i].attackDetected` identifies which document is risky.
+5. The clean/mixed cases demonstrate that user-prompt and document outcomes
+   are different signals.
+
+Never paste retrieved text into `messages` and claim it tested document
+protection: that creates user-prompt channel content. In production preserve
+source ID, retrieval authorization, chunk lineage, and scan decision; minimize
+tool authority; repeat checks at ingestion and tool-response boundaries.
+
+### 12 - Understand Spotlighting before using it
+
+**Background.** Spotlighting is preview, Chat-Completions-only, model-only
+defense that marks document data as lower trust through documented encoding.
+It is additive to document Prompt Shields, not a substitute for source
+validation, tool policy, or retrieval hygiene.
+
+**Code path.** The lesson intentionally prints a request shape instead of
+sending an invented integration. `data_sources` represents a real
+document-bearing channel; `prompt_shield.documents.spotlighting_enabled`
+belongs there. A plain chat message is not a document channel.
+
+**Use it:** eligible preview document workflows after measuring token and
+context impact. **Do not use it:** with agents, Responses API, or as a way to
+avoid implementing indirect-attack controls. Base64 expansion can exceed
+context limits and a model can mention encoded content.
+
+### 13 - Treat PII filtering as output control
+
+**Background.** PII filtering is preview Foundry guardrail behavior at
+completion/output boundary. It exists to detect, block, or redact personal
+information generated by a model. It is not a promise that every identifier is
+found, a lawful-processing determination, or a replacement for data
+minimization.
+
+**Code path.**
+
+1. The lesson requests only synthetic contact data.
+2. Chat Completions runs against a deployment whose PII guardrail was enabled
+   in portal/policy.
+3. `_extract_pii()` accommodates current/older annotation keys.
+4. `_print_pii()` shows `detected`, `filtered`, `redacted`, optional redacted
+   text, and subcategories.
+5. HTTP 400 path inspects filter result when policy blocks entire completion.
+
+PII filtering requires preview-compatible API/guardrail support. Test false
+positive/negative behavior with privacy-approved cases; never use this lesson
+as an excuse to prompt for real data or log raw outputs.
+
+### 14 - Check whether tool intent matches user intent
+
+**Background.** Task Adherence is preview analysis of proposed agent tool
+behavior. It detects a difference between what a user asked and what a tool
+plan would do--for example, viewing leave balance versus submitting leave.
+It is neither a jailbreak detector nor an automatic tool firewall.
+
+**Code path.**
+
+1. `_TOOLS` defines tool names/descriptions, including read and side-effecting
+   operations.
+2. Each scenario builds structured `Prompt`/`Completion` messages, assistant
+   tool calls, and optional tool results.
+3. `_analyze()` posts tools/messages, tries current preview contract then
+   documented fallback only on request-not-found/bad-request behavior.
+4. It returns `taskRiskDetected` and `details`; unhandled failures surface
+   rather than pretending the check passed.
+
+**Application rule:** before calling a consequential tool, block, ask for
+confirmation, or escalate on risk. Consider idempotency, audit trail,
+authorization, and human approval independently. Validate English/region/data
+residency behavior in target environment; service analysis can process data in
+US/EU.
+
+### 15 - Build domain-specific blocklists deliberately
+
+**Background.** Harm classifiers are semantic and general; blocklists cover
+known codenames, competitor phrases, policy terms, and local abuse language.
+They exist for explicit organization policy, not for broad safety or injection
+defense.
+
+**Code path.**
+
+1. `BlocklistClient.create_or_update_text_blocklist()` idempotently creates
+   lab list metadata.
+2. `add_or_update_blocklist_items()` adds terms with service-assigned IDs.
+3. `AnalyzeTextOptions(blocklist_names=[...])` requests matches while
+   `halt_on_blocklist_hit=False` lets the lesson inspect all examples.
+4. Retry loop waits for expected propagation before declaring match result.
+5. Flow B demonstrates that direct Content Safety lists and Foundry deployment
+   custom blocklists require separate wiring.
+
+Run only with `--apply`. Service limits are 100 items/request, 10,000 total
+terms, 128 characters/item. Delete lab content afterward. A blocklist hit must
+map to application policy--warn, block, redact, or review--not merely print.
+
+### 16 - Learn code-defined agent state before managed agents
+
+**Background.** A Responses call with instructions is code-defined agent
+behavior: simple, versioned with application code, and useful for prototypes
+or bounded support behavior. It is not a Foundry prompt/hosted agent resource,
+so it does not provide managed lifecycle, tool registration, or shared agent
+configuration.
+
+**Code path.**
+
+1. `_SYSTEM` is an instruction contract: scope, tone, and domain boundary.
+2. `single_turn()` passes `instructions` and user input to one Responses call.
+3. `multi_turn()` stores returned `response.id`.
+4. Later calls pass `previous_response_id`, letting server-side conversation
+   state link turns without resending full history.
+
+Use it when application owns behavior and state requirements are bounded. Do
+not mistake linked response state for retention/security policy: decide
+conversation lifecycle, user isolation, logging, and tool authorization
+explicitly. Use Domain 2 managed agents when team lifecycle/tools require it.
+
+### 17 - Use self-critique as a pattern, not evidence
+
+**Background.** Draft -> critique -> regenerate can improve a bounded answer
+when a checklist exposes omitted requirements. It exists as an application
+pattern, but the same model can repeat the same mistaken assumption in both
+roles.
+
+**Code path.**
+
+1. `_AGENT_INSTRUCTIONS` provides only known refund policy.
+2. First Responses call produces a draft.
+3. `_CRITIQUE_INSTRUCTIONS` defines completeness criteria and constrained
+   `COMPLETE`/`MISSING` output.
+4. If missing, a second answer call receives an explicit coverage reminder.
+
+Use it for low-risk response refinement with clear source material. Do not use
+it as a release evaluator, fabricated-claim detector, safety approval, or
+chain-of-thought store. For production use held-out data, built-in evaluators,
+human review, thresholds, drift monitoring, and run history--lesson 22.
+
+### 18 - Instrument the application path safely
+
+**Background.** A trace is a correlated record of a request and suboperations.
+Manual instrumentation exists for app-specific work that Foundry cannot see:
+custom retrieval, policy, tool adapter, cache, queue, or business operation.
+It complements server-side Foundry tracing; it does not enable it.
+
+**Code path.**
+
+1. `setup_tracing()` selects Azure Monitor exporter when connection string is
+   supplied or console exporter for local learning.
+2. `start_as_current_span()` creates an application span around
+   `responses.create`.
+3. Code adds model, token counts, latency, and controlled safety severity
+   attributes using GenAI conventions.
+4. Optional `_check_safety()` classifies output; transport errors are recorded
+   explicitly rather than hidden as safe output.
+
+Do not add raw prompt/output attributes by default. Design telemetry schema,
+retention, protected-table access, PIM/JIT review, release correlation, and
+incident process before enabling content capture. Lesson 26 explains the
+zero-code server-side tracing path after connecting Application Insights.
+
+## Lessons 09-15: defense in depth
 
 ### Guardrail layers and intervention points
 
@@ -711,8 +1130,14 @@ uv run python 01-plan-and-manage/15_blocklists.py
 ```
 
 The lesson creates/updates `northwind-exam-blocklist`, adds lab terms, and
-analyzes text for matches. It persists service state. Delete lab-only list/items
-when finished if they are no longer needed.
+analyzes text for matches only with explicit intent:
+
+```bash
+uv run python 01-plan-and-manage/15_blocklists.py --apply
+```
+
+It persists service state. Delete lab-only list/items when finished if they
+are no longer needed.
 
 Blocklists fit codenames, competitor names, regulated phrases, and other
 explicit domain policy. They do not replace semantic moderation or injection
@@ -796,9 +1221,9 @@ uv run python 01-plan-and-manage/18_agent_tracing.py
 ```
 
 The lesson creates an application-owned OpenTelemetry span around a Responses
-call. It records model, limited input preview, token metadata, latency, and
-best-effort safety metadata; an optional Application Insights connection string
-exports telemetry.
+call. It records model, token metadata, latency, and best-effort safety
+metadata without adding prompt or output text as span attributes; an optional
+Application Insights connection string exports telemetry.
 
 **Limitation:** this is manual application instrumentation, **not** automatic
 Foundry server/client tracing and **not** proof of full Foundry Traces
