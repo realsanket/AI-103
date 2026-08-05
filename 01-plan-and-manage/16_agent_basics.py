@@ -1,22 +1,10 @@
-# Run: uv run python 01-plan-and-manage/10_5_agent_basics.py
-"""Foundry Agent basics — ephemeral agent pattern via the Responses API.
+# Run: uv run python 01-plan-and-manage/16_agent_basics.py
+"""Responses API basics — code-defined instructions and linked turns.
 
-Three agent types in Foundry Agent Service:
-  1. Ephemeral   — definition lives in your code, no portal, no persistence     ← this file + L11
-  2. Prompt      — registered in Foundry portal, called via agent_reference     ← Domain 2
-  3. Hosted      — your code in a container, Foundry manages the endpoint       ← Domain 2
-
-Ephemeral agents ARE full Foundry agents. They get the same:
-  - Foundry models from the catalog
-  - Project-level guardrails and content filters
-  - Observability and tracing
-  - Built-in tools (file search, web search, code interpreter, MCP)
-The only difference: the definition ships with your code instead of being a
-persisted Foundry resource.
-
-L11 uses the ephemeral pattern shown here — you don't need to create anything
-in the Foundry portal to complete Domain 1. L08, L09, L10, L12 call the
-Content Safety API or openai_client() directly — no agent needed at all.
+This script doesn't create, register, or deploy a Foundry agent. It makes
+ordinary project-scoped Responses API calls, supplying instructions in code and
+using `previous_response_id` to link turns. Use a registered prompt or hosted
+agent when you need an Agent Service resource, lifecycle, tools, or endpoint.
 """
 from _shared.config import settings
 from _shared.foundry_client import project_client

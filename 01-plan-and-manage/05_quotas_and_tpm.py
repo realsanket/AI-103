@@ -8,9 +8,14 @@ Beginner note:
   Blow past either and you get HTTP 429 (Too Many Requests). Lesson 06 shows
   the retry pattern. This file just shows what your current limits look like.
 
-  For pay-per-token SKUs, `capacity=99` on a deployment means 99K TPM.
-  For PTU SKUs, `capacity=1` means one Provisioned Throughput Unit (different
-  unit entirely — reserved capacity, no 429s, higher fixed cost).
+  Standard quota is assigned per subscription, region, model, and deployment
+  type. Deployment `capacity` maps to TPM/RPM in model-specific units; don't
+  assume a capacity value has one fixed TPM conversion.
+
+  Provisioned capacity is measured in PTUs. PTU-to-TPM ratios and minimum
+  deployment sizes vary by model. Provisioned capacity improves predictability,
+  but a saturated deployment can still return 429; configure spillover if
+  supported and required.
 
 Prereqs in .env:
   AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP, FOUNDRY_ENDPOINT.

@@ -1,4 +1,4 @@
-# Run: uv run python 01-plan-and-manage/17_blocklists.py
+# Run: uv run python 01-plan-and-manage/15_blocklists.py
 """Custom blocklists — domain terms the default harm categories will not catch.
 
 Two layers (exam trap — different products, similar idea):

@@ -1,95 +1,80 @@
 {
-  "name": "skl-northwind-document-enrichment",
-  "description": "Extract OCR text, merge content, detect language, and extract key phrases from Northwind documents.",
+  "name": "${SEARCH_SKILLSET}",
+  "description": "Split Blob document text into chunks and create Azure OpenAI embeddings.",
   "skills": [
     {
-      "@odata.type": "#Microsoft.Skills.Vision.OcrSkill",
-      "name": "#ocr",
-      "description": "Extract text from images embedded in documents.",
-      "context": "/document/normalized_images/*",
-      "defaultLanguageCode": "en",
-      "detectOrientation": true,
-      "inputs": [
-        {
-          "name": "image",
-          "source": "/document/normalized_images/*"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "text",
-          "targetName": "ocr_text"
-        }
-      ]
-    },
-    {
-      "@odata.type": "#Microsoft.Skills.Text.MergeSkill",
-      "name": "#merge",
-      "description": "Merge extracted document text with OCR text.",
+      "@odata.type": "#Microsoft.Skills.Text.SplitSkill",
+      "name": "split-document",
+      "description": "Split extracted text into overlapping RAG chunks.",
       "context": "/document",
-      "insertPreTag": " ",
-      "insertPostTag": " ",
+      "defaultLanguageCode": "en",
+      "textSplitMode": "pages",
+      "maximumPageLength": 2000,
+      "pageOverlapLength": 500,
+      "unit": "characters",
       "inputs": [
         {
           "name": "text",
           "source": "/document/content"
-        },
-        {
-          "name": "itemsToInsert",
-          "source": "/document/normalized_images/*/ocr_text"
-        },
-        {
-          "name": "offsets",
-          "source": "/document/normalized_images/*/contentOffset"
         }
       ],
       "outputs": [
         {
-          "name": "mergedText",
-          "targetName": "merged_content"
+          "name": "textItems",
+          "targetName": "pages"
         }
       ]
     },
     {
-      "@odata.type": "#Microsoft.Skills.Text.LanguageDetectionSkill",
-      "name": "#language",
-      "description": "Detect the language of the merged document content.",
-      "context": "/document",
+      "@odata.type": "#Microsoft.Skills.Text.AzureOpenAIEmbeddingSkill",
+      "name": "embed-chunk",
+      "description": "Create an embedding for every chunk.",
+      "context": "/document/pages/*",
+      "resourceUri": "${AZURE_OPENAI_ENDPOINT}",
+      "deploymentId": "${EMBEDDING_MODEL}",
+      "modelName": "${EMBEDDING_MODEL}",
       "inputs": [
         {
           "name": "text",
-          "source": "/document/merged_content"
+          "source": "/document/pages/*"
         }
       ],
       "outputs": [
         {
-          "name": "languageCode",
-          "targetName": "language"
-        }
-      ]
-    },
-    {
-      "@odata.type": "#Microsoft.Skills.Text.KeyPhraseExtractionSkill",
-      "name": "#keyphrases",
-      "description": "Extract key phrases from the merged document content.",
-      "context": "/document",
-      "defaultLanguageCode": "en",
-      "inputs": [
-        {
-          "name": "text",
-          "source": "/document/merged_content"
-        },
-        {
-          "name": "languageCode",
-          "source": "/document/language"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "keyPhrases",
-          "targetName": "key_phrases"
+          "name": "embedding",
+          "targetName": "text_vector"
         }
       ]
     }
-  ]
+  ],
+  "indexProjections": {
+    "selectors": [
+      {
+        "targetIndexName": "${SEARCH_INDEX_VECTOR}",
+        "parentKeyFieldName": "parent_id",
+        "sourceContext": "/document/pages/*",
+        "mappings": [
+          {
+            "name": "chunk",
+            "source": "/document/pages/*"
+          },
+          {
+            "name": "text_vector",
+            "source": "/document/pages/*/text_vector"
+          },
+          {
+            "name": "title",
+            "source": "/document/metadata_storage_name"
+          },
+          {
+            "name": "source_url",
+            "source": "/document/metadata_storage_path"
+          }
+        ]
+      }
+    ],
+    "parameters": {
+      "projectionMode": "skipIndexingParentDocuments"
+    }
+  }
 }

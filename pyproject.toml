@@ -7,38 +7,25 @@ dependencies = [
     # Core Azure identity + config
     "azure-identity>=1.19.0",
     "python-dotenv>=1.0.1",
-
     # Foundry / OpenAI Responses API
     "openai>=1.60.0",
-    "azure-ai-projects>=1.0.0b10",
-    "azure-ai-agents>=1.0.0b3",
-
+    "azure-ai-projects>=2.0.0",
     # Azure AI Search
     "azure-search-documents>=11.6.0b8",
-
     # Azure AI Language
     "azure-ai-textanalytics>=5.3.0",
-
-    # Azure Translator
-    "azure-ai-translation-text>=1.0.1",
-
     # Azure Speech
     "azure-cognitiveservices-speech>=1.42.0",
-
     # Azure Content Understanding (REST — no dedicated SDK)
     "httpx>=0.28.0",
     "requests>=2.32.0",
-
     # Content Safety
     "azure-ai-contentsafety>=1.0.0",
-
     # Azure Blob Storage
     "azure-storage-blob>=12.24.0",
-
     # Azure management (quotas/deployments/RBAC)
     "azure-mgmt-cognitiveservices>=13.6.0",
     "azure-mgmt-authorization>=4.0.0",
-
     # Frameworks
     "langchain>=0.3.0",
     "langchain-openai>=0.2.0",
@@ -46,24 +33,21 @@ dependencies = [
     "langgraph>=0.3.0",
     "faiss-cpu>=1.9.0",
     "pypdf>=5.0.0",
-
     # Microsoft Agent Framework (hosted agents)
     "agent-framework>=1.0.0b1",
-
     # MCP client
     "mcp>=1.0.0",
-
     # Observability
     "opentelemetry-api>=1.28.0",
     "opentelemetry-sdk>=1.28.0",
     "opentelemetry-exporter-otlp>=1.28.0",
     "azure-monitor-opentelemetry>=1.6.0",
-
     # Retry / backoff
     "tenacity>=9.0.0",
-
     # Image handling
     "pillow>=11.0.0",
+    "langchain-azure-ai>=1.2.3",
+    "azure-ai-evaluation>=1.18.3",
 ]
 
 [build-system]

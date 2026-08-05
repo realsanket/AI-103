@@ -1,4 +1,4 @@
-# Run: uv run python 01-plan-and-manage/08_content_safety_filters.py
+# Run: uv run python 01-plan-and-manage/09_content_safety_filters.py
 """Content Safety — three flows showing two detection paths.
 
 Flow A — Foundry deployment guardrail (Chat Completions):

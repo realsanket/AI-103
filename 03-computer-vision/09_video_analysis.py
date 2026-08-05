@@ -1,10 +1,9 @@
-"""Content Understanding — video analyzer producing transcript + segments + key frames.
+"""Content Understanding video analysis with `prebuilt-videoSearch`.
 
 Beginner note:
-  `prebuilt-videoSearch` is the current CU video analyzer (verified in
-  `ai-services/content-understanding/video/overview.md`). It's RAG-ready:
-  returns Markdown + JSON you can index directly. `prebuilt-video` is only
-  used as a `baseAnalyzerId` when building custom video analyzers.
+  `prebuilt-videoSearch` returns analyzer contents for video segments. This
+  lesson prints each segment's time range and Summary field. `prebuilt-video`
+  is only a base analyzer for custom analyzers.
 
   Async: submit → poll → read `contents` for the segment list. The video
   URL must be reachable by the CU service (Blob SAS is easiest — you can't
@@ -27,8 +26,11 @@ def main() -> None:
 
     result = analyze("prebuilt-videoSearch", video_url)
     print("status:", result.get("status"))
-    for seg in result.get("result", {}).get("contents", []):
-        print(f"\n[{seg.get('startTime')} – {seg.get('endTime')}] {seg.get('summary', '')[:200]}")
+    for content in result.get("result", {}).get("contents", []):
+        summary = content.get("fields", {}).get("Summary", {}).get("valueString", "")
+        start = content.get("startTimeMs")
+        end = content.get("endTimeMs")
+        print(f"\n[{start}–{end} ms] {summary}")
 
 
 if __name__ == "__main__":

@@ -18,7 +18,10 @@ _DOCS = [
 def main() -> None:
     client = language_client()
     response = client.recognize_entities(_DOCS, language="en")
-    for idx, doc in enumerate(r for r in response if not r.is_error):
+    for idx, doc in enumerate(response):
+        if doc.is_error:
+            print(f"--- Document {idx + 1} failed: {doc.error.code} ---")
+            continue
         print(f"--- Document {idx + 1} — Prebuilt NER ---")
         for e in doc.entities:
             subcat = f" / {e.subcategory}" if e.subcategory else ""

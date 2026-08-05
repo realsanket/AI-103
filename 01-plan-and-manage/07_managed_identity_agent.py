@@ -1,18 +1,24 @@
 # Run: uv run python 01-plan-and-manage/07_managed_identity_agent.py
-"""Keyless auth smoke test — DefaultAzureCredential end-to-end.
+"""Keyless project auth smoke test — DefaultAzureCredential end-to-end.
 
 Verifies three things in order:
-  1. project_client() authenticates via az login (DefaultAzureCredential)
+  1. project_client() authenticates with DefaultAzureCredential
   2. Foundry Agents API is reachable (lists hosted agents)
   3. Responses API works through the project-scoped OpenAI endpoint
 
-If all three pass, every other lesson's auth will work the same way.
+DefaultAzureCredential tries configured environment credentials, workload
+identity, managed identity, developer-tool credentials such as Azure CLI, and
+other supported local credentials. On a developer machine, `az login` commonly
+supplies the token; on Azure, managed identity commonly supplies it. This
+script doesn't prove which link supplied the token.
 
 Two OpenAI endpoints exist on the same Foundry resource:
-  openai.azure.com/openai/v1/             → direct Azure OpenAI (openai_client())
-  services.ai.azure.com/.../openai/v1/   → project-scoped Foundry (project_client().get_openai_client())
+  <resource>.openai.azure.com/openai/v1/   → direct Azure OpenAI resource API
+  <resource>.services.ai.azure.com/...     → project-scoped Foundry API
 
-This file tests the project-scoped path.
+This file tests the project-scoped path. It requires access on its Foundry
+project/resource; direct resource inference needs a Cognitive Services
+inference role instead.
 """
 from _shared.config import settings
 from _shared.foundry_client import project_client

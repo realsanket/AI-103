@@ -1,8 +1,12 @@
-# Northwind MCP Server — Azure Function
+---
+ai-usage: ai-assisted
+---
 
-Hosts a custom MCP server exposing Northwind tools (order status, list customer
-orders). Any MCP-aware agent — Foundry, Claude Desktop, Cursor — can attach to
-it and use the tools without hardcoding a schema.
+# Northwind MCP server — independent Azure Function asset
+
+This project hosts two custom Model Context Protocol (MCP) tools: order status
+and customer orders. It is not attached by any numbered lesson. Deploy and
+connect it separately when you want to practice custom MCP integration.
 
 ## Run locally
 
@@ -14,7 +18,21 @@ func start
 
 MCP endpoint: `http://localhost:7071/runtime/webhooks/mcp`
 
-## Attach to a Foundry agent
+Use the local endpoint only with a local MCP client. Foundry Agent Service
+cannot reach your laptop's `localhost`.
 
-Portal: Add tool → MCP server → paste the deployed URL. See
-`../18_multi_agent_coord.py` / `.context/azure-ai-docs/articles/foundry/mcp/`.
+## Deploy and connect
+
+1. Deploy the Function App:
+
+   ```bash
+   func azure functionapp publish <your-function-app-name>
+   ```
+
+1. In Foundry, add a remote MCP server with
+   `https://<your-function-app>.azurewebsites.net/runtime/webhooks/mcp`.
+   Ensure Agent Service can reach that endpoint.
+
+This sample has no production authentication setup. Configure Function keys or
+Microsoft Entra authentication before connecting a non-demo server, then select
+the matching authentication method in the MCP connection.

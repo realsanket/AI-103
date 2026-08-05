@@ -1,20 +1,15 @@
-"""Create/update the built-in skillset — OCR + Merge + LangDetect + KeyPhrases."""
-import json
+"""Create/update the chunking and embedding skillset from REST JSON."""
 from pathlib import Path
 
-from azure.search.documents.indexes.models import SearchIndexerSkillset
-
-from _shared.search_client import indexer_client
+from _search_rest import load_definition, put
 
 _SKILLSET_JSON = Path(__file__).parent / "skillset_configs" / "skillset.json"
 
 
 def main() -> None:
-    client = indexer_client()
-    body = json.loads(_SKILLSET_JSON.read_text())
-    skillset = SearchIndexerSkillset(**body)
-    client.create_or_update_skillset(skillset)
-    print(f"skillset '{skillset.name}' saved. Attach it to your indexer to run enrichment.")
+    skillset = load_definition(_SKILLSET_JSON)
+    put("skillsets", skillset)
+    print(f"skillset '{skillset['name']}' saved.")
 
 
 if __name__ == "__main__":

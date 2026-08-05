@@ -1,4 +1,4 @@
-# Run: uv run python 01-plan-and-manage/09_prompt_shields_user.py
+# Run: uv run python 01-plan-and-manage/10_prompt_shields_user.py
 """Prompt Shields — user prompt attack (jailbreak) detection. Two flows:
 
 Flow A — Content Safety API (direct REST):
@@ -12,8 +12,8 @@ Flow B — Foundry model deployment guardrail (Chat Completions):
   Guardrail action = "annotate" → response still returned, detected=true flagged.
   Guardrail action = "block"   → 400 BadRequestError with code="content_filter".
 
-This lesson covers the USER PROMPT channel (the user IS the attacker).
-Lesson 10 covers the DOCUMENT channel (attacker embeds in data the model reads).
+This lesson covers the USER PROMPT channel (the user is the attacker).
+Lesson 11 covers the DOCUMENT channel (attacker embeds in data the model reads).
 """
 import json
 

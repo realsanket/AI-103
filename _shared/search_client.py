@@ -10,16 +10,21 @@ def _cred() -> DefaultAzureCredential:
 
 
 def search_client(index_name: str | None = None) -> SearchClient:
+    s = settings()
     return SearchClient(
-        endpoint=settings().search_endpoint,
-        index_name=index_name or settings().search_index,
+        endpoint=s.require("SEARCH_ENDPOINT"),
+        index_name=index_name or s.search_index,
         credential=_cred(),
     )
 
 
 def index_client() -> SearchIndexClient:
-    return SearchIndexClient(endpoint=settings().search_endpoint, credential=_cred())
+    return SearchIndexClient(
+        endpoint=settings().require("SEARCH_ENDPOINT"), credential=_cred()
+    )
 
 
 def indexer_client() -> SearchIndexerClient:
-    return SearchIndexerClient(endpoint=settings().search_endpoint, credential=_cred())
+    return SearchIndexerClient(
+        endpoint=settings().require("SEARCH_ENDPOINT"), credential=_cred()
+    )

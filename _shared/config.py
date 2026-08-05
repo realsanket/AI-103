@@ -30,9 +30,6 @@ class Settings:
     # Language
     language_endpoint: str
     language_mcp_url: str
-    # Translator
-    translator_endpoint: str
-    translator_api_version: str
     # Speech
     speech_region: str
     speech_endpoint: str
@@ -54,14 +51,13 @@ class Settings:
     azure_subscription_id: str
     azure_resource_group: str
 
-
-def _req(key: str) -> str:
-    v = os.environ.get(key)
-    if not v or v.startswith("<"):
+    def require(self, env_var: str) -> str:
+        value = getattr(self, env_var.lower())
+        if value:
+            return value
         raise RuntimeError(
-            f"Missing env var {key}. Copy .env.example to .env and fill it in."
+            f"Missing env var {env_var}. Copy .env.example to .env and fill it in."
         )
-    return v
 
 
 def _opt(key: str, default: str = "") -> str:
@@ -72,9 +68,9 @@ def _opt(key: str, default: str = "") -> str:
 @lru_cache
 def settings() -> Settings:
     return Settings(
-        foundry_endpoint=_req("FOUNDRY_ENDPOINT").rstrip("/"),
-        azure_openai_endpoint=_req("AZURE_OPENAI_ENDPOINT").rstrip("/"),
-        project_endpoint=_req("PROJECT_ENDPOINT"),
+        foundry_endpoint=_opt("FOUNDRY_ENDPOINT").rstrip("/"),
+        azure_openai_endpoint=_opt("AZURE_OPENAI_ENDPOINT").rstrip("/"),
+        project_endpoint=_opt("PROJECT_ENDPOINT"),
         default_model=_opt("DEFAULT_MODEL", "gpt-4.1-mini"),
         reasoning_model=_opt("REASONING_MODEL", "o4-mini"),
         image_model=_opt("IMAGE_MODEL", "gpt-image-1"),
@@ -88,8 +84,6 @@ def settings() -> Settings:
         search_skillset=_opt("SEARCH_SKILLSET", "northwind-skillset"),
         language_endpoint=_opt("LANGUAGE_ENDPOINT"),
         language_mcp_url=_opt("LANGUAGE_MCP_URL"),
-        translator_endpoint=_opt("TRANSLATOR_ENDPOINT"),
-        translator_api_version=_opt("TRANSLATOR_API_VERSION", "2025-10-01-preview"),
         speech_region=_opt("SPEECH_REGION", "eastus"),
         speech_endpoint=_opt("SPEECH_ENDPOINT"),
         speech_mcp_url=_opt("SPEECH_MCP_URL"),

@@ -6,7 +6,7 @@
     "description": "Provides order status and details for Northwind customer orders."
   },
   "servers": [
-    { "url": "https://fn-northwind-dev-eus-01.azurewebsites.net/api" }
+    { "url": "https://example.invalid/api" }
   ],
   "paths": {
     "/orders": {

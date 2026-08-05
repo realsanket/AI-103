@@ -4,7 +4,7 @@ from _shared.config import settings
 
 
 def main() -> None:
-    client = search_client()
+    client = search_client(settings().search_index_vector)
     results = client.search(
         search_text="refund",
         select=["chunk", "title"],
@@ -14,7 +14,7 @@ def main() -> None:
         print(r.get("chunk", "")[:200])
         print("---")
 
-    print(f"\nindex={settings().search_index}  endpoint={settings().search_endpoint}")
+    print(f"\nindex={settings().search_index_vector}  endpoint={settings().search_endpoint}")
 
 
 if __name__ == "__main__":

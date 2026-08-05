@@ -47,7 +47,7 @@ def main() -> None:
     s = settings()
     token_provider = get_bearer_token_provider(DefaultAzureCredential(), _SCOPE)
     model = ChatOpenAI(
-        base_url=f"{s.foundry_endpoint}/openai/v1",
+        base_url=f"{s.azure_openai_endpoint}/openai/v1",
         api_key=token_provider(),
         model=s.default_model,
     )

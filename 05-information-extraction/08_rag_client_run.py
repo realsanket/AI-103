@@ -6,14 +6,15 @@ ranking, filtering, or hybrid strategies before the model sees anything.
 """
 from azure.search.documents.models import VectorizableTextQuery
 
+from _shared.config import settings
 from _shared.foundry_client import project_client
 from _shared.search_client import search_client
 
-AGENT_NAME = "northwind-support-rag-agent"
+AGENT_NAME = "northwind-manual-rag-agent"
 
 
 def _retrieve(question: str, top: int = 3) -> str:
-    client = search_client()
+    client = search_client(settings().search_index_vector)
     results = client.search(
         search_text=question,
         vector_queries=[
@@ -23,7 +24,7 @@ def _retrieve(question: str, top: int = 3) -> str:
                 fields="text_vector",
             )
         ],
-        select=["chunk", "title", "parent_id"],
+        select=["chunk", "title", "parent_id", "source_url"],
         top=top,
     )
     sources = []
@@ -31,6 +32,7 @@ def _retrieve(question: str, top: int = 3) -> str:
         sources.append(
             f"[Source title: {r.get('title', 'unknown')}]\n"
             f"[Parent ID: {r.get('parent_id', '')}]\n"
+            f"[Source URL: {r.get('source_url', '')}]\n"
             f"{r.get('chunk', '')}"
         )
     return "\n\n".join(sources)

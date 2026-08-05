@@ -18,7 +18,7 @@ def _headers() -> dict:
 
 def _base() -> str:
     s = settings()
-    return f"{s.cu_endpoint}/contentunderstanding"
+    return f"{s.require('CU_ENDPOINT')}/contentunderstanding"
 
 
 def create_analyzer(analyzer_id: str, definition: dict) -> dict:
@@ -29,11 +29,20 @@ def create_analyzer(analyzer_id: str, definition: dict) -> dict:
     return r.json() if r.text else {}
 
 
-def analyze(analyzer_id: str, source_url: str) -> dict:
+def analyze(analyzer_id: str, source_urls: str | list[str]) -> dict:
     """Submit an async analyze job and poll until done."""
     s = settings()
+    if isinstance(source_urls, str):
+        source_urls = [source_urls]
+    if not source_urls:
+        raise ValueError("Provide at least one source URL.")
     submit = f"{_base()}/analyzers/{analyzer_id}:analyze?api-version={s.cu_api_version}"
-    r = httpx.post(submit, headers=_headers(), json={"url": source_url}, timeout=60.0)
+    r = httpx.post(
+        submit,
+        headers=_headers(),
+        json={"inputs": [{"url": source_url} for source_url in source_urls]},
+        timeout=60.0,
+    )
     r.raise_for_status()
     op_url = r.headers.get("Operation-Location")
     if not op_url:

@@ -6,13 +6,13 @@ from .config import settings
 
 def content_safety_client() -> ContentSafetyClient:
     return ContentSafetyClient(
-        endpoint=settings().content_safety_endpoint,
+        endpoint=settings().require("CONTENT_SAFETY_ENDPOINT"),
         credential=DefaultAzureCredential(),
     )
 
 
 def blocklist_client() -> BlocklistClient:
     return BlocklistClient(
-        endpoint=settings().content_safety_endpoint,
+        endpoint=settings().require("CONTENT_SAFETY_ENDPOINT"),
         credential=DefaultAzureCredential(),
     )

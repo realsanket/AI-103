@@ -1,7 +1,9 @@
-"""Agent-specific evaluators — Task Adherence + Tool Call Accuracy.
+"""Local SDK evaluation — Task Adherence + Tool Call Accuracy (preview).
 
-Runs a small agent trace, then evaluates it with Foundry's built-in
-`TaskAdherenceEvaluator` and `ToolCallAccuracyEvaluator`.
+Runs a small model response, then sends it to the evaluator SDK. This lesson
+does not create a Foundry portal evaluation, upload a dataset, or guarantee a
+score. Tool Call Accuracy receives tool definitions even though this deliberately
+tool-free trace is expected to reveal that no tool call occurred.
 
 Requires the `azure-ai-evaluation` SDK. Prints score + reasoning per evaluator.
 """
@@ -23,8 +25,14 @@ def _run_agent_trace() -> dict:
     return {
         "query": "What is the refund window for a Pro plan?",
         "response": r.output_text,
-        "tool_calls": [],  # populate if you drove function calls
-        "system_message": "You are a Northwind support agent. Answer briefly.",
+        "tool_calls": [],
+        "tool_definitions": [
+            {
+                "name": "get_refund_policy",
+                "description": "Gets the current Northwind refund policy.",
+                "parameters": {"type": "object", "properties": {}},
+            }
+        ],
     }
 
 
@@ -39,7 +47,7 @@ def main() -> None:
         raise SystemExit("pip install azure-ai-evaluation to run this lesson.")
 
     model_config = {
-        "azure_endpoint": settings().foundry_endpoint,
+        "azure_endpoint": settings().azure_openai_endpoint,
         "azure_deployment": settings().default_model,
         "api_version": "2024-10-21",
     }
@@ -50,7 +58,13 @@ def main() -> None:
     print(task_adh(query=trace["query"], response=trace["response"]))
 
     print("\n=== Tool Call Accuracy ===")
-    print(tool_acc(query=trace["query"], response=trace["response"], tool_calls=trace["tool_calls"]))
+    print(
+        tool_acc(
+            query=trace["query"],
+            tool_calls=trace["tool_calls"],
+            tool_definitions=trace["tool_definitions"],
+        )
+    )
 
 
 if __name__ == "__main__":

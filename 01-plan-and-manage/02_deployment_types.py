@@ -1,52 +1,75 @@
 # Run: uv run python 01-plan-and-manage/02_deployment_types.py
-"""Choose a deployment type — decision helper + cheatsheet.
+"""Print deployment types supported by Foundry Models.
 
-Beginner note:
-  When you deploy a model, you pick a SKU. The SKU decides HOW you pay
-  (per-token vs reserved capacity vs batch) and WHERE inference runs
-  (any region / EU-US-APAC zone / one specific region). Nine common types,
-  plus Instant / Developer / Managed Compute for edge cases.
-
-  This file prints a compact matrix so you can eyeball the trade-offs
-  without leaving the terminal. See the README table for the full 10-row grid.
-
-What to watch:
-  Each block shows billing / residency / throughput / cost / when-to-use for
-  one deployment type. Beginner default is Global Standard.
+Processing location and billing depend on deployment type. Stored data remains
+in its designated geography; inference is global, data-zone, or single-region
+as shown below. Availability varies by model and region.
 """
 
 _MATRIX = [
     {
         "type": "Global Standard",
         "billing": "pay-per-token",
-        "residency": "data at rest in region; inference anywhere",
-        "throughput": "highest initial limits",
-        "cost": "lowest per-token",
-        "when": "default — most workloads",
+        "residency": "inference can run in any Azure region",
+        "throughput": "highest default quota",
+        "cost": "pay-per-token",
+        "when": "variable general workloads",
     },
     {
-        "type": "Standard (Regional)",
+        "type": "Data Zone Standard",
+        "billing": "pay-per-token",
+        "residency": "inference stays in US, EU, or APAC data zone",
+        "throughput": "higher default quota than regional Standard",
+        "cost": "pay-per-token",
+        "when": "data-zone compliance",
+    },
+    {
+        "type": "Standard",
         "billing": "pay-per-token",
         "residency": "inference stays in deploy region",
-        "throughput": "lower than global",
-        "cost": "slightly higher per-token",
-        "when": "data must stay in a single region",
+        "throughput": "model and region dependent",
+        "cost": "pay-per-token",
+        "when": "single-region processing",
     },
     {
-        "type": "Provisioned (PTU)",
-        "billing": "reserved capacity, hourly fixed",
-        "residency": "regional",
-        "throughput": "guaranteed rate limits",
-        "cost": "up to ~70% savings at high volume",
-        "when": "predictable latency, no transient 429s",
+        "type": "Global Provisioned",
+        "billing": "reserved PTUs, billed hourly",
+        "residency": "inference can run in any Azure region",
+        "throughput": "dedicated capacity; predictable latency",
+        "cost": "PTU hourly billing or reservation",
+        "when": "high, predictable volume",
     },
     {
-        "type": "Serverless API (MaaS)",
-        "billing": "pay-per-token via Marketplace",
-        "residency": "regional (varies by model)",
-        "throughput": "auto-managed",
-        "cost": "per-model pricing",
-        "when": "partner models (Llama, Mistral, Cohere, Claude MaaS)",
+        "type": "Data Zone Provisioned",
+        "billing": "reserved PTUs, billed hourly",
+        "residency": "inference stays in US, EU, or APAC data zone",
+        "throughput": "dedicated capacity; predictable latency",
+        "cost": "PTU hourly billing or reservation",
+        "when": "data-zone, high-volume workload",
+    },
+    {
+        "type": "Regional Provisioned",
+        "billing": "reserved PTUs, billed hourly",
+        "residency": "inference stays in deploy region",
+        "throughput": "dedicated capacity; predictable latency",
+        "cost": "PTU hourly billing or reservation",
+        "when": "single-region, high-volume workload",
+    },
+    {
+        "type": "Global or Data Zone Batch",
+        "billing": "discounted pay-per-token",
+        "residency": "global or selected data zone",
+        "throughput": "asynchronous; 24-hour target turnaround",
+        "cost": "50% less than Global Standard",
+        "when": "large, non-real-time jobs",
+    },
+    {
+        "type": "Developer",
+        "billing": "pay-per-token",
+        "residency": "no residency guarantee",
+        "throughput": "evaluation only; no SLA",
+        "cost": "pay-per-token",
+        "when": "fine-tuned model evaluation",
     },
 ]
 

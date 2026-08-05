@@ -1,14 +1,32 @@
-import azure.functions as func
 import json
-import logging
+
+import azure.functions as func
 
 app = func.FunctionApp()
 
-# --- Tool 1: Get Order Status ---
-order_status_properties = json.dumps([
-    {"name": "order_id", "type": "string",
-     "description": "The order ID", "required": True}
-])
+
+def _arguments(context) -> dict | None:
+    try:
+        content = json.loads(context)
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if not isinstance(content, dict):
+        return None
+    arguments = content.get("arguments", content)
+    return arguments if isinstance(arguments, dict) else None
+
+
+order_status_properties = json.dumps(
+    [
+        {
+            "name": "order_id",
+            "type": "string",
+            "description": "The order ID",
+            "required": True,
+        }
+    ]
+)
+
 
 @app.mcp_tool_trigger(
     arg_name="context",
@@ -17,27 +35,24 @@ order_status_properties = json.dumps([
     tool_properties=order_status_properties,
 )
 def get_order_status(context) -> str:
-    # Debug — log the full raw context so we can see its structure
-    logging.info(f"RAW CONTEXT: {context}")
-    
-    content = json.loads(context)
-    
-    # Debug — log the parsed content
-    logging.info(f"PARSED CONTENT: {json.dumps(content, indent=2)}")
-    
-    # Safe extraction with fallback
-    arguments = content.get("arguments", content)
-    order_id = arguments.get("order_id") or arguments.get("orderId") or arguments.get("order-id", "UNKNOWN")
-    
-    logging.info(f"Order lookup: {order_id}")
+    arguments = _arguments(context)
+    if not arguments or not isinstance(arguments.get("order_id"), str):
+        return json.dumps({"error": "order_id must be a string."})
+    order_id = arguments["order_id"]
     return f"Order {order_id}: Shipped. Expected delivery: 2 days."
 
 
-# --- Tool 2: List Orders by Customer ---
-list_orders_properties = json.dumps([
-    {"name": "customer_id", "type": "string",
-     "description": "The customer ID", "required": True}
-])
+list_orders_properties = json.dumps(
+    [
+        {
+            "name": "customer_id",
+            "type": "string",
+            "description": "The customer ID",
+            "required": True,
+        }
+    ]
+)
+
 
 @app.mcp_tool_trigger(
     arg_name="context",
@@ -46,13 +61,12 @@ list_orders_properties = json.dumps([
     tool_properties=list_orders_properties,
 )
 def list_customer_orders(context) -> str:
-    logging.info(f"RAW CONTEXT: {context}")
-    
-    content = json.loads(context)
-    customer_id = content.get("arguments", content).get("customer_id", "UNKNOWN")
-    
-    logging.info(f"Listing orders for customer: {customer_id}")
-    return json.dumps([
-        {"order_id": "ORD-001", "status": "Shipped"},
-        {"order_id": "ORD-002", "status": "Processing"},
-    ])
+    arguments = _arguments(context)
+    if not arguments or not isinstance(arguments.get("customer_id"), str):
+        return json.dumps({"error": "customer_id must be a string."})
+    return json.dumps(
+        [
+            {"order_id": "ORD-001", "status": "Shipped"},
+            {"order_id": "ORD-002", "status": "Processing"},
+        ]
+    )

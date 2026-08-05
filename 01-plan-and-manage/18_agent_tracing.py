@@ -1,15 +1,17 @@
-# Run: uv run python 01-plan-and-manage/12_agent_tracing.py
-"""OpenTelemetry observability for agent calls: tracing, token analytics,
-safety signals, and latency breakdowns.
+# Run: uv run python 01-plan-and-manage/18_agent_tracing.py
+"""Manual OpenTelemetry span around a model call.
 
-The exam covers all four under "Set up observability":
-  - Tracing   → manual spans sent to Application Insights (or stdout)
+This is application instrumentation, not complete Foundry tracing:
+  - Tracing   → one manual span sent to Application Insights (or stdout)
   - Tokens    → input_tokens, output_tokens, total tracked per call
   - Safety    → content-filter result attached to span attributes
   - Latency   → wall-clock duration captured via span timing
 
-When APPLICATIONINSIGHTS_CONNECTION_STRING is set the spans reach Azure Monitor
-automatically. Otherwise they print to the console via the stdlib exporter.
+Foundry tracing needs Application Insights connected to its project and
+client-side GenAI instrumentation. This lesson does not enable that
+instrumentation, collect server-side traces, or make spans appear in Foundry's
+Traces view. When APPLICATIONINSIGHTS_CONNECTION_STRING is set, this manual
+span reaches Azure Monitor; otherwise it prints to the console.
 """
 import time
 

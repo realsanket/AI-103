@@ -11,7 +11,10 @@ _DOCS = [
 def main() -> None:
     client = language_client()
     response = client.recognize_pii_entities(_DOCS, language="en")
-    for idx, doc in enumerate(r for r in response if not r.is_error):
+    for idx, doc in enumerate(response):
+        if doc.is_error:
+            print(f"--- Document {idx + 1} failed: {doc.error.code} ---")
+            continue
         print(f"--- Document {idx + 1} ---")
         print(f"Redacted: {doc.redacted_text}")
         print("Entities:")

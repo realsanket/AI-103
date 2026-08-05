@@ -3,7 +3,7 @@
 > Run any lesson: `uv run python 04-text-and-speech/<file>.py`
 > Prereqs: `.env` filled, `az login` completed. See root [README.md](../README.md).
 
-19 lessons covering the widest surface area of any domain — three separate
+20 lessons covering the widest surface area of any domain — three separate
 Azure services (Language, Translator, Speech) plus the generative-model
 alternatives (LLM prompt for NER / sentiment / translation) plus the
 Foundry MCP tools plus Voice Live.
@@ -19,8 +19,8 @@ Every way to process **text** and **speech** in Foundry, from two angles:
   Analytics for Health), Azure Translator, Speech SDK (STT / TTS / Speech
   Translation), Custom Speech.
 - **Generative** (LLM prompt, expensive, flexible) — Responses API with a
-  system prompt for the same tasks; audio input via LLM Speech Preview
-  (MAI-Transcribe / gpt-4o-transcribe); Voice Live for real-time
+  system prompt for the same tasks; audio input through the LLM Speech API
+  (MAI-Transcribe); Voice Live for real-time
   speech-to-speech.
 
 You'll learn WHICH TO PICK for each task — because the exam tests that
@@ -44,11 +44,12 @@ choice, not the code.
   modes: **Neural** (default), **Neural HD** (SSML required, best quality).
   Also handles **Speech Translation** via `TranslationRecognizer` (NOT the
   same as Azure Translator).
-- **MAI-Transcribe / LLM Speech Preview** — file-based transcription that
-  goes through an LLM. Prompt-tunable ("Northwind product names include
-  Connect, Sentinel — spell them like that"). Preview.
-- **Voice Live** — bidirectional WebSocket. Mic in → agent thinks → TTS
-  out. Real-time conversation. Preview.
+- **MAI-Transcribe** — preview speech-recognition models available through
+  the LLM Speech API. L17 uses `mai-transcribe-1.5` with a phrase list;
+  MAI does not support prompt-tuning or diarization.
+- **Voice Live** — bidirectional WebSocket for real-time audio. L18 is a
+  protocol demo: it sends a prerecorded PCM file and logs events; it does
+  not capture microphone input or play returned audio.
 - **Custom Speech** — train a model in Speech Studio for domain jargon or
   accents; deploy → get an endpoint GUID; set `endpoint_id` on the
   standard config. Everything else stays the same.
@@ -59,12 +60,12 @@ one-file sync / stream / batch async — pick by input shape.*
 
 ---
 
-## Mental model of the 19 lessons
+## Mental model of the 20 lessons
 
 Two phases, each split by service.
 
 ```
-┌─── Phase 1: TEXT (L01–L10) ────────────────────────────────────────────┐
+┌─── Phase 1: TEXT (L01–L10, L20) ───────────────────────────────────────┐
 │  Generative (LLM prompt)                                              │
 │    L01 NER by prompt                                                  │
 │    L02 Sentiment by prompt                                            │
@@ -75,6 +76,7 @@ Two phases, each split by service.
 │    L05 PII detection (compliance-grade)                               │
 │    L06 Language detection                                             │
 │    L07 NER prebuilt                                                   │
+│    L20 Sentiment + opinion mining (run after L07)                     │
 │    L08 List Language MCP tools                                        │
 │    L09 Language MCP inside an agent                                   │
 │    L10 Text Analytics for Health                                      │
@@ -92,7 +94,7 @@ Two phases, each split by service.
 │    L16 Speech Translation (TranslationRecognizer)                     │
 │                                                                        │
 │  LLM audio + real-time agents                                          │
-│    L17 LLM Speech Preview (MAI-Transcribe file-based)                 │
+│    L17 MAI-Transcribe 1.5 preview (LLM Speech API)                    │
 │    L18 Voice Live (bidirectional WebSocket → Prompt Agent)            │
 │    L19 Custom Speech model endpoint                                   │
 └────────────────────────────────────────────────────────────────────────┘
@@ -107,7 +109,7 @@ TEXT — understanding
   Standard NER (Person/Org/Location)?  → Azure Language NER            [L07]
   Novel entity types?                  → GPT prompt NER                [L01]
   Compliance-grade PII redaction?      → Azure Language PII            [L05]
-  Sentiment + opinion mining?          → Azure Language Sentiment      (SDK)
+  Sentiment + opinion mining?          → Azure Language Sentiment      [L20]
   Sentiment with rationale?            → GPT prompt                    [L02]
   Medical entities?                    → Text Analytics for Health     [L10]
   Language detection?                  → Azure Language LanguageDetection [L06]
@@ -123,7 +125,7 @@ SPEECH — input
   Live audio stream?                   → Real-time STT (SpeechRecognizer) [L12]
   Many files async?                    → Batch Transcription (v3.2)    [L13]
   Domain jargon / accents?             → Custom Speech (endpoint_id)   [L19]
-  File + prompt-tuning?                → LLM Speech Preview (MAI)      [L17]
+  File + known named entities?         → MAI-Transcribe phrase list    [L17]
 
 SPEECH — output
   Neural voice?                        → SpeechSynthesizer + voice name [L14]
@@ -147,19 +149,51 @@ Steps 1–4 come from Domain 1. Steps 5–8 are Domain 4 additions.
 5. **`.env` Domain 4:**
    - `LANGUAGE_ENDPOINT` — Language service, `cognitiveservices.azure.com`.
    - `LANGUAGE_MCP_URL` — `<lang-endpoint>/language/mcp?api-version=2025-11-15-preview`.
-   - `TRANSLATOR_ENDPOINT` — Translator via Foundry Tools (`services.ai.azure.com` subdomain).
    - `SPEECH_ENDPOINT` — Speech, `cognitiveservices.azure.com`.
    - `SPEECH_REGION` — for batch STT (v3.2 REST is region-scoped).
    - `SPEECH_MCP_URL` — `<speech-endpoint>/speech/mcp?api-version=2025-11-15-preview`.
    - `VOICE_LIVE_ENDPOINT` — `wss://<resource>.services.ai.azure.com/voice-live/realtime`.
    - `CUSTOM_SPEECH_ENDPOINT_ID` — GUID from Speech Studio (only for L19).
 6. **Sample audio present:** `_shared/sample_data/audio/` — `conversation.wav`, `northwind_support_message.wav`.
-7. **For L13 (Batch STT)** — a Blob container SAS URL exposing WAV files; export `BATCH_STT_CONTAINER_SAS`.
-8. **For L19 (Custom Speech)** — train + deploy a model in Speech Studio, paste the endpoint GUID.
+7. **For L12 and L16 only** — allow your terminal or IDE microphone access
+   in your operating system. L18 doesn't use your microphone.
+8. **For L13 (Batch STT)** — create a Blob *container* SAS with **read**
+   and **list** permissions. Set `BATCH_STT_CONTAINER_SAS` only in your
+   shell or uncommitted `.env`; make its expiry outlast the batch job.
+9. **For L19 (Custom Speech)** — train + deploy a model in Speech Studio, paste the endpoint GUID.
 
 Sanity check: `uv run python 01-plan-and-manage/07_managed_identity_agent.py`
 must pass. Language / Speech / Translator all use the same Foundry
 principal via `DefaultAzureCredential`.
+
+### Endpoint and role checklist
+
+| Setting or role | Purpose |
+|---|---|
+| `PROJECT_ENDPOINT` | Prompt Agent creation in L09 and L18. |
+| `LANGUAGE_ENDPOINT` | Language SDK lessons L05–L07, L10, and L20. |
+| `LANGUAGE_MCP_URL` | Language MCP lessons L08–L09. This endpoint is preview-versioned. |
+| `SPEECH_ENDPOINT` and `SPEECH_REGION` | Speech REST/SDK lessons. Batch uses the region-scoped REST endpoint. |
+| `SPEECH_MCP_URL` | Speech MCP endpoint. This endpoint is preview-versioned. |
+| `VOICE_LIVE_ENDPOINT` | WebSocket base URL for L18, without query parameters. |
+| Azure Translator Text v3 | L04's shared helper calls the documented global endpoint directly; no `TRANSLATOR_ENDPOINT` setting is used. |
+| **Foundry User** | Required for Foundry project and agent operations. |
+| **Cognitive Services User** | Required with **Foundry User** for keyless Voice Live access. Assign service roles according to your resource configuration. |
+
+### Cost and feature status
+
+Every remote lesson can incur Azure charges. Run L01–L10, L17–L18, and L20 only
+against a resource and model deployment you intend to bill. L13 also bills
+for Speech processing and Blob Storage; delete completed jobs or let their
+configured TTL expire. Check regional pricing and availability before
+running a lesson.
+
+| Feature | Preview or availability status |
+|---|---|
+| `mai-transcribe-1.5` (L17) | Preview. |
+| Language MCP and Speech MCP (L08–L09) | Preview API versions. |
+| Voice Live (L18) | This protocol demo doesn't select a model. Verify availability and preview status for the chosen model and region; it uses API version `2026-04-10`. |
+| Azure Language sentiment (L20) | Existing Azure Language feature. Microsoft documents retirement on March 31, 2029; plan new production workloads accordingly. |
 
 ---
 
@@ -185,8 +219,8 @@ principal via `DefaultAzureCredential`.
 | **Neural HD voice** | Best TTS quality; **requires SSML** to unlock the prosody controls. `en-US-AvaHDNeural`, `en-US-AndrewMultilingualNeural`. |
 | **SSML** | Speech Synthesis Markup Language. XML dialect for TTS controls: `<voice>`, `<prosody>`, `<break>`, `<mstts:express-as>`. |
 | **`TranslationRecognizer`** | Speech SDK class that recognizes speech AND translates in one call. NOT the same as Azure Translator (that's a REST service). |
-| **MAI-Transcribe** | Microsoft's LLM-based transcription model. Prompt-tunable. File-based only. |
-| **LLM Speech Preview** | Umbrella name for LLM-based STT — includes MAI-Transcribe, gpt-4o-transcribe. |
+| **MAI-Transcribe** | Preview speech-recognition models in the LLM Speech API. L17 uses `mai-transcribe-1.5`; it supports phrase lists and transcript style, not prompt-tuning or diarization. |
+| **LLM Speech API** | Speech API used by MAI-Transcribe. L17 is a file-transcription example. |
 | **Voice Live** | Real-time bidirectional WebSocket API. `wss://<resource>.services.ai.azure.com/voice-live/realtime?api-version=2026-04-10`. |
 | **Custom Speech** | Train an acoustic/language model in Speech Studio; deploy → endpoint GUID; set `speech_config.endpoint_id`. |
 | **Language MCP** | Foundry MCP endpoint exposing Language features as agent tools. |
@@ -199,11 +233,12 @@ principal via `DefaultAzureCredential`.
 | Symptom | Root cause | Fix |
 |---------|-----------|-----|
 | L11: `404` on Fast STT | Old API version | Use `api-version=2025-10-15` (this repo fixed) |
-| L17: `404` on MAI-Transcribe | Wrong subdomain or old API version | Use `SPEECH_ENDPOINT` (resource endpoint) + `api-version=2025-10-15` |
-| L18: WebSocket 404 or 401 | Old URL path `/voice-live/v1` or missing `agent_id`/`project_id` | Use `/voice-live/realtime?api-version=2026-04-10&agent_id=...&project_id=...` (this repo fixed) |
+| L17: `404` on MAI-Transcribe | Wrong endpoint, API version, model, or region | Use the Speech resource endpoint, `api-version=2025-10-15`, and preview-supported `mai-transcribe-1.5` availability |
+| L18: `TypeError` for `extra_headers` | Current lockfile uses `websockets` 15 | Use `additional_headers` |
+| L18: WebSocket 404 or 401 | Old URL path or missing agent query parameters | Use `/voice-live/realtime?api-version=2026-04-10&agent_id=...&project_id=...` |
 | L18: `Agent not found` | Old README referenced `northwind-support` agent | L18 now creates the agent inline |
 | L13: `401` on batch submit | Region mismatch — Speech resource in region X, `SPEECH_REGION` = Y | Match region to the resource |
-| L13: `SystemExit: Set BATCH_STT_CONTAINER_SAS` | env var missing | Generate a Blob container SAS with the WAV files |
+| L13: `SystemExit: Set BATCH_STT_CONTAINER_SAS` | env var missing | Generate a container SAS with read and list permissions |
 | L15: Neural HD reads text flatly | Missing SSML — you sent plain text | Pass SSML (see L15 code); HD voices need it |
 | L19: `SystemExit: Set CUSTOM_SPEECH_ENDPOINT_ID` | No custom model deployed | Speech Studio → Custom Speech → train + deploy, paste GUID |
 | L03: Translator has better output than L03 | Volume translation; use L04 | L03 = tone-preserving; L04 = bulk-optimal. Both are correct. |
@@ -217,10 +252,11 @@ principal via `DefaultAzureCredential`.
 | 01 | `01_llm_ner.py` | Entity extraction via generative prompt |
 | 02 | `02_llm_sentiment.py` | Sentiment + tone via generative prompt |
 | 03 | `03_llm_translation.py` | Translation via LLM prompt (tone-preserving) |
-| 04 | `04_translator_rest.py` | Translation via Azure Translator (Foundry Tools REST) |
+| 04 | `04_translator_rest.py` | Translation via Azure Translator Text v3 REST |
 | 05 | `05_language_pii.py` | PII detection + redaction via Azure AI Language |
 | 06 | `06_language_detect.py` | Language detection via Azure AI Language |
 | 07 | `07_language_ner.py` | NER via Azure AI Language (prebuilt, discriminative) |
+| 20 | `20_language_sentiment.py` | Sentiment analysis + opinion mining via Azure AI Language |
 | 08 | `08_language_mcp_tools.py` | Discover Language MCP tools |
 | 09 | `09_language_mcp_agent.py` | Use Language MCP inside a Foundry agent |
 | 10 | `10_health_text_analytics.py` | Text Analytics for Health |
@@ -230,8 +266,8 @@ principal via `DefaultAzureCredential`.
 | 14 | `14_tts_neural.py` | TTS — neural voice |
 | 15 | `15_tts_ssml_hd.py` | TTS — SSML + Neural HD voice |
 | 16 | `16_speech_translation.py` | Speech Translation (`TranslationRecognizer`) |
-| 17 | `17_llm_speech_preview.py` | LLM Speech Preview (MAI-Transcribe, file-based) |
-| 18 | `18_voice_live_prompt_agent.py` | Voice Live — real-time speech-to-speech agent |
+| 17 | `17_llm_speech_preview.py` | MAI-Transcribe 1.5 preview via LLM Speech API |
+| 18 | `18_voice_live_prompt_agent.py` | Voice Live WebSocket protocol demo; no microphone capture or audio playback |
 | 19 | `19_custom_speech_model.py` | Custom Speech — deployed model endpoint |
 
 ## Reference docs
@@ -345,7 +381,7 @@ Audio input — what do you need?
     ├── Live stream (mic/network)?        → Real-time STT (L12)
     ├── Many files, async batch?          → Batch Transcription v3.2 (L13)
     ├── Translate spoken audio?           → TranslationRecognizer (L16)
-    ├── File + prompt tuning?             → LLM Speech Preview / MAI-Transcribe (L17)
+    ├── File + known named entities?      → MAI-Transcribe phrase list (L17)
     ├── Agent voice conversation?         → Voice Live WebSocket (L18)
     └── Domain vocab / accents?           → Custom Speech endpoint (L19)
 
@@ -476,13 +512,18 @@ TRANSLATION: <the translated text>
 
 # Lesson 04 — Azure Translator (REST)
 
-**You'll learn:** call Azure Translator via the Foundry Tools REST endpoint; multiple targets in one call.
-**Prereqs:** `TRANSLATOR_ENDPOINT` in `.env` (Foundry `services.ai.azure.com` subdomain).
+**You'll learn:** call Azure Translator Text v3 REST; multiple targets in one call.
+**Prereqs:** an Azure Translator resource configured for keyless Microsoft
+Entra authentication, plus `az login`. No `TRANSLATOR_ENDPOINT` setting is
+used.
 **Time:** ~5 min.
 
 **Concept:** Translator is a separate REST service purpose-built for
-translation at volume. One call → multiple target languages. Supports
-custom glossaries and Custom Translator for domain-tuned MT.
+translation at volume. The shared helper POSTs `[{"Text": text}]` to the
+global `/translate` endpoint with `api-version=3.0`, one `from` parameter,
+and repeated `to` parameters. The successful response is a list: each input
+item contains its `translations` list. Supports custom glossaries and Custom
+Translator for domain-tuned MT.
 
 **Code:**
 
@@ -497,14 +538,16 @@ def main() -> None:
         "This is affecting our whole sales team."
     )
     result = translate(text, targets=["fr", "ja", "es"], source_language="en")
-    for t in result["value"][0]["translations"]:
-        print(f"[{t['language']}] {t['text']}")
+    for translation in result[0]["translations"]:
+        print(f"[{translation['to']}] {translation['text']}")
 ```
 
 **Expected output:** three lines, one per target language.
 
 **Key points:**
-- `targets=[...]` — one call, many languages, saved cost vs N calls.
+- `targets=[...]` becomes repeated `to` query parameters in one v3 request.
+- The response is a list, so read `result[0]["translations"]`; its language
+  key is `to`, not `language`.
 - For document-level translation (PDF, DOCX), use the **Document Translation** API on the same service.
 - **Speech Translation is NOT Azure Translator** — different service (see L16).
 
@@ -536,7 +579,10 @@ _DOCS = [
 def main() -> None:
     client = language_client()
     response = client.recognize_pii_entities(_DOCS, language="en")
-    for idx, doc in enumerate(r for r in response if not r.is_error):
+    for idx, doc in enumerate(response):
+        if doc.is_error:
+            print(f"Document {idx + 1} failed: {doc.error.code}")
+            continue
         print(f"--- Document {idx + 1} ---")
         print(f"Redacted: {doc.redacted_text}")
         for e in doc.entities:
@@ -574,9 +620,12 @@ _DOCS = [
 
 def main() -> None:
     client = language_client()
-    for idx, doc in enumerate(r for r in client.detect_language(_DOCS) if not r.is_error):
+    for idx, doc in enumerate(client.detect_language(_DOCS)):
+        if doc.is_error:
+            print(f"Document {idx + 1} failed: {doc.error.code}")
+            continue
         primary = doc.primary_language
-        print(f"  {primary.name} ({primary.iso6391_name})  conf={primary.confidence_score:.2f}")
+        print(f"{_DOCS[idx]!r}: {primary.name} ({primary.iso6391_name})")
 ```
 
 **Expected output:** English / French / Japanese / (ambiguous, low confidence) for the four docs.
@@ -603,7 +652,10 @@ you scores you can defend in audit; L01 gives you novel categories.
 # 07_language_ner.py
 def main() -> None:
     client = language_client()
-    for idx, doc in enumerate(r for r in client.recognize_entities(_DOCS, language="en") if not r.is_error):
+    for idx, doc in enumerate(client.recognize_entities(_DOCS, language="en")):
+        if doc.is_error:
+            print(f"Document {idx + 1} failed: {doc.error.code}")
+            continue
         for e in doc.entities:
             subcat = f" / {e.subcategory}" if e.subcategory else ""
             print(f"  [{e.category}{subcat}] '{e.text}'  ({e.confidence_score:.2f})")
@@ -614,6 +666,55 @@ def main() -> None:
 **Key points:**
 - Prebuilt categories are FIXED — for custom types build a **Custom NER** model (portal + labeled data).
 - Subcategory is not always populated — check for `None`.
+
+---
+
+# Lesson 20 — Azure Language sentiment + opinion mining
+
+**You'll learn:** return document and sentence sentiment, then associate an
+opinion assessment with its target. Run this after L07, before the MCP
+lessons.
+**Prereqs:** `LANGUAGE_ENDPOINT` in `.env`.
+**Time:** ~5 min.
+
+**Concept:** `analyze_sentiment(..., show_opinion_mining=True)` returns
+positive, neutral, negative, or mixed document and sentence labels with
+confidence scores. Opinion mining adds targets and assessments; for example,
+it can associate `frustrating` with `onboarding process`.
+
+**Code:**
+
+```python
+# 20_language_sentiment.py
+response = client.analyze_sentiment(
+    _DOCS, language="en", show_opinion_mining=True
+)
+for idx, doc in enumerate(response):
+    if doc.is_error:
+        print(f"Document {idx + 1} failed: {doc.error.code}")
+        continue
+    print(f"--- Document {idx + 1}: {doc.sentiment} ---")
+    for sentence in doc.sentences:
+        print(f"  [{sentence.sentiment}] {sentence.text}")
+        for opinion in sentence.mined_opinions:
+            target = opinion.target
+            assessments = ", ".join(
+                f"{assessment.text} ({assessment.sentiment})"
+                for assessment in opinion.assessments
+            )
+            print(f"    {target.text} ({target.sentiment}): {assessments}")
+```
+
+**Expected output:** sentence sentiment plus target/assessment pairs, such
+as `onboarding process (negative): frustrating (negative)`.
+
+**Key points:**
+- Opinion mining is enabled by `show_opinion_mining=True`; it isn't a
+  separate Language task.
+- This feature has a published retirement date of March 31, 2029. Prefer
+  Foundry models for new production workloads.
+- L02 remains useful when you need free-form rationale or custom topic
+  grouping rather than fixed sentiment results.
 
 ---
 
@@ -673,7 +774,7 @@ questions map to which tool.
 
 ```python
 # 09_language_mcp_agent.py (excerpt)
-tool = McpTool(server_url=settings().language_mcp_url, server_label="azure_language")
+tool = MCPTool(server_url=settings().language_mcp_url, server_label="azure_language")
 agent = project.agents.create_version(
     agent_name=AGENT_NAME,
     definition=PromptAgentDefinition(
@@ -693,7 +794,7 @@ r = openai.responses.create(
 **Expected output:** an answer that identifies Japanese as the language and Sarah Chen as a mentioned person — with the agent having called MCP tools under the hood.
 
 **Key points:**
-- `McpTool` is the same construct used for any MCP server (Domain 2's Toolbox produces one too).
+- `MCPTool` is the current Azure Projects SDK construct for a remote MCP server.
 - No hardcoded routing — the model decides which tool to invoke based on the user's question.
 
 ---
@@ -806,14 +907,17 @@ print("Listening — press Ctrl+C to stop.")
 
 # Lesson 13 — Batch Transcription (Async REST)
 
-**You'll learn:** submit many audio files at once via the async v3.2 REST endpoint; poll until done; fetch a results URL.
-**Prereqs:** `SPEECH_REGION` in `.env`; `BATCH_STT_CONTAINER_SAS` env var pointing at a Blob container of WAV files.
+**You'll learn:** submit many audio files at once via the async v3.2 REST
+endpoint; poll until done; list and download each transcription JSON file.
+**Prereqs:** `SPEECH_REGION` in `.env`; `BATCH_STT_CONTAINER_SAS` set to a
+Blob container SAS with read and list permissions.
 **Time:** ~30 min (batch runs in the background, region-serial).
 
 **Concept:** Three steps:
 1. POST `/speechtotext/v3.2/transcriptions` with the container SAS + config.
 2. Poll `GET <returned job URL>` until `status = Succeeded`.
-3. GET the `links.files` URL to enumerate transcript files.
+3. GET the `links.files` URL, select files where `kind` is `Transcription`,
+   then GET each file's `links.contentUrl`.
 
 Use for backlogs, weekly archives, anything not user-facing. Batch processes serially per region — spread submissions.
 
@@ -826,7 +930,11 @@ def _submit(container_sas_url: str) -> str:
         "displayName": "northwind-support-calls-batch",
         "locale": "en-US",
         "contentContainerUrl": container_sas_url,
-        "properties": {"diarizationEnabled": True, "wordLevelTimestampsEnabled": True},
+        "properties": {
+            "diarizationEnabled": True,
+            "wordLevelTimestampsEnabled": True,
+            "timeToLiveHours": 48,
+        },
     }
     r = httpx.post(f"{_base_url()}/speechtotext/v3.2/transcriptions", headers=_headers(), json=body)
     return r.json()["self"]
@@ -837,13 +945,25 @@ def _wait(job_url: str) -> dict:
         if body["status"] in ("Succeeded", "Failed"):
             return body
         time.sleep(30)
+
+def _print_transcripts(files_url: str) -> None:
+    files = httpx.get(files_url, headers=_headers()).json()
+    for item in files["values"]:
+        if item["kind"] != "Transcription":
+            continue
+        result = httpx.get(item["links"]["contentUrl"]).json()
+        print(item["name"], result["combinedRecognizedPhrases"])
 ```
 
-**Expected output:** job URL, several `status=Running — waiting 30s` polls, then a `done: Succeeded. Fetch transcripts at ...` message.
+**Expected output:** job URL, several `status=Running — waiting 30s` polls,
+then one downloaded `Transcription` JSON result per successfully processed
+audio file.
 
 **Key points:**
 - v3.2 is the current stable API version.
 - `diarizationEnabled` = per-speaker labels ("Speaker 1", "Speaker 2") in the transcript.
+- `links.files` is an index, not a transcript. Download each
+  `kind: Transcription` item's `links.contentUrl`.
 - Batch does not need a custom endpoint even when using a Custom Speech model (unlike real-time).
 
 ---
@@ -957,52 +1077,62 @@ if result.reason == speechsdk.ResultReason.TranslatedSpeech:
 
 ---
 
-# Lesson 17 — LLM Speech Preview (MAI-Transcribe)
+# Lesson 17 — MAI-Transcribe 1.5 preview
 
-**You'll learn:** file-based transcription that goes through an LLM (MAI-Transcribe) — prompt-tunable, better for domain jargon and mixed-language audio.
+**You'll learn:** file transcription with `mai-transcribe-1.5` through the
+LLM Speech API, including phrase-list entity biasing.
 **Prereqs:** `SPEECH_ENDPOINT` in `.env`; sample audio.
-**Time:** ~10 min (LLM transcription is slower).
+**Time:** ~10 min.
 
-**Concept:** `mai-transcribe` is Microsoft's LLM-based transcription
-model. Same REST route as Fast Transcription
-(`/speechtotext/transcriptions:transcribe`) with `"model": "mai-transcribe"`
-and an optional `"prompt"` to bias vocabulary. Preview.
+**Concept:** MAI-Transcribe is a preview speech-recognition model. L17 uses
+the `mai-transcribe-1.5` enhanced mode on the same REST route as Fast
+Transcription. The model supports a phrase list to bias named entities and
+`transcribeStyle` for transcript style. It doesn't support prompt-tuning or
+diarization.
 
 **Code:**
 
 ```python
 # 17_llm_speech_preview.py (excerpt)
-url = f"{settings().speech_endpoint}/speechtotext/transcriptions:transcribe?api-version=2025-10-15"
+definition = {
+    "locales": ["en"],
+    "phraseList": {"phrases": ["Northwind Connect", "Sentinel", "Ledger"]},
+    "enhancedMode": {"enabled": True, "model": "mai-transcribe-1.5"},
+}
+url = (
+    f"{settings().speech_endpoint}"
+    "/speechtotext/transcriptions:transcribe?api-version=2025-10-15"
+)
 with audio.open("rb") as f:
     files = {
         "audio": (audio.name, f, "audio/wav"),
-        "definition": (None,
-            '{"model":"mai-transcribe","locales":["en-US"],'
-            '"prompt":"Northwind product names include Connect, Sentinel, Ledger. Use exact spellings."}',
-            "application/json"),
+        "definition": (None, json.dumps(definition), "application/json"),
     }
     r = httpx.post(url, headers={"Authorization": f"Bearer {_token()}"}, files=files, timeout=180.0)
 ```
 
-**Expected output:** transcript that respects the prompt hints (spells "Connect" correctly rather than "Konnect", etc.).
+**Expected output:** transcript with phrase-list terms such as `Northwind
+Connect` recognized accurately when the audio contains them.
 
 **Key points:**
-- **API version fix:** `2025-10-15` (older `2025-11-15-preview` was wrong).
-- Also available: `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, `whisper-1` for different quality/cost points.
-- Prompt-tuning is the "custom speech for people who don't want to train a model" — cheaper than L19.
+- This lesson uses the documented REST API version, `2025-10-15`.
+- `mai-transcribe-1.5` is preview-only. Confirm model and regional
+  availability before relying on it.
+- A phrase list isn't a prompt and doesn't replace Custom Speech training.
 
 ---
 
-# Lesson 18 — Voice Live for a Prompt Agent
+# Lesson 18 — Voice Live protocol demo for a Prompt Agent
 
-**You'll learn:** real-time speech-to-speech conversation with a Foundry Prompt Agent via a WebSocket; agent inline-created so it runs cold.
+**You'll learn:** connect a WebSocket to a Foundry Prompt Agent, send
+prerecorded PCM audio, and inspect Voice Live events.
 **Prereqs:** `VOICE_LIVE_ENDPOINT` in `.env`; `PROJECT_ENDPOINT` in `.env`.
 **Time:** ~15 min.
 
-**Concept:** Voice Live streams:
-- Client → WebSocket → send mic audio buffers.
-- Voice Live routes to a Prompt Agent (transcribes → agent thinks → TTS).
-- WebSocket → Client → receive audio deltas.
+**Concept:** Voice Live can stream audio to an agent and return audio deltas.
+This lesson is deliberately protocol-only: it sends the bundled 16-kHz mono
+PCM16 sample, prints events, and stops at `response.done`. It does **not**
+capture microphone input, decode `response.audio.delta`, or play audio.
 
 Current URL (verified in `speech-service/voice-live-how-to.md`):
 
@@ -1031,7 +1161,11 @@ async def _run() -> None:
     )
     headers = {"Authorization": f"Bearer {token}"}
 
-    async with websockets.connect(url, extra_headers=headers) as ws:
+    async with websockets.connect(url, additional_headers=headers) as ws:
+        await ws.send(json.dumps({
+            "type": "session.update",
+            "session": {"input_audio_sampling_rate": 16000},
+        }))
         await ws.send(json.dumps({"type": "input_audio_buffer.append", "audio": b64_audio}))
         await ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
         await ws.send(json.dumps({"type": "response.create"}))
@@ -1042,14 +1176,16 @@ async def _run() -> None:
 ```
 
 **Expected output:** several WebSocket events (`session.created`,
-`input_audio_buffer.committed`, `response.audio.delta`, `response.done`)
-scrolling as the agent transcribes → responds → speaks.
+`input_audio_buffer.committed`, `response.audio.delta`, `response.done`).
+Audio deltas are logged only; no sound plays.
 
 **Key points:**
 - **URL correction:** `/voice-live/realtime?api-version=2026-04-10`; params `agent_id` + `project_id` (not `agent_name`).
 - For non-agent scenarios pass `model=gpt-realtime` instead of the agent params.
 - Two subdomain options: `services.ai.azure.com` (current) or `cognitiveservices.azure.com` (older resources).
-- Voice Live for Prompt Agents is GA-ish (preview); for Hosted Agents the shape differs.
+- `websockets` 15 uses `additional_headers`, not `extra_headers`.
+- Build a microphone capture, PCM framing, audio-delta decoding, and output
+  playback loop before describing an application as end-to-end voice.
 
 ---
 
@@ -1085,7 +1221,8 @@ def recognize_with_custom_model(audio_path: str) -> str:
 
 **Key points:**
 - Batch Transcription does NOT need a custom endpoint even when using your custom model — you reference the model directly in the batch request.
-- MAI-Transcribe with a prompt (L17) is a lightweight alternative — no training needed.
+- MAI-Transcribe phrase lists (L17) can improve recognition of known terms
+  without training.
 - Custom Speech has three stages: **train** (Speech Studio, needs labeled data) → **test** (word error rate) → **deploy** (get endpoint GUID).
 
 ---
@@ -1103,7 +1240,7 @@ def recognize_with_custom_model(audio_path: str) -> str:
 | "Voice Live uses `/voice-live/v1`" | ❌ — current URL is `/voice-live/realtime?api-version=2026-04-10` |
 | "Voice Live takes `agent_name`" | ❌ — takes `agent_id` + `project_id` query params (or `model` for non-agent) |
 | "Fast STT api-version is `2024-11-15`" | ❌ — current `2025-10-15` |
-| "MAI-Transcribe replaces the Speech SDK" | ❌ — MAI is file-based only; SDK covers real-time + mic + streaming |
+| "MAI-Transcribe supports prompt-tuning" | ❌ — `mai-transcribe-1.5` supports phrase lists and transcript style, not prompt-tuning or diarization |
 | "Custom Speech works for batch by default" | ✔ — batch can use a custom model without deploying an endpoint. Real-time DOES need the endpoint. |
 | "Extractive and Abstractive summarization are the same kind" | ❌ — separate `kind` values (`ExtractiveSummarization` / `AbstractiveSummarization`) |
 

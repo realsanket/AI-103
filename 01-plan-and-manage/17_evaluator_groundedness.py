@@ -1,5 +1,5 @@
-# Run: uv run python 01-plan-and-manage/11_evaluator_groundedness.py
-"""Response Completeness / Groundedness evaluator loop — DIY inline.
+# Run: uv run python 01-plan-and-manage/17_evaluator_groundedness.py
+"""LLM self-critique loop — not a Foundry built-in evaluator.
 
 Beginner story:
   1. An ephemeral agent (instructions live in this file — no portal setup)
@@ -8,11 +8,14 @@ Beginner story:
      answer against a completeness checklist and returns COMPLETE or MISSING.
   3. If MISSING, we regenerate the answer with the checklist in scope.
 
-This is the same pattern the built-in Response Completeness / Groundedness
-evaluators use — wired inline so you can see the mechanics.
+This is an application-level self-critique pattern. It is not a Foundry
+evaluation run and does not implement Response Completeness or Groundedness.
+Those built-in evaluators require an evaluation dataset and their documented
+input contract; Response Completeness uses `ground_truth` and `response`,
+while Groundedness uses `response` and recommended `context`.
 
 What to watch in the output:
-  - The verdict line (COMPLETE / MISSING).
+  - The self-critique verdict (COMPLETE / MISSING).
   - If regenerated, notice the second draft addresses the missing checklist items.
 """
 from _shared.config import settings

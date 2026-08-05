@@ -1,9 +1,10 @@
-"""LLM Speech (preview) — file-based transcription with prompt-tuning.
+"""MAI-Transcribe preview — file transcription through the LLM Speech API.
 
-Adds contextual understanding + broader multilingual + prompt-tuning over the
-classic Speech STT models. File-based only (not real-time). MAI-Transcribe is
-Microsoft's own; other models can be selected per request.
+`mai-transcribe-1.5` supports phrase-list entity biasing and verbatim output.
+It does not support prompt-tuning or diarization.
 """
+import json
+
 import httpx
 from azure.identity import DefaultAzureCredential
 
@@ -18,22 +19,19 @@ def _token() -> str:
 
 def main() -> None:
     audio = SAMPLE_DATA / "audio" / "conversation.wav"
-    # Verified against ai-services/speech-service/mai-transcribe.md — api-version=2025-10-15
-    # Endpoint is the resource endpoint (cognitiveservices subdomain), not region-specific.
     url = (
         f"{settings().speech_endpoint}"
         f"/speechtotext/transcriptions:transcribe?api-version=2025-10-15"
     )
+    definition = {
+        "locales": ["en"],
+        "phraseList": {"phrases": ["Northwind Connect", "Sentinel", "Ledger"]},
+        "enhancedMode": {"enabled": True, "model": "mai-transcribe-1.5"},
+    }
     with audio.open("rb") as f:
         files = {
             "audio": (audio.name, f, "audio/wav"),
-            "definition": (
-                None,
-                '{"model":"mai-transcribe","locales":["en-US"],'
-                '"prompt":"Northwind product names include Connect, Sentinel, Ledger. '
-                'Use exact spellings."}',
-                "application/json",
-            ),
+            "definition": (None, json.dumps(definition), "application/json"),
         }
         r = httpx.post(url, headers={"Authorization": f"Bearer {_token()}"}, files=files, timeout=180.0)
     r.raise_for_status()

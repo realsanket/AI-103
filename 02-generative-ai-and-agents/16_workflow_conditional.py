@@ -1,4 +1,8 @@
-"""Foundry Workflow — deploy the conditional-routing workflow (YAML).
+"""Foundry workflow preview — deploy the conditional-routing YAML.
+
+Microsoft Foundry retires workflows on December 1, 2026. Use this lesson to
+study the existing preview artifact, then move new orchestration to Microsoft
+Agent Framework and deploy it as a hosted agent.
 
 Beginner note:
   `workflows/wf_triage.yml` defines a three-agent triage flow:
@@ -16,7 +20,8 @@ Beginner note:
     2. Verifies wf-IntakeAgent exists (created by L15 — you must run L15 first).
     3. Uploads/updates the workflow itself.
 
-  After deploy, test it in the Foundry portal → Agents playground → wf-Triage.
+  While the preview remains available, test it in the Foundry portal → Agents
+  playground → wf-Triage.
 """
 from pathlib import Path
 
@@ -76,14 +81,13 @@ def main() -> None:
 
     yaml_text = WORKFLOW_FILE.read_text()
 
-    # Workflow deploy surface is preview and varies by SDK version — the shape
-    # below matches azure-ai-projects >= 1.0.0b10. Update if your SDK differs.
+    # Preview surface varies by SDK version.
     workflow = client.agents.create_version(
         agent_name=WORKFLOW_NAME,
         definition={"kind": "workflow", "definition": yaml_text},
     )
     print(f"Workflow {workflow.name} v{workflow.version} deployed.")
-    print("Test in the portal → Agents playground → wf-Triage.")
+    print("Preview only: test in the Foundry portal → Agents playground → wf-Triage.")
 
 
 if __name__ == "__main__":

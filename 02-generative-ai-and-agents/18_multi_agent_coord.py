@@ -14,6 +14,7 @@ from _shared.foundry_client import project_client
 ROUTER = "northwind-router"
 BILLING = "northwind-billing-specialist"
 TECHNICAL = "northwind-tech-specialist"
+MAX_TOOL_ROUNDS = 8
 
 
 def _ensure_specialists(project) -> None:
@@ -50,11 +51,31 @@ def _router_tools() -> list[FunctionTool]:
 
 def _delegate(project, target_agent: str, question: str) -> str:
     openai = project.get_openai_client()
-    r = openai.responses.create(
-        extra_body={"agent_reference": {"type": "agent_reference", "name": target_agent}},
-        input=question,
-    )
-    return r.output_text
+    try:
+        r = openai.responses.create(
+            extra_body={"agent_reference": {"type": "agent_reference", "name": target_agent}},
+            input=question,
+        )
+        return r.output_text
+    except Exception as exc:
+        return json.dumps({"error": f"Specialist request failed: {exc}"})
+
+
+def _run_router_tool(project, name: str, arguments_json: str) -> str:
+    targets = {"ask_billing_specialist": BILLING, "ask_tech_specialist": TECHNICAL}
+    target = targets.get(name)
+    if target is None:
+        return json.dumps({"error": f"Unknown router tool: {name}"})
+    try:
+        arguments = json.loads(arguments_json)
+    except json.JSONDecodeError:
+        return json.dumps({"error": "Tool arguments must be valid JSON."})
+    if not isinstance(arguments, dict) or set(arguments) != {"question"}:
+        return json.dumps({"error": "Tool arguments must contain only question."})
+    question = arguments["question"]
+    if not isinstance(question, str) or not question.strip():
+        return json.dumps({"error": "question must be a non-empty string."})
+    return _delegate(project, target, question)
 
 
 def main() -> None:
@@ -76,36 +97,34 @@ def main() -> None:
     openai = project.get_openai_client()
     conv = openai.conversations.create()
 
-    first = openai.responses.create(
+    response = openai.responses.create(
         conversation=conv.id,
         input="I need a refund on my last invoice — it double-charged me.",
         extra_body={"agent_reference": ref},
     )
 
-    tool_outputs = []
-    for item in first.output:
-        if item.type == "function_call":
-            args = json.loads(item.arguments)
-            target = {"ask_billing_specialist": BILLING, "ask_tech_specialist": TECHNICAL}[item.name]
-            print(f"router → {item.name}({args})")
-            tool_outputs.append(
-                {
-                    "type": "function_call_output",
-                    "call_id": item.call_id,
-                    "output": _delegate(project, target, args["question"]),
-                }
-            )
-
-    if tool_outputs:
-        final = openai.responses.create(
+    for _ in range(MAX_TOOL_ROUNDS):
+        tool_outputs = []
+        for item in response.output:
+            if item.type == "function_call":
+                print(f"router → {item.name}({item.arguments})")
+                tool_outputs.append(
+                    {
+                        "type": "function_call_output",
+                        "call_id": item.call_id,
+                        "output": _run_router_tool(project, item.name, item.arguments),
+                    }
+                )
+        if not tool_outputs:
+            print("\n=== Final ===")
+            print(response.output_text)
+            return
+        response = openai.responses.create(
             conversation=conv.id,
             input=tool_outputs,
             extra_body={"agent_reference": ref},
         )
-        print("\n=== Final ===")
-        print(final.output_text)
-    else:
-        print(first.output_text)
+    raise RuntimeError(f"Agent exceeded {MAX_TOOL_ROUNDS} function-call rounds.")
 
 
 if __name__ == "__main__":

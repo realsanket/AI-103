@@ -1,8 +1,8 @@
-"""Hosted Agent via Microsoft Agent Framework.
+"""Local Microsoft Agent Framework agent backed by a Foundry model.
 
-`agent-framework` gives you the `Agent` class + `FoundryChatClient`. Same code
-runs locally and inside a Foundry-managed container — you don't rewrite the
-loop when moving from dev to prod.
+This lesson runs on your machine; it is not a hosted-agent deployment. It uses
+`Agent` and `FoundryChatClient` to call a Foundry model. A hosted agent needs
+its own documented packaging, deployment, and invocation path.
 """
 import asyncio
 
@@ -20,14 +20,14 @@ async def _run() -> None:
         credential=DefaultAzureCredential(),
     )
     agent = Agent(
-        chat_client=chat_client,
+        client=chat_client,
         instructions=(
             "You are Northwind operations assistant. Be concise. "
             "If you need current info, ask the user for it — you have no tools yet."
         ),
     )
     result = await agent.run("Give me a one-line summary of Northwind's mission.")
-    print(result.messages[-1].content)
+    print(result.text)
 
 
 def main() -> None:

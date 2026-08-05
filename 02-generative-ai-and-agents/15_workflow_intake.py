@@ -1,7 +1,8 @@
-"""Foundry Workflow — Intake agent producing structured triage output.
+"""Preview workflow prerequisite — intake agent producing structured triage output.
 
 The workflow definition (`workflows/wf_intake_schema.json`) shows the JSON
-schema the intake agent must fill in. This script:
+schema the intake agent must fill in. It supports lesson 16's preview workflow
+artifact; workflows retire on December 1, 2026. This script:
 
 1. Creates an intake agent whose Response API call is bound to that schema
    (strict json_schema), and

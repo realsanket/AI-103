@@ -1,16 +1,15 @@
-"""CU → Markdown → chunk → index into AI Search.
+"""CU → Markdown → chunks ready for the Search ingestion pipeline.
 
 The clean-representation pattern: let Content Understanding produce faithful
-Markdown for each source doc, then use LangChain's text splitters (or the
-native Search text-split skill) to chunk before indexing.
+Markdown for each source doc, then use text splitters to inspect chunk
+boundaries. For searchable vectors, upload source files to Blob and run the
+indexer: its skillset creates vectors before writing the Search index.
 """
 import os
 
 from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 
 from _shared.cu_client import analyze
-from _shared.config import settings
-from _shared.search_client import search_client
 
 
 def _cu_markdown(source_url: str) -> str:
@@ -26,7 +25,7 @@ def _chunk(markdown: str) -> list[dict]:
     docs = header_splitter.split_text(markdown)
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
     chunks = text_splitter.split_documents(docs)
-    return [{"id": f"chunk-{i}", "chunk": c.page_content, "title": c.metadata.get("h1", "")} for i, c in enumerate(chunks)]
+    return [{"chunk": c.page_content, "title": c.metadata.get("h1", "")} for c in chunks]
 
 
 def main() -> None:
@@ -39,9 +38,11 @@ def main() -> None:
     docs = _chunk(markdown)
     print(f"chunked into {len(docs)} pieces")
 
-    client = search_client(settings().search_index)
-    client.merge_or_upload_documents(documents=docs)
-    print(f"uploaded to index {settings().search_index}")
+    if docs:
+        print("\n--- First chunk ---")
+        print(docs[0]["chunk"][:800])
+    print("These chunks are not uploaded: direct uploads need client-generated vectors.")
+    print("Upload the source to Blob, then run 05 and 04 --run for this index's integrated vectorization.")
 
 
 if __name__ == "__main__":

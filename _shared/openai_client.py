@@ -9,12 +9,12 @@ from openai import OpenAI
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from .config import settings
 
-_SCOPE = "https://cognitiveservices.azure.com/.default"
+_SCOPE = "https://ai.azure.com/.default"
 
 
 def openai_client() -> OpenAI:
     token_provider = get_bearer_token_provider(DefaultAzureCredential(), _SCOPE)
     return OpenAI(
-        base_url=f"{settings().azure_openai_endpoint}/openai/v1",
-        api_key=token_provider(),
+        base_url=f"{settings().require('AZURE_OPENAI_ENDPOINT')}/openai/v1",
+        api_key=token_provider,
     )

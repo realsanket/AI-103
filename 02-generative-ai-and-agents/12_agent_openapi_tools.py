@@ -5,16 +5,19 @@ Beginner note:
   into a callable tool. No glue code; the operation's `description` field is
   what the model reads to decide when to call which endpoint.
 
-  Backend = `azure_functions_orders/` (Azure Function). You must have it
-  running somewhere the agent can reach — either locally with `func start`
-  or deployed to Azure. Set `ORDERS_FN_ENDPOINT` in `.env` to that URL
-  (the URL alone, without `/api` — the spec appends the path). Examples:
-    Local:    ORDERS_FN_ENDPOINT=http://localhost:7071
-    Deployed: ORDERS_FN_ENDPOINT=https://fn-northwind-<yours>.azurewebsites.net
+  Backend = `azure_functions_orders/` (Azure Function). `func start` on
+  localhost lets you test the function with curl, but Foundry Agent Service
+  cannot call your laptop's localhost. Set `ORDERS_FN_ENDPOINT` to a deployed
+  backend reachable from Agent Service (without `/api`; this script appends it).
+
+  This sample uses anonymous authentication only because its static order data
+  is public demo data. Do not use anonymous authentication for production APIs:
+  configure API-key or managed-identity authentication in the OpenAPI tool.
 """
 import json
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from azure.ai.projects.models import OpenApiAnonymousAuthDetails, OpenApiTool, PromptAgentDefinition
 
@@ -31,9 +34,14 @@ def _load_spec_with_backend() -> dict:
     if not backend:
         raise SystemExit(
             "ORDERS_FN_ENDPOINT is not set in .env.\n"
-            "  Local:    cd 02-generative-ai-and-agents/azure_functions_orders && func start\n"
-            "            then set ORDERS_FN_ENDPOINT=http://localhost:7071 in .env\n"
-            "  Deployed: set ORDERS_FN_ENDPOINT=https://<your-func>.azurewebsites.net"
+            "  Test locally: cd 02-generative-ai-and-agents/azure_functions_orders && func start\n"
+            "                curl http://localhost:7071/api/orders\n"
+            "  Run this agent: set ORDERS_FN_ENDPOINT=https://<reachable-function-app>"
+        )
+    if urlparse(backend).hostname in {"localhost", "127.0.0.1", "::1"}:
+        raise SystemExit(
+            "ORDERS_FN_ENDPOINT points to localhost. It is useful for curl testing, "
+            "but Foundry Agent Service needs a reachable deployed backend."
         )
     spec = json.loads(SPEC_PATH.read_text())
     spec["servers"] = [{"url": f"{backend}/api"}]

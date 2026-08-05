@@ -2,9 +2,9 @@
 
 Beginner note:
   CU's `prebuilt-imageSearch` analyzer takes an image URL and returns
-  structured description/tags/objects — perfect for building a searchable
-  index over screenshots or product photos. Contrast with L01
-  (multimodal LLM): CU gives schematized output, the LLM gives free-form prose.
+  a Markdown representation and a `Summary` field. Contrast with L01
+  (multimodal LLM): CU gives a consistent analyzer result, the LLM gives
+  free-form prose.
 
   IMPORTANT: The CU service fetches the URL server-side. `file://` URLs
   won't work — you need a URL CU can reach (Blob SAS is the easiest).
@@ -36,9 +36,15 @@ def main() -> None:
     result = analyze("prebuilt-imageSearch", image_url)
     print("status:", result.get("status"))
     contents = result.get("result", {}).get("contents", [])
-    if contents:
-        print("\n--- Image Analysis Result ---")
-        print(contents[0])
+    if not contents:
+        return
+
+    content = contents[0]
+    print("\n--- Image Analysis Result ---")
+    print(content.get("markdown", ""))
+    summary = content.get("fields", {}).get("Summary", {}).get("valueString")
+    if summary:
+        print(f"\nSummary: {summary}")
 
 
 if __name__ == "__main__":

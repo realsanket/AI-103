@@ -12,7 +12,10 @@ _DOCS = [
 def main() -> None:
     client = language_client()
     response = client.detect_language(_DOCS)
-    for idx, doc in enumerate(r for r in response if not r.is_error):
+    for idx, doc in enumerate(response):
+        if doc.is_error:
+            print(f"--- Document {idx + 1} failed: {doc.error.code} ---")
+            continue
         primary = doc.primary_language
         print(f"--- Document {idx + 1}: \"{_DOCS[idx][:40]}...\" ---")
         print(f"  Language:   {primary.name} ({primary.iso6391_name})")

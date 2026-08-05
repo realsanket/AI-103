@@ -6,6 +6,6 @@ from .config import settings
 
 def project_client() -> AIProjectClient:
     return AIProjectClient(
-        endpoint=settings().project_endpoint,
+        endpoint=settings().require("PROJECT_ENDPOINT"),
         credential=DefaultAzureCredential()
     )

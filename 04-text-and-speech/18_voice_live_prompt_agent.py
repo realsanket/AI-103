@@ -1,8 +1,12 @@
-"""Voice Live for a Foundry Prompt Agent — bidirectional WebSocket session.
+"""Voice Live WebSocket protocol demo for a Foundry Prompt Agent.
 
 Beginner note:
-  Voice Live streams mic audio → agent → synthesized audio back, all in one
-  WebSocket connection. Preview API; the endpoint shape changed recently.
+  This lesson sends prerecorded PCM16 audio and logs response events. It does
+  not capture a microphone, decode response audio, or play audio through a
+  speaker; it is not an end-to-end voice client.
+
+  Voice Live streams audio → agent → synthesized audio in one WebSocket
+  connection. The endpoint shape changed recently.
   Current URL (verified in `ai-services/speech-service/voice-live-how-to.md`):
 
     wss://<resource>.services.ai.azure.com/voice-live/realtime?api-version=2026-04-10
@@ -18,6 +22,7 @@ Beginner note:
 import asyncio
 import base64
 import json
+import wave
 
 import websockets
 from azure.ai.projects.models import PromptAgentDefinition
@@ -48,6 +53,13 @@ def _ensure_agent(project) -> str:
     return agent.id
 
 
+def _read_pcm16_mono(audio_path) -> bytes:
+    with wave.open(str(audio_path), "rb") as audio:
+        if audio.getnchannels() != 1 or audio.getsampwidth() != 2 or audio.getframerate() != 16000:
+            raise ValueError("Voice Live demo input must be 16-kHz, mono, 16-bit PCM WAV.")
+        return audio.readframes(audio.getnframes())
+
+
 async def _run() -> None:
     project = project_client()
     agent_id = _ensure_agent(project)
@@ -66,10 +78,14 @@ async def _run() -> None:
     headers = {"Authorization": f"Bearer {token}"}
     print(f"connecting to: {url}")
 
-    audio_bytes = (SAMPLE_DATA / "audio" / "northwind_support_message.wav").read_bytes()
+    audio_bytes = _read_pcm16_mono(SAMPLE_DATA / "audio" / "northwind_support_message.wav")
     b64_audio = base64.b64encode(audio_bytes).decode("ascii")
 
-    async with websockets.connect(url, extra_headers=headers) as ws:
+    async with websockets.connect(url, additional_headers=headers) as ws:
+        await ws.send(json.dumps({
+            "type": "session.update",
+            "session": {"input_audio_sampling_rate": 16000},
+        }))
         await ws.send(json.dumps({
             "type": "input_audio_buffer.append",
             "audio": b64_audio,

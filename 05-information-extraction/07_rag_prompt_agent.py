@@ -1,15 +1,14 @@
-"""Create a Prompt Agent that answers strictly from AI Search results.
+"""Create prompt agent used by this domain's manual RAG lesson.
 
-Companion `08_rag_client_run.py` runs the retrieval + calls the agent with
-retrieved chunks stuffed into the prompt. (For the fully-managed alternative
-where the agent has AI Search attached as a *tool* — see the Foundry portal.)
+This agent has no Azure AI Search tool. `08_rag_client_run.py` retrieves
+chunks itself and supplies them in the prompt.
 """
 from azure.ai.projects.models import PromptAgentDefinition
 
 from _shared.config import settings
 from _shared.foundry_client import project_client
 
-AGENT_NAME = "northwind-support-rag-agent"
+AGENT_NAME = "northwind-manual-rag-agent"
 
 _SYSTEM_PROMPT = """
 You are a customer support assistant for Northwind Technology Services.

@@ -3,7 +3,7 @@
 Attach the MCP server URL as an mcp tool on the agent, then let the model
 decide which language tool (PII / NER / language-detect) to invoke per turn.
 """
-from azure.ai.projects.models import McpTool, PromptAgentDefinition
+from azure.ai.projects.models import MCPTool, PromptAgentDefinition
 
 from _shared.config import settings
 from _shared.foundry_client import project_client
@@ -13,7 +13,7 @@ AGENT_NAME = "northwind-language-mcp-agent"
 
 def main() -> None:
     project = project_client()
-    tool = McpTool(server_url=settings().language_mcp_url, server_label="azure_language")
+    tool = MCPTool(server_url=settings().language_mcp_url, server_label="azure_language")
 
     agent = project.agents.create_version(
         agent_name=AGENT_NAME,

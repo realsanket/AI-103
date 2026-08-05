@@ -1,0 +1,11 @@
+{
+  "name": "northwind-blob-datasource",
+  "description": "Blob container source for Domain 5 document ingestion.",
+  "type": "azureblob",
+  "credentials": {
+    "connectionString": "ResourceId=/subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${AZURE_RESOURCE_GROUP}/providers/Microsoft.Storage/storageAccounts/${STORAGE_ACCOUNT}/;"
+  },
+  "container": {
+    "name": "${STORAGE_CONTAINER}"
+  }
+}

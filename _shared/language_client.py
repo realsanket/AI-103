@@ -6,6 +6,6 @@ from .config import settings
 
 def language_client() -> TextAnalyticsClient:
     return TextAnalyticsClient(
-        endpoint=settings().language_endpoint,
+        endpoint=settings().require("LANGUAGE_ENDPOINT"),
         credential=DefaultAzureCredential(),
     )

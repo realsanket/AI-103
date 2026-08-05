@@ -3,7 +3,7 @@
 Beginner note:
   Uses `create_agent()` (the modern LangChain agent constructor) with two
   local `@tool`-decorated Python functions. Auth is keyless — `ChatOpenAI`
-  is pointed at the Foundry `openai/v1` endpoint with a bearer token from
+  is pointed at the Azure OpenAI-compatible `openai/v1` endpoint with a bearer token from
   `DefaultAzureCredential`, same shape as the plain OpenAI SDK.
 
   Use this pattern when you already have LangChain chains/tools you want
@@ -46,7 +46,7 @@ def main() -> None:
     s = settings()
     token_provider = get_bearer_token_provider(DefaultAzureCredential(), _SCOPE)
     model = ChatOpenAI(
-        base_url=f"{s.foundry_endpoint}/openai/v1",
+        base_url=f"{s.azure_openai_endpoint}/openai/v1",
         api_key=token_provider(),
         model=s.default_model,
     )

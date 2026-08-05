@@ -1,4 +1,4 @@
-# Run: uv run python 01-plan-and-manage/16_task_adherence.py
+# Run: uv run python 01-plan-and-manage/14_task_adherence.py
 """Task Adherence (preview) — detect misaligned agent tool plans.
 
 Content Safety API:

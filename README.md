@@ -1,237 +1,238 @@
-# AI-103 Prep Codebase
+# AI-103 runnable study repository
 
-Runnable code + notes for **Microsoft Certified: Azure AI Engineer — AI-103: Developing AI Apps and Agents on Azure**.
+Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md).
+It has **85 numbered Python lessons** across five domains. Lessons use
+Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many
+make billable remote calls or change persistent cloud state.
 
-## Layout
+Read [`docs/coverage.md`](docs/coverage.md) for an objective-by-objective,
+evidence-based map. A lesson existing here does not mean its Azure API,
+region, model, preview feature, or permission has been exercised in your
+subscription.
 
+## Repository map
+
+| Domain | Exam weight | Lessons | Start here |
+|---|---:|---:|---|
+| [01 Plan and manage](01-plan-and-manage/README.md) | 25–30% | 18 | `01_model_catalog_list.py`, `02_deployment_types.py` |
+| [02 Generative AI and agents](02-generative-ai-and-agents/README.md) | 30–35% | 22 | `01_first_api_call.py`, `07_structured_output.py` |
+| [03 Computer vision](03-computer-vision/README.md) | 10–15% | 9 | `01_multimodal_understanding.py`, `07_alt_text_captions.py` |
+| [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 20 | `05_language_pii.py`, `20_language_sentiment.py`, `11_stt_fast_file.py` |
+| [05 Information extraction](05-information-extraction/README.md) | 10–15% | 16 | `00_search_index_setup.py`, `03_search_hybrid_semantic.py` |
+
+Shared clients live in [`_shared/`](./_shared/); sample inputs live under
+`_shared/sample_data/`. `AI-103.md` is local study-guide source, `Slides.md`
+is extracted study material, and `.context/azure-ai-docs/` is local reference
+documentation. Domain READMEs are source of truth for individual prerequisites,
+preview status, input formats, and side effects.
+
+## Resource topology
+
+```text
+Microsoft Foundry resource
+├── https://<resource>.services.ai.azure.com
+│   ├── FOUNDRY_ENDPOINT: control-plane account name for D1 lessons 03 and 05
+│   ├── PROJECT_ENDPOINT: /api/projects/<project> for AIProjectClient
+│   ├── CU_ENDPOINT: Content Understanding REST
+│   └── VOICE_LIVE_ENDPOINT: wss://.../voice-live/realtime
+├── https://<resource>.openai.azure.com
+│   └── Azure OpenAI-compatible OpenAI client: Responses, images, embeddings,
+│       video, LangChain, and LangGraph
+└── https://<resource>.cognitiveservices.azure.com
+    └── Language, Speech, Content Safety, and their MCP URLs
+
+Separate resources
+├── Azure AI Search: https://<search>.search.windows.net
+└── Azure Blob Storage: source documents, Search ingestion, CU SAS inputs,
+    and batch Speech input
+
+Translator is different: shared helper calls
+https://api.cognitive.microsofttranslator.com directly with Entra auth.
 ```
-_shared/                    reusable clients + sample data (all lessons import this)
-01-plan-and-manage/         Domain 1 (25-30%)
-02-generative-ai-and-agents/Domain 2 (30-35%)
-03-computer-vision/         Domain 3 (10-15%)
-04-text-and-speech/         Domain 4 (10-15%)
-05-information-extraction/  Domain 5 (10-15%)
-docs/coverage.md            syllabus bullet → file matrix
-```
 
-Study material (unchanged):
+Do not exchange these endpoints:
 
-- `AI-103.md` — official exam objectives.
-- `Slides.md` — full slide notes (extracted from `Slides.pdf`).
-- `other-notes-link.md` — external resources.
-- `.context/azure-ai-docs/` — cloned official Azure docs, linked from every domain README.
+| Client or workload | Setting | Endpoint shape | Client in this repo |
+|---|---|---|---|
+| Azure OpenAI data plane | `AZURE_OPENAI_ENDPOINT` | `https://<resource>.openai.azure.com` | `_shared/openai_client.py` |
+| Foundry project, prompt agents | `PROJECT_ENDPOINT` | `https://<resource>.services.ai.azure.com/api/projects/<project>` | `_shared/foundry_client.py` |
+| Foundry account control plane helper | `FOUNDRY_ENDPOINT` | `https://<resource>.services.ai.azure.com` | D1 lessons 03, 05 |
+| Language, Speech, Content Safety | service endpoint settings | `https://<resource>.cognitiveservices.azure.com` | respective shared clients |
+| Content Understanding | `CU_ENDPOINT` | `https://<resource>.services.ai.azure.com` | `_shared/cu_client.py` |
+| AI Search | `SEARCH_ENDPOINT` | `https://<search>.search.windows.net` | `_shared/search_client.py` |
+
+`FOUNDRY_ENDPOINT` is not interchangeable with `PROJECT_ENDPOINT`; direct
+OpenAI code does not use either one. Deployment variables are deployment names,
+not model-family labels.
 
 ## Setup
 
-### Prerequisites
+### Install and authenticate
 
-| Tool | Install | Why |
-|------|---------|-----|
-| [uv](https://docs.astral.sh/uv/getting-started/installation/) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` | Package manager |
-| [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) | `brew install azure-cli` | `az login` for DefaultAzureCredential |
-| Python 3.12+ | managed by uv automatically | — |
-
-### 1. Install dependencies
+Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/), and
+[Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli).
 
 ```bash
 uv sync
-```
-
-Creates `.venv/` and installs all packages from `uv.lock`. No manual venv creation needed.
-
-**VS Code**: after `uv sync`, select the interpreter: `Cmd+Shift+P` → *Python: Select Interpreter* → pick `.venv/bin/python`.
-
-### 2. Create Azure resources
-
-**One Foundry resource handles most services.** Language, Speech, Content Safety, Content Understanding, and Translator are all "Foundry Tools" — part of the same resource. Three URL formats, same resource:
-
-```
-https://<resource>.services.ai.azure.com       → Foundry SDK / project / agent ops
-https://<resource>.openai.azure.com            → OpenAI Python SDK (Chat Completions, Responses API)
-https://<resource>.cognitiveservices.azure.com → Language / Speech / Content Safety / CU SDKs
-```
-
-| Resource | Portal path | Needed for |
-|----------|-------------|-----------|
-| **Microsoft Foundry resource** | [ai.azure.com](https://ai.azure.com) → New resource | Everything — D1–D4, all Language/Speech/Safety |
-| **Model deployments** | Foundry portal → Model catalog | Deploy `gpt-4.1-mini`, `gpt-image-1`, `text-embedding-3-large` |
-| **Azure AI Search** | Azure portal → Create AI Search | Domain 5 (separate resource, not part of Foundry) |
-| **Azure Blob Storage** | Azure portal → Create Storage Account | RAG ingestion + batch STT |
-
-Domains 1–3 + D4 Language/Speech: **Foundry resource only**. Add Search + Storage when you reach Domain 5.
-
-### 3. Configure `.env`
-
-```bash
 cp .env.example .env
-```
-
-Fill in values — **no secrets, only endpoints and names**. Auth is `az login`, not API keys.
-
-| Variable | Where to find it |
-|----------|-----------------|
-| `FOUNDRY_ENDPOINT` | Azure portal → Foundry resource → *Keys and Endpoint* → Endpoint (`.services.ai.azure.com`) |
-| `AZURE_OPENAI_ENDPOINT` | same resource — swap subdomain to `.openai.azure.com` (used by OpenAI Python SDK) |
-| `PROJECT_ENDPOINT` | Foundry portal → project → *Overview* → the `/api/projects/<name>` URL |
-| `DEFAULT_MODEL` | **deployment name** (not model name) of your chat deployment — e.g. `gpt-5-mini` |
-| `LANGUAGE_ENDPOINT` | same Foundry resource — use `.cognitiveservices.azure.com` subdomain |
-| `SPEECH_ENDPOINT` | same Foundry resource — use `.cognitiveservices.azure.com` subdomain |
-| `SPEECH_REGION` | e.g. `eastus` — only needed for batch transcription REST + LLM speech preview; not needed for `SpeechRecognizer` / `SpeechSynthesizer` |
-| `CONTENT_SAFETY_ENDPOINT` | same Foundry resource — use `.cognitiveservices.azure.com` subdomain |
-| `CU_ENDPOINT` | same Foundry resource — use `.services.ai.azure.com` subdomain |
-| `SEARCH_ENDPOINT` | Azure portal → AI Search resource → *Overview* → URL |
-| `STORAGE_ACCOUNT` | Azure portal → Storage Account → *Overview* → name |
-| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Azure portal → App Insights → *Overview* → Connection String (optional) |
-| `AZURE_SUBSCRIPTION_ID` | Azure portal → Subscriptions |
-| `AZURE_RESOURCE_GROUP` | Azure portal → Resource groups |
-
-### 4. Authenticate
-
-```bash
 az login
 ```
 
-`DefaultAzureCredential` picks this up automatically. All lessons use Entra bearer tokens — no API keys in any `.py` file.
+`DefaultAzureCredential` is used throughout. Locally it commonly obtains an
+Azure CLI token; deployed workloads can use managed identity. Credential-chain
+selection does not prove which credential succeeded.
 
-### 5. Run a lesson
+### Configure `.env`
+
+Start from [`.env.example`](.env.example). It contains endpoint/name
+placeholders and no keys. Do not commit `.env`, connection strings, Blob SAS
+URLs, or production data.
+
+| Group | Variables |
+|---|---|
+| Foundry and deployments | `FOUNDRY_ENDPOINT`, `AZURE_OPENAI_ENDPOINT`, `PROJECT_ENDPOINT`, `DEFAULT_MODEL`, `REASONING_MODEL`, `IMAGE_MODEL`, `VIDEO_MODEL`, `EMBEDDING_MODEL`, `MODEL_ROUTER_DEPLOYMENT` |
+| Language | `LANGUAGE_ENDPOINT`, `LANGUAGE_MCP_URL` |
+| Speech and Voice Live | `SPEECH_REGION`, `SPEECH_ENDPOINT`, `SPEECH_MCP_URL`, `VOICE_LIVE_ENDPOINT`, `CUSTOM_SPEECH_ENDPOINT_ID` |
+| Content Understanding | `CU_ENDPOINT`, `CU_API_VERSION` |
+| Content Safety | `CONTENT_SAFETY_ENDPOINT` |
+| Search | `SEARCH_ENDPOINT`, `SEARCH_INDEX`, `SEARCH_INDEX_VECTOR`, `SEARCH_INDEXER`, `SEARCH_SKILLSET` |
+| Storage | `STORAGE_ACCOUNT`, `STORAGE_CONTAINER`, `STORAGE_CONNECTION_STRING` |
+| Monitoring and RBAC | `APPLICATIONINSIGHTS_CONNECTION_STRING`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP` |
+| OpenAPI sample | `ORDERS_FN_ENDPOINT` |
+
+Template defaults currently include `gpt-4.1-mini`, `o4-mini`, `gpt-image-1`,
+`sora`, `text-embedding-3-large`, `model-router`, `northwind-docs`, and
+`northwind-docs-vector`. Replace model values with deployment names available
+to your resource. `settings()` treats placeholder values beginning with `<` as
+unset.
+
+Lesson-local environment inputs are deliberately not template defaults:
+
+| Lesson area | Additional value |
+|---|---|
+| CU image/video | `SAMPLE_IMAGE_URL`, `SAMPLE_VIDEO_URL`: reachable HTTPS or Blob SAS URL; never `file://` |
+| CU document lessons | `CU_READ_SOURCE_URL`, `CU_LAYOUT_SOURCE_URL`, `SAMPLE_INVOICE_URL`, `CU_SUPPORT_NOTICE_URL`, `CU_PRO_SOURCE_URLS`, `CU_MARKDOWN_SOURCE_URL` |
+| Batch STT | `BATCH_STT_CONTAINER_SAS`: container SAS with read and list permission |
+| OpenAPI agent | `ORDERS_FN_ENDPOINT`: deployed Function URL; Agent Service cannot call `localhost` |
+
+Set `CU_API_VERSION=2025-11-01` for standard CU lessons. Domain 5 lesson 13
+requires its documented preview value, `2025-05-01-preview`. `SPEECH_REGION`
+is needed by batch Speech REST and LLM Speech preview URLs; normal
+`SpeechConfig` uses `SPEECH_ENDPOINT`.
+
+### Minimal path versus full path
+
+| Path | Create/configure | Lessons unlocked |
+|---|---|---|
+| Local orientation | `uv sync`; no Azure resources | D1 lesson 02 and D5 lesson 06 execute locally. |
+| First live model call | `az login`, `AZURE_OPENAI_ENDPOINT`, `DEFAULT_MODEL` | D2 lesson 01; D3 lesson 01 and D4 L01–L03 use same OpenAI surface. |
+| Foundry project work | Add `PROJECT_ENDPOINT` and project access | D1 L01/L07/L16; D2 agents; D4 L09/L18; D5 prompt agent. |
+| Foundry tools | Add Language, Speech, Content Safety, and CU endpoints as needed | D1 safety, D3 CU/moderation, D4 Language/Speech. |
+| Full retrieval path | Add Search, Storage, embedding deployment, subscription/resource-group values, and managed-identity roles | D5 Search pipeline and manual RAG. |
+
+Do not set `STORAGE_CONNECTION_STRING` merely because it exists in the
+template: Search pipeline JSON uses managed identity and a storage resource-ID
+connection, not a stored storage key.
+
+## Authentication and RBAC
+
+Use least privilege at project/resource scope. Domain 1 documents these
+starting roles; exact assignments depend on your resource configuration.
+
+| Operation | Starting role | Scope |
+|---|---|---|
+| Project APIs, agents, pre-deployed model use | `Foundry User` | Project or Foundry resource |
+| Direct Azure OpenAI inference | `Cognitive Services OpenAI User` | Azure OpenAI resource |
+| Deployment changes | suitable control-plane role, such as `Cognitive Services Contributor` | Foundry resource |
+| Subscription quota read | `Cognitive Services Usages Reader` or `Reader` | Subscription |
+| Application Insights/manual telemetry read | `Log Analytics Reader` | telemetry resource |
+| Search ingestion identity reads Blob | `Storage Blob Data Reader` | storage account/container |
+| Search ingestion identity calls embeddings | `Cognitive Services OpenAI User` | Azure OpenAI/Foundry resource |
+
+For managed identity, enable or attach identity first and assign roles to its
+**principal object ID**, not client ID. D1 lesson 08 reads assignments by
+default; its mutation helper remains commented out.
+
+## Safe run sequence
+
+Run every command from repository root:
 
 ```bash
+uv run python 01-plan-and-manage/02_deployment_types.py
+uv run python 01-plan-and-manage/01_model_catalog_list.py
 uv run python 02-generative-ai-and-agents/01_first_api_call.py
 ```
 
-Or activate once and drop the `uv run` prefix:
+Then follow each domain README:
+
+1. Domain 1: learn deployment types, quota reads, identity, safety, and
+   telemetry before creating deployments or persistent blocklists.
+2. Domain 2: run Responses lessons 01–07; then agents 08–13; treat memory,
+   workflows, evaluators, and framework integrations as separately documented
+   phases.
+3. Domain 3: run local-image understanding/captions before image/video
+   generation or CU URL analysis.
+4. Domain 4: work through Language/Translator before Speech. Run new
+   `20_language_sentiment.py` after L07.
+5. Domain 5: provision index, skillset, then indexer (`--run`); wait for its
+   successful run before vector, hybrid, or manual-RAG queries.
+
+Examples:
 
 ```bash
-source .venv/bin/activate
-python 02-generative-ai-and-agents/01_first_api_call.py
+uv run python 04-text-and-speech/20_language_sentiment.py
+uv run python 05-information-extraction/00_search_index_setup.py
+uv run python 05-information-extraction/05_search_skillset.py
+uv run python 05-information-extraction/04_search_indexer_setup.py --run
 ```
 
-### Adding a package
+## Cross-domain chooser
+
+| Need | Choose | Do not confuse with |
+|---|---|---|
+| OpenAI-compatible Responses, image, embedding, or video call | Azure OpenAI endpoint | Foundry project endpoint |
+| Agent/project creation or versioning | Foundry `AIProjectClient` | OpenAI Responses client |
+| Managed vector retrieval in Foundry | D2 File Search | Azure AI Search indexer/skillset pipeline |
+| App-owned retrieved citations | D5 manual RAG | Agent autonomously querying a Search tool; this repo does not configure one |
+| Text translation at volume or glossary work | Translator REST | Speech Translation or LLM translation |
+| Spoken-language translation | `TranslationRecognizer` | Translator Text REST |
+| Standard entities/PII/sentiment | Azure AI Language | flexible LLM prompting |
+| Novel entities, tone-preserving translation, multi-task output | Responses model | compliance-grade PII redaction |
+| Single file / live audio / many files | Fast STT / real-time STT / batch STT | each other |
+| Document structure and fields | Content Understanding | Search enrichment/indexing |
+| Vector retrieval / hybrid / semantic ranking | Azure AI Search | File Search |
+| Content moderation | Content Safety | Prompt Shields, which targets prompt injection |
+| Prompt injection with document text | Prompt Shields document flow | content moderation |
+| Standard CU / Pro CU | individual extraction / multi-document reasoning preview | Pro mode accepts multiple document URLs |
+
+## Availability, cost, and mutation warnings
+
+| Area | What changes or costs |
+|---|---|
+| D1 L03 | Creates/updates deployment and allocates billable capacity. |
+| D1 L04, L06–L18 | Inference and Content Safety calls; L15 persists blocklist/items; L18 may export data to telemetry. |
+| D2 | Model/tool calls; agent versions, vector stores/files, memory stores/items, workflow assets, Functions, and telemetry can persist or bill. |
+| D3 | Remote calls throughout; L02–L05 overwrite generated files. Sora 2 and CU lessons have preview/availability constraints described in domain README. |
+| D4 | Remote calls throughout; batch STT uses Blob and Speech processing; L18 creates agent version and is protocol-only, not end-to-end voice playback. |
+| D5 | Index, datasource, skillset, indexer, CU analyzer, and agent lessons can update persistent resources; indexer runs invoke embeddings. |
+
+Preview examples include Foundry Memory, workflows, agent evaluators, Sora 2,
+Content Understanding, MAI-Transcribe, Language/Speech MCP, Voice Live, and
+several D1 guardrail features. Their availability changes independently of this
+repository. Use disposable study resources, short prompts, small sample files,
+and delete lab-created resources when finished.
+
+## Practical checks
+
+No external link checker is required. Validate local Python/JSON after editing:
 
 ```bash
-uv add <package>    # updates pyproject.toml + uv.lock
+python -m compileall -q 01-plan-and-manage 02-generative-ai-and-agents 03-computer-vision 04-text-and-speech 05-information-extraction _shared
+python -m json.tool 05-information-extraction/skillset_configs/index.json >/dev/null
+python -m json.tool 05-information-extraction/skillset_configs/data_source.json >/dev/null
+python -m json.tool 05-information-extraction/skillset_configs/skillset.json >/dev/null
+python -m json.tool 05-information-extraction/skillset_configs/indexer.json >/dev/null
 ```
 
-## Syllabus map
-
-| Domain | Weight | Folder |
-|---|---|---|
-| Plan and manage an Azure AI solution | 25-30% | [`01-plan-and-manage/`](01-plan-and-manage/README.md) |
-| Implement generative AI and agentic solutions | 30-35% | [`02-generative-ai-and-agents/`](02-generative-ai-and-agents/README.md) |
-| Implement computer vision solutions | 10-15% | [`03-computer-vision/`](03-computer-vision/README.md) |
-| Implement text analysis solutions | 10-15% | [`04-text-and-speech/`](04-text-and-speech/README.md) |
-| Implement information extraction solutions | 10-15% | [`05-information-extraction/`](05-information-extraction/README.md) |
-
-Each domain README maps every AI-103 syllabus bullet to a concrete file, links the relevant doc in `.context/azure-ai-docs/`, and shows the expected output.
-
-## Conventions
-
-- Folder names: `NN-kebab-case/`.
-- File names: `NN_snake_case.py` — always zero-padded prefix.
-- No hardcoded endpoints/keys in Python files. All config through `_shared/config.py` reading `.env`.
-- Every lesson file has a runnable `if __name__ == "__main__":` block.
-- Every non-trivial lesson prints something you can eyeball — a decision, a citation, a JSON blob, a moderation verdict.
-
----
-
-## The Azure AI Exam House
-
-```
-                    AI-103 Exam House
-                           │
- ┌─────────────────────────────────────────────────────────┐
- │                                                         │
- │  🏗️ Domain 1          🤖 Domain 2                       │
- │  Plan & Manage         GenAI & Agents                   │
- │  (25–30%)              (30–35%)  ← biggest domain       │
- │                                                         │
- │  👁️ Domain 3          📝 Domain 4                       │
- │  Computer Vision       Text + Speech                    │
- │  (10–15%)              (10–15%)                         │
- │                                                         │
- │  🔍 Domain 5                                            │
- │  Information Extraction                                 │
- │  (10–15%)                                               │
- └─────────────────────────────────────────────────────────┘
-```
-
-Memory: **Plan → Build Agents → See → Read/Hear → Extract**
-
----
-
-## Azure AI Service Families (what the code calls)
-
-| Service | Purpose | Entry point |
-|---------|---------|------------|
-| **Azure AI Language** | Understand text | `azure-ai-textanalytics` SDK |
-| **Azure AI Translator** | Translate text/docs | REST via `azure-ai-translation-text` |
-| **Azure AI Speech** | Voice ↔ Text | `azure-cognitiveservices-speech` SDK |
-| **Azure Content Understanding** | Multimodal extraction | REST (`/contentunderstanding/`) |
-| **Azure AI Search** | Search + RAG | `azure-search-documents` SDK |
-| **Azure AI Content Safety** | Moderate content | `azure-ai-contentsafety` SDK |
-| **Microsoft Foundry** | Orchestrate everything | `azure-ai-projects`, OpenAI SDK |
-
----
-
-## Cross-domain confusables
-
-| Confusable A | Confusable B | Key difference |
-|---|---|---|
-| **File Search** (tool) | **AI Search** (service) | File Search = managed blob in Foundry; AI Search = full indexer + skillset pipeline |
-| **Azure Content Understanding** | **Azure AI Document Intelligence** | CU = newer multimodal (docs/images/audio/video); Doc Intelligence = older forms extraction |
-| **Azure AI Translator** | **Azure AI Language** | Translator = change language; Language = understand text (NER/PII/sentiment) |
-| **Content Safety** | **Prompt Shields** | Content Safety = moderation (hate/violence/sexual); Prompt Shields = injection defense |
-| **Semantic Ranking** | **Vector Search** | Semantic re-ranks BM25 text results; vector uses embedding cosine similarity |
-| **CU Pro mode** | **CU Standard mode** | Pro = multi-doc cross-reasoning; Standard = single-item extraction |
-| **PTU** | **Global Standard** | PTU = provisioned throughput unit (reserved, no 429s); Global = pay-per-token, first new models |
-| **Managed Identity** | **Keyless auth** | Managed Identity = VM/App identity in Azure AD; keyless = using that identity to get a bearer token (they work together) |
-| **fast-transcription** | **real-time STT** | fast = file sync API; real-time = live audio stream via SDK |
-
----
-
-## Foundry Tools (services accessible via Foundry portal)
-
-The exam uses "Foundry Tools" to mean Azure AI services integrated into the Foundry portal:
-
-```
-Foundry Tools
-│
-├── Azure AI Translator
-├── Azure AI Language
-├── Azure AI Speech
-├── Azure AI Content Safety
-├── Azure Content Understanding
-└── Azure AI Search
-```
-
-When the exam says "using Foundry Tools" it means calling these services through a Foundry project endpoint.
-
----
-
-## Domain → lesson file pointer
-
-| Domain | Folder | Key files to run first |
-|--------|--------|----------------------|
-| 1 — Plan & Manage | `01-plan-and-manage/` | `07_managed_identity_agent.py`, `08_content_safety_filters.py` |
-| 2 — GenAI & Agents | `02-generative-ai-and-agents/` | `01_first_api_call.py`, `08_prompt_agent_create.py` |
-| 3 — Computer Vision | `03-computer-vision/` | `01_multimodal_understanding.py`, `02_image_generation.py` |
-| 4 — Text + Speech | `04-text-and-speech/` | `05_language_pii.py`, `11_stt_fast_file.py` |
-| 5 — Info Extraction | `05-information-extraction/` | `03_search_hybrid_semantic.py`, `11_cu_invoice.py` |
-
----
-
-## 30-second exam strategy
-
-When a question describes a scenario, ask in this order:
-
-```
-What is the INPUT?
-        ↓
-Text?         → Domain 4 (Language / Translator / LLM NLP)
-Voice?        → Domain 4 (Speech)
-Image?        → Domain 3 (Vision / CU / Content Safety)
-Video?        → Domain 3 (CU video / generation)
-Document?     → Domain 5 (CU / AI Search / Doc Intelligence)
-Agent/RAG?    → Domain 2 (Agents / Responses API / tools)
-Managing?     → Domain 1 (Deployment / security / monitoring)
-```
+Use `uv run python <lesson>` only after the lesson's domain README confirms
+its resource, role, endpoint, preview, and data-handling prerequisites.

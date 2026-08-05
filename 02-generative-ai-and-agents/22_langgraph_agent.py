@@ -25,10 +25,10 @@ def _clients() -> tuple[ChatOpenAI, OpenAIEmbeddings]:
     s = settings()
     token_provider = get_bearer_token_provider(DefaultAzureCredential(), _SCOPE)
     api_key = token_provider()
-    base_url = f"{s.foundry_endpoint}/openai/v1"
+    base_url = f"{s.azure_openai_endpoint}/openai/v1"
     return (
         ChatOpenAI(base_url=base_url, api_key=api_key, model=s.default_model),
-        OpenAIEmbeddings(base_url=base_url, api_key=api_key, model="text-embedding-3-small"),
+        OpenAIEmbeddings(base_url=base_url, api_key=api_key, model=s.embedding_model),
     )
 
 

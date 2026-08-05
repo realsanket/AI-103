@@ -1,23 +1,27 @@
-# Run: uv run python 01-plan-and-manage/13_rbac_role_policies.py
-"""RBAC role management for a Foundry resource.
+# Run: uv run python 01-plan-and-manage/08_rbac_role_policies.py
+"""List and optionally assign Foundry role assignments.
 
 Beginner note:
   Two independent permission planes in Azure:
     - Control plane = manage RESOURCES (Owner, Contributor, Reader).
     - Data plane    = USE the AI (call inference, build agents).
-  Owning a subscription gives you FULL control plane but ZERO data plane —
-  that's why fresh installs still hit `401 PermissionDenied` on inference.
+  Owner or Contributor commonly grants management actions, but doesn't by
+  itself grant every data-plane inference action.
 
-  Foundry has its own 5-role hierarchy for the data plane. The one you need
-  for local dev is `Foundry User` (developer role: build + call inference).
+  Project-scoped Foundry APIs use Foundry roles. `Foundry User` is normally
+  sufficient to build and call pre-deployed models in a project. Direct Azure
+  OpenAI resource APIs use Cognitive Services inference roles, such as
+  `Cognitive Services OpenAI User` for OpenAI-only access or `Cognitive
+  Services User` for broader resource capabilities.
 
 This file:
   - Lists current role assignments at your resource-group scope.
   - Has a commented `assign_role(...)` to grant Foundry User to a managed
     identity for keyless production workloads.
 
-Do NOT use for Foundry: `Cognitive Services OpenAI User` (wrong platform) or
-`Azure AI Developer` (Azure ML / Foundry hubs, not Foundry projects).
+Assign at smallest scope that meets need: agent, project, resource, resource
+group, then subscription. This sample lists a resource-group scope, so its
+output can include unrelated resources. It doesn't establish effective access.
 
 Prereqs in .env: AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP.
 """
@@ -27,9 +31,7 @@ from azure.mgmt.authorization import AuthorizationManagementClient
 from _shared.config import settings
 
 
-# Role definition IDs — stable across all Azure subscriptions
-# Foundry roles: use for Foundry resource/project scope
-# Search roles: use for AI Search resource scope
+# Role definition IDs are stable across Azure subscriptions.
 _ROLES = {
     "Foundry Agent Consumer": "eed3b665-ab3a-47b6-8f48-c9382fb1dad6",
     "Foundry User": "53ca6127-db72-4b80-b1b0-d745d6d5456d",
@@ -79,7 +81,7 @@ def main() -> None:
     credential = DefaultAzureCredential()
     auth_client = AuthorizationManagementClient(credential, s.azure_subscription_id)
 
-    # Scope = resource group (covers all AI resources inside it)
+    # Resource-group scope is broad; prefer the project/resource scope in production.
     scope = f"/subscriptions/{s.azure_subscription_id}/resourceGroups/{s.azure_resource_group}"
 
     list_assignments(auth_client, scope)
