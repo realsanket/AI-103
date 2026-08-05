@@ -1,6 +1,6 @@
 {
   "name": "${SEARCH_INDEXER}",
-  "description": "Blob-to-chunked-vector-index pipeline for Domain 5.",
+  "description": "Blob-to-chunked-vector-index pipeline. Search managed identity needs Blob Reader and OpenAI User roles.",
   "dataSourceName": "northwind-blob-datasource",
   "targetIndexName": "${SEARCH_INDEX_VECTOR}",
   "skillsetName": "${SEARCH_SKILLSET}",

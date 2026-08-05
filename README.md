@@ -1,7 +1,7 @@
 # AI-103 runnable study repository
 
 Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md).
-It has **112 numbered Python lessons** across five domains. Lessons use
+It has **117 numbered Python lessons** across five domains. Lessons use
 Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many
 make billable remote calls or change persistent cloud state.
 
@@ -18,7 +18,7 @@ subscription.
 | [02 Generative AI and agents](02-generative-ai-and-agents/README.md) | 30–35% | 30 | `01_first_api_call.py`, `23_mcp_tool_preflight.py`, `29_cloud_evaluation.py` |
 | [03 Computer vision](03-computer-vision/README.md) | 10–15% | 15 | `01_multimodal_understanding.py`, `10_reference_media_preflight.py`, `15_cu_visual_handoff.py` |
 | [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 25 | `05_language_pii.py`, `20_language_sentiment.py`, `21_speech_mcp_preflight.py`, `25_text_speech_governance_preflight.py` |
-| [05 Information extraction](05-information-extraction/README.md) | 10–15% | 16 | `00_search_index_setup.py`, `03_search_hybrid_semantic.py` |
+| [05 Information extraction](05-information-extraction/README.md) | 10–15% | 21 | `00_search_index_setup.py`, `03_search_hybrid_semantic.py`, `18_search_monitoring.py` |
 
 Shared clients live in [`_shared/`](./_shared/); sample inputs live under
 `_shared/sample_data/`. `AI-103.md` is local study-guide source, `Slides.md`
@@ -101,7 +101,7 @@ URLs, or production data.
 | Storage | `STORAGE_ACCOUNT`, `STORAGE_CONTAINER`, `STORAGE_CONNECTION_STRING` |
 | Monitoring and RBAC | `APPLICATIONINSIGHTS_CONNECTION_STRING`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP` |
 | Domain 1 advanced labs and D2 cloud evaluation | `DEPLOYMENT_NAME`, `DEPLOYMENT_MODEL_NAME`, `DEPLOYMENT_MODEL_VERSION`, `PROVENANCE_SOURCE_URL`, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, `AZURE_AI_MODEL_DEPLOYMENT_NAME` |
-| Domain 2 external-tool preflights | `NORTHWIND_MCP_ENDPOINT`, `NORTHWIND_MCP_CONNECTION`, `SEARCH_CONNECTION_NAME` |
+| Domain 2 external-tool preflights and D5 managed Search agent | `NORTHWIND_MCP_ENDPOINT`, `NORTHWIND_MCP_CONNECTION`, `SEARCH_CONNECTION_NAME` |
 | Domain 2 OpenAPI sample | `ORDERS_FN_ENDPOINT` |
 
 Template defaults currently include `gpt-4.1-mini`, `o4-mini`, `gpt-image-1`,
@@ -129,7 +129,7 @@ is needed by batch Speech REST and LLM Speech preview URLs; normal
 
 | Path | Create/configure | Lessons unlocked |
 |---|---|---|
-| Local orientation | `uv sync`; no Azure resources | D1 lesson 02 and D5 lesson 06 execute locally. |
+| Local orientation | `uv sync`; no Azure resources | D1 lesson 02, D5 lesson 06, and D5 lessons 16–20 preflights execute locally. |
 | First live model call | `az login`, `AZURE_OPENAI_ENDPOINT`, `DEFAULT_MODEL` | D2 lesson 01; D3 lesson 01 and D4 L01–L03 use same OpenAI surface. |
 | Foundry project work | Add `PROJECT_ENDPOINT` and project access | D1 L01/L07/L16; D2 agents; D4 L09/L18; D5 prompt agent. |
 | Foundry tools | Add Language, Speech, Content Safety, and CU endpoints as needed | D1 safety, D3 CU/moderation, D4 Language/Speech. |
@@ -184,7 +184,9 @@ Then follow each domain README:
    `20_language_sentiment.py` after L07. L21–L25 default to local
    preflights; use their remote flags only after their domain README checks.
 5. Domain 5: provision index, skillset, then indexer (`--run`); wait for its
-   successful run before vector, hybrid, or manual-RAG queries.
+   successful run before vector, hybrid, or manual-RAG queries. Lessons 16–20
+   default to local preflights; use their documented explicit flags for any
+   remote call.
 
 Examples:
 
@@ -193,6 +195,8 @@ uv run python 04-text-and-speech/20_language_sentiment.py
 uv run python 05-information-extraction/00_search_index_setup.py
 uv run python 05-information-extraction/05_search_skillset.py
 uv run python 05-information-extraction/04_search_indexer_setup.py --run
+uv run python 05-information-extraction/18_search_monitoring.py
+uv run python 05-information-extraction/20_managed_search_agent_tool.py
 uv run python 02-generative-ai-and-agents/23_mcp_tool_preflight.py
 uv run python 02-generative-ai-and-agents/26_hosted_agent_responses.py
 uv run python 02-generative-ai-and-agents/29_cloud_evaluation.py --dataset cases.jsonl
@@ -233,7 +237,7 @@ uv run python 02-generative-ai-and-agents/29_cloud_evaluation.py --dataset cases
 | D3 | L01–L09 contain remote-call paths; L02–L05 can overwrite generated files after successful responses. L10/L11/L15 are local preflights unless `--apply`; L12/L13 are local preflights unless `--run`; L14 is local only. These opt-in paths are not evidence of a successful live call. Sora 2, provenance, and CU availability remain service/region/version dependent. |
 | D4 L01–L20 | Remote-call paths; batch STT uses Blob and Speech processing. L18 creates then deletes an agent version and is protocol-only, not end-to-end voice playback. |
 | D4 L21–L25 | L21/L22/L23/L24 default to no-cloud-call preflights; `--run` lists Speech MCP tools (L21), sends reviewed text (L22), or streams Voice Live audio (L24). L23 `--apply` submits, inspects, or cancels a billable Document Translation batch with persistent Blob output. L25 reads local configuration only. These paths are not live-tested here. |
-| D5 | Index, datasource, skillset, indexer, CU analyzer, and agent lessons can update persistent resources; indexer runs invoke embeddings. |
+| D5 | L00–L05 and L07–L15 contain documented cloud-call or persistent-resource paths; L06 is local. Indexer runs invoke embeddings. L16–L20 default to local preflights: L16 `--apply` submits CU input; L17 `--apply` mutates Search (`--run` starts indexing); L18/L19 `--run` are read-only; L20 requires `--enable` plus `--apply` and/or `--run`. These paths are not evidence of a successful live operation. |
 
 Preview examples include Foundry Memory, workflows, agent evaluators, Sora 2,
 Content Understanding, MAI-Transcribe, Language/Speech MCP, Voice Live, and

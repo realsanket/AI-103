@@ -1,7 +1,8 @@
 """Pro-mode Content Understanding — create a cross-document review analyzer.
 
 Scenario: mortgage-package review. Compare borrower name/DOB across
-application form, pay stub, and bank statement — flag inconsistencies.
+application form, pay stub, and bank statement — flag inconsistencies. Pro
+mode accepts the comma-separated source URLs as one analyze request.
 """
 import os
 
@@ -25,8 +26,6 @@ _DEFINITION = {
 
 
 def main() -> None:
-    create_analyzer(ANALYZER_ID, _DEFINITION)
-
     source_urls = [
         url.strip()
         for url in os.environ.get("CU_PRO_SOURCE_URLS", "").split(",")
@@ -37,6 +36,7 @@ def main() -> None:
             "Set CU_PRO_SOURCE_URLS to comma-separated document Blob SAS URLs to analyze."
         )
         return
+    create_analyzer(ANALYZER_ID, _DEFINITION)
     result = analyze(ANALYZER_ID, source_urls)
     print(result.get("result", {}).get("contents", [{}])[0].get("fields"))
 

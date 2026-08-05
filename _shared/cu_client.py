@@ -4,6 +4,7 @@ CU is a REST-only surface at time of writing; keep this thin so lessons focus
 on the analyzer configuration, not the plumbing.
 """
 import time
+from collections.abc import Mapping
 from urllib.parse import parse_qs, urlsplit
 
 import httpx
@@ -51,6 +52,36 @@ def _operation_url(operation_url: str) -> str:
     return operation_url
 
 
+def _poll_delay(headers: object, default: float) -> float:
+    """Use a service-provided poll delay when it is a valid number."""
+    if isinstance(headers, Mapping):
+        try:
+            return max(0.0, float(headers.get("Retry-After", default)))
+        except (TypeError, ValueError):
+            pass
+    return default
+
+
+def _wait_for_terminal(
+    operation_url: str, *, poll_timeout: float, poll_interval: float
+) -> dict:
+    deadline = time.monotonic() + poll_timeout
+    while True:
+        poll = httpx.get(operation_url, headers=_headers(), timeout=30.0)
+        poll.raise_for_status()
+        body = poll.json()
+        status = str(body.get("status") or "").lower()
+        if status in _TERMINAL_STATUSES:
+            return body
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(
+                f"CU operation did not finish within {poll_timeout:g}s; "
+                f"last status: {status or 'unknown'}."
+            )
+        time.sleep(min(_poll_delay(poll.headers, poll_interval), remaining))
+
+
 def result_diagnostic(result: dict) -> str:
     """Return a useful terminal-status diagnostic without exposing request URLs."""
     error = result.get("error") or result.get("failureReason") or result.get("failure_reason")
@@ -64,6 +95,13 @@ def create_analyzer(analyzer_id: str, definition: dict) -> dict:
     url = f"{_base()}/analyzers/{analyzer_id}?api-version={s.cu_api_version}"
     r = httpx.put(url, headers=_headers(), json=definition, timeout=60.0)
     r.raise_for_status()
+    operation_url = r.headers.get("Operation-Location")
+    if operation_url:
+        return _wait_for_terminal(
+            _operation_url(operation_url),
+            poll_timeout=_POLL_TIMEOUT_SECONDS,
+            poll_interval=_POLL_INTERVAL_SECONDS,
+        )
     return r.json() if r.text else {}
 
 
@@ -78,35 +116,24 @@ def analyze(
     s = settings()
     if isinstance(source_urls, str):
         source_urls = [source_urls]
-    if len(source_urls) != 1:
-        raise ValueError("CU API version 2025-11-01 accepts exactly one source URL.")
-    source_url = validate_source_url(source_urls[0])
+    if not source_urls:
+        raise ValueError("CU analyze requires at least one source URL.")
+    source_urls = [validate_source_url(source_url) for source_url in source_urls]
     if poll_timeout <= 0 or poll_interval <= 0:
         raise ValueError("poll_timeout and poll_interval must be greater than zero.")
     submit = f"{_base()}/analyzers/{analyzer_id}:analyze?api-version={s.cu_api_version}"
     r = httpx.post(
         submit,
         headers=_headers(),
-        json={"inputs": [{"url": source_url}]},
+        json={"inputs": [{"url": source_url} for source_url in source_urls]},
         timeout=60.0,
     )
     r.raise_for_status()
     op_url = r.headers.get("Operation-Location")
     if not op_url:
         return r.json()
-    op_url = _operation_url(op_url)
-    deadline = time.monotonic() + poll_timeout
-    while True:
-        poll = httpx.get(op_url, headers=_headers(), timeout=30.0)
-        poll.raise_for_status()
-        body = poll.json()
-        status = str(body.get("status") or "").lower()
-        if status in _TERMINAL_STATUSES:
-            return body
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise TimeoutError(
-                f"CU analysis did not finish within {poll_timeout:g}s; "
-                f"last status: {status or 'unknown'}."
-            )
-        time.sleep(min(poll_interval, remaining))
+    return _wait_for_terminal(
+        _operation_url(op_url),
+        poll_timeout=poll_timeout,
+        poll_interval=poll_interval,
+    )

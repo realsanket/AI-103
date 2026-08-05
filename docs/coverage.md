@@ -155,23 +155,30 @@ None is evidence of a successful remote operation.
 
 ## 5. Implement information extraction solutions (10–15%)
 
+Domain 5 has **21** numbered lessons (`00`–`20`). L16–L20 default to
+**Preflight** and make no cloud call. Their explicit remote paths are
+**Opt-in** and have no successful live-operation evidence. L00–L05 and
+L07–L15 contain remote code paths; L06 is **Local**. This matrix does not
+claim any remote path was run successfully.
+
 ### Build retrieval and grounding pipelines
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
 | Ingest and index content, such as documents, images, audio, and video | D5 `00_search_index_setup.py`, `04_search_indexer_setup.py`, `05_search_skillset.py` | **Partial** — Blob document pipeline; images/audio/video are not indexed. D3/CU analyzes image/video without indexing them. |
 | Configure semantic search, hybrid search, and vector search for grounding | D5 `02_search_vector.py`, `03_search_hybrid_semantic.py` | **Runnable** |
-| Implement enrichment by using custom or built-in skills for text, images, and layout | D5 `05_search_skillset.py`, `06_search_custom_skill.py` | **Partial** — built-in split/embedding skillset is deployable; custom skill only runs local Web API contract and is not wired to a skillset; no image/layout enrichment. |
-| Configure RAG ingestion flow, including documents and using OCR | D5 Search pipeline plus `09_cu_prebuilt_read.py`, `10_cu_prebuilt_layout.py` | **Partial** — Search skillset splits extracted Blob text; CU performs OCR/layout separately and its output is not fed into indexer. |
-| Connect retrieval pipelines directly to workflows and agent tools | D5 `07_rag_prompt_agent.py`, `08_rag_client_run.py` | **Partial** — manual app-owned retrieval injects chunks into prompt; no retrieval workflow or managed Search agent tool. |
+| Implement enrichment by using custom or built-in skills for text, images, and layout | D5 `05_search_skillset.py`, `06_search_custom_skill.py`, `17_search_custom_skill_deploy.py` | **Runnable / Local / Preflight / Opt-in / Partial** — L05 has split/embedding code; L06 is local Web API contract; L17 only deploys/wires derived custom skillset after `--apply` (and starts it only with `--run`). No image/layout Search enrichment or live deployment is evidenced. |
+| Configure RAG ingestion flow, including documents and using OCR | D5 Search pipeline plus `09_cu_prebuilt_read.py`, `10_cu_prebuilt_layout.py`, `16_cu_multimodal_rag.py` | **Partial / Preflight / Opt-in** — Search splits extracted Blob text; CU OCR/layout is separate. L16 converts one CU result to bounded local records only with `--apply`, then does not index them. |
+| Connect retrieval pipelines directly to workflows and agent tools | D5 `07_rag_prompt_agent.py`, `08_rag_client_run.py`, `20_managed_search_agent_tool.py` | **Partial / Preflight / Opt-in** — L07/L08 are manual app-owned retrieval. L20 defaults to local preflight; `--enable` plus `--apply`/`--run` creates or invokes a managed Search agent, with no live-success evidence. No retrieval workflow is implemented. |
 
 ### Extract content from documents
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
-| Extract information by using multimodal pipelines that combine OCR, layout analysis, and field extraction | D5 `09_cu_prebuilt_read.py`, `10_cu_prebuilt_layout.py`, `11_cu_invoice.py`, `12_cu_custom_analyzer.py` | **Runnable** — each is a separate CU call; no single composed pipeline. |
-| Produce clean, grounded representations to use with agents and RAG by using Content Understanding | D5 `14_cu_markdown_for_rag.py`, `15_cu_content_agent.py` | **Partial** — reads/inspects markdown and sends invoice fields to model; does not index markdown. |
+| Extract information by using multimodal pipelines that combine OCR, layout analysis, and field extraction | D5 `09_cu_prebuilt_read.py`, `10_cu_prebuilt_layout.py`, `11_cu_invoice.py`, `12_cu_custom_analyzer.py`, `16_cu_multimodal_rag.py` | **Runnable / Preflight / Opt-in / Partial** — each is a separate CU path. L16 selects a media analyzer and emits bounded records only with `--apply`; no single composed OCR/layout/field pipeline or live result is evidenced. |
+| Produce clean, grounded representations to use with agents and RAG by using Content Understanding | D5 `14_cu_markdown_for_rag.py`, `15_cu_content_agent.py`, `16_cu_multimodal_rag.py` | **Partial / Preflight / Opt-in** — L14 inspects markdown, L15 sends invoice fields to a model, and L16 emits bounded records after explicit CU submission; none indexes Markdown/records. |
 | Implement analyzers for generating structured or markdown outputs for downstream reasoning by using Content Understanding | D5 `10_cu_prebuilt_layout.py`, `12_cu_custom_analyzer.py`, `13_cu_pro_mode.py` | **Runnable** — Pro mode is preview and requires compatible multi-input documents. |
+| Monitor data ingestion quality, index health, and relevance performance | D5 `18_search_monitoring.py`, `03_search_hybrid_semantic.py` | **Preflight / Opt-in / Partial** — L18 defaults to local configuration checks and `--run` reads one redacted indexer-status/document-count snapshot. It has no alerts, relevance evaluation, or live-success evidence. |
 
 ## Inventory summary
 
@@ -181,11 +188,12 @@ None is evidence of a successful remote operation.
 | 2 — Generative AI and agents | 30 | `01`–`30`; L23–L25 default to local preflights, L26–L28 are local hosted-agent assets, L29 is opt-in cloud evaluation, and L30 is local preflight. |
 | 3 — Computer vision | 15 | `01`–`15`; L10–L15 are preflight/local by default except explicit `--apply`/`--run` paths. |
 | 4 — Text and speech | 25 | `01`–`25`; L21–L22 and L24 default to local preflights and use `--run` for remote requests, L23 uses `--apply`, and L25 is local only. |
-| 5 — Information extraction | 16 | `00`–`15`; `00_search_index_setup.py` is included. |
-| **Total** | **112** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
+| 5 — Information extraction | 21 | `00`–`20`; `00_search_index_setup.py` is included. L16–L20 are default **Preflight** paths; remote work is explicit **Opt-in**. |
+| **Total** | **117** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
 
 Gaps and partial labels are intentional. They prevent a local study repository
 from claiming live implementation of hosted deployment, A2A, MCP, Toolbox,
 cloud evaluation, private networking, CI/CD, video editing, platform generation
 controls, managed Search agent tools, or other behavior that its default local
-commands do not perform.
+commands do not perform. D5 L20 is an opt-in implementation path, not a
+successful managed-Search-agent run.

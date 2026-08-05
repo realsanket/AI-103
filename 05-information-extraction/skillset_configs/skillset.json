@@ -33,6 +33,8 @@
       "resourceUri": "${AZURE_OPENAI_ENDPOINT}",
       "deploymentId": "${EMBEDDING_MODEL}",
       "modelName": "${EMBEDDING_MODEL}",
+      "dimensions": 3072,
+      "authIdentity": null,
       "inputs": [
         {
           "name": "text",

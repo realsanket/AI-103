@@ -7,7 +7,7 @@ from azure.identity import DefaultAzureCredential
 
 from _shared.config import settings
 
-_API_VERSION = "2025-09-01"
+_API_VERSION = "2026-04-01"
 _SCOPE = "https://search.azure.com/.default"
 
 
@@ -42,7 +42,7 @@ def put(resource: str, definition: dict) -> None:
         raise RuntimeError("Missing env var SEARCH_ENDPOINT.")
     token = DefaultAzureCredential().get_token(_SCOPE).token
     response = httpx.put(
-        f"{endpoint}/{resource}/{definition['name']}?api-version={_API_VERSION}",
+        f"{endpoint.rstrip('/')}/{resource}/{definition['name']}?api-version={_API_VERSION}",
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         json=definition,
         timeout=60.0,

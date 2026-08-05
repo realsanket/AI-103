@@ -82,12 +82,74 @@ class SharedRuntimeTests(unittest.TestCase):
             timeout=60.0,
         )
 
-    def test_cu_analyze_rejects_multiple_input_urls(self) -> None:
-        with self.assertRaisesRegex(ValueError, "exactly one"):
+    @patch("_shared.cu_client.httpx.post")
+    @patch("_shared.cu_client.DefaultAzureCredential")
+    def test_cu_analyze_sends_each_pro_mode_input(self, credential, post) -> None:
+        post.return_value = SimpleNamespace(
+            raise_for_status=lambda: None, headers={}, json=lambda: {"accepted": True}
+        )
+        credential.return_value.get_token.return_value.token = "token"
+        with patch.dict(
+            os.environ,
+            {"CU_ENDPOINT": "https://example.services.ai.azure.com"},
+            clear=True,
+        ):
             cu_client.analyze(
                 "mortgage-package-review",
                 ["https://example.test/application.pdf", "https://example.test/paystub.pdf"],
             )
+
+        self.assertEqual(
+            post.call_args.kwargs["json"],
+            {
+                "inputs": [
+                    {"url": "https://example.test/application.pdf"},
+                    {"url": "https://example.test/paystub.pdf"},
+                ]
+            },
+        )
+
+    @patch("_shared.cu_client.httpx.get")
+    @patch("_shared.cu_client.httpx.post")
+    @patch("_shared.cu_client.DefaultAzureCredential")
+    def test_cu_polling_honors_retry_after_without_cloud(
+        self, credential, post, get
+    ) -> None:
+        post.return_value = SimpleNamespace(
+            raise_for_status=lambda: None,
+            headers={
+                "Operation-Location": (
+                    "https://example.services.ai.azure.com/contentunderstanding/analyzerResults/id"
+                )
+            },
+        )
+        get.side_effect = [
+            SimpleNamespace(
+                raise_for_status=lambda: None,
+                headers={"Retry-After": "3"},
+                json=lambda: {"status": "running"},
+            ),
+            SimpleNamespace(
+                raise_for_status=lambda: None,
+                headers={},
+                json=lambda: {"status": "succeeded", "result": {}},
+            ),
+        ]
+        credential.return_value.get_token.return_value.token = "token"
+        with (
+            patch.dict(
+                os.environ,
+                {"CU_ENDPOINT": "https://example.services.ai.azure.com"},
+                clear=True,
+            ),
+            patch.object(cu_client.time, "sleep") as sleep,
+        ):
+            self.assertEqual(
+                cu_client.analyze("invoice", "https://example.test/invoice.pdf")["status"],
+                "succeeded",
+            )
+
+        sleep.assert_called_once_with(3.0)
 
     def test_cu_validates_https_and_complete_blob_sas_urls(self) -> None:
         with self.assertRaisesRegex(ValueError, "HTTPS"):
