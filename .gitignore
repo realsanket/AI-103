@@ -13,3 +13,7 @@ venv/
 _shared/sample_data/generated/*
 !_shared/sample_data/generated/.gitkeep
 local.settings.json
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan

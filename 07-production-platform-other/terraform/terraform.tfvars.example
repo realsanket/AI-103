@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars. Values are identifiers, not secrets.
+location             = "<primary-region>"
+resource_group_name  = "<production-resource-group>"
+prefix               = "<unique-production-prefix>"
+foundry_name         = "<globally-unique-foundry-name>"
+key_vault_name       = "<globally-unique-key-vault-name>"
+storage_account_name = "<globally-unique-storage-name>"
+
+# Keep false until nonproduction policy validation proves categories and scope.
+assign_connection_policy    = false
+allowed_connection_categories = []
+
+tags = {
+  application = "ai-103-lab"
+  cost-center = "<cost-center>"
+  owner       = "<team-alias>"
+}

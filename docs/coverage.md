@@ -1,7 +1,9 @@
 # AI-103 April 2026 coverage
 
 Source: [`AI-103.md`](../AI-103.md), “Skills measured as of April 16, 2026.”
-This matrix maps every bullet to code that exists now, not to planned work.
+This matrix maps every exam bullet to code that exists now, not to planned
+work. Supplemental Domains 6 and 8 are documented after the exam-objective
+matrix.
 
 **Labels**
 
@@ -34,10 +36,10 @@ This matrix maps every bullet to code that exists now, not to planned work.
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
-| Design Azure infrastructure for AI apps and agent-based solutions | Root README and domain READMEs describe topology, endpoints, roles, and resource paths | **Conceptual** — no infrastructure-as-code or provisioning workflow. |
+| Design Azure infrastructure for AI apps and agent-based solutions | D7 `07-production-platform-other`: current Bicep and Terraform regional-cell assets, VNet/private DNS/private endpoints, managed identity, Key Vault CMK, diagnostics, locks, policy, and explicit plan/apply wrappers | **Preflight / Opt-in** — assets are locally tested; Azure deployment and region capability remain subscription-dependent. |
 | Choose appropriate deployment options | D1 `02_deployment_types.py` | **Local** — prints documented comparison; does not query availability. |
 | Configure model and agent deployments | D1 `03_deploy_model.py`; D2 `08_prompt_agent_create.py` | **Runnable** — model lesson writes deployment; agent lesson creates version. |
-| Integrate Foundry projects with CI/CD pipelines | D1 README release workflow and official Bicep/Terraform/evaluation-pipeline references | **Conceptual / Partial** — teaches a production gate but does not ship a repository CI workflow. |
+| Integrate Foundry projects with CI/CD pipelines | D7 contained GitHub OIDC/self-hosted-private-runner workflow plus explicit Bicep `what-if`/Terraform `plan` and `--apply` gate | **Local / Preflight / Opt-in** — workflow is intentionally not active and requires OIDC, runner, state backend, and environment review. |
 
 ### Manage, monitor, and secure AI systems
 
@@ -46,7 +48,7 @@ This matrix maps every bullet to code that exists now, not to planned work.
 | Manage quotas, scaling, rate limits, and cost footprints for model and agent workloads | D1 `05_quotas_and_tpm.py`, `06_rate_limit_backoff.py`, deployment-type reference | **Partial** — quota inspection and retry only; no autoscaling or billing analysis. |
 | Monitor model performance, drift, safety events, and grounding quality | D1 `20_groundedness_detection.py`, `22_foundry_evaluation.py`, `23_continuous_evaluation.py`, `26_foundry_tracing_setup.py` | **Partial** — evaluation/continuous-rule/tracing paths exist; drift policy, alerts, and configured live service remain subscription-dependent. |
 | Monitor data ingestion quality, search index health, and relevance performance | D5 `04_search_indexer_setup.py` starts an indexer; D5 `03_search_hybrid_semantic.py` prints query results | **Partial** — no indexer-status, ingestion-quality, or relevance-evaluation monitor. |
-| Configure security, including managed identity, private networking, keyless credentials, and role policies | D1 `07_managed_identity_agent.py`, `08_rbac_role_policies.py`; shared keyless clients; D1 README private-network architecture guidance | **Partial** — private-network implementation remains conceptual. |
+| Configure security, including managed identity, private networking, keyless credentials, and role policies | D1 `07_managed_identity_agent.py`, `08_rbac_role_policies.py`; D7 private regional-cell IaC, user-assigned identity, disabled local auth/public access, private DNS/endpoints, CMK Key Vault role, and reviewed Policy asset | **Preflight / Opt-in / Partial** — local assets do not prove subscription RBAC, private DNS resolution, CMK support, or a successful deployment. |
 
 ### Implement responsible AI across generative AI and agentic systems
 
@@ -189,7 +191,9 @@ claim any remote path was run successfully.
 | 3 — Computer vision | 15 | `01`–`15`; L10–L15 are preflight/local by default except explicit `--apply`/`--run` paths. |
 | 4 — Text and speech | 25 | `01`–`25`; L21–L22 and L24 default to local preflights and use `--run` for remote requests, L23 uses `--apply`, and L25 is local only. |
 | 5 — Information extraction | 21 | `00`–`20`; `00_search_index_setup.py` is included. L16–L20 are default **Preflight** paths; remote work is explicit **Opt-in**. |
-| **Total** | **117** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
+| 6 — Model customization and delivery | 14 | Supplemental curriculum, `00`–`13`; local validation/preflight first, every cloud request requires `--apply`. |
+| 8 — Advanced agents and current Foundry operations | 6 | Supplemental curriculum, `01`–`06`; each lab defaults to preflight and requires `--apply` for a remote change. |
+| **Total** | **137** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
 
 Gaps and partial labels are intentional. They prevent a local study repository
 from claiming live implementation of hosted deployment, A2A, MCP, Toolbox,
@@ -197,3 +201,44 @@ cloud evaluation, private networking, CI/CD, video editing, platform generation
 controls, managed Search agent tools, or other behavior that its default local
 commands do not perform. D5 L20 is an opt-in implementation path, not a
 successful managed-Search-agent run.
+
+## Supplemental domain 6: model customization and delivery
+
+Domain 6 is not an additional AI-103 objective. It provides current,
+evidence-bounded labs for customization and delivery decisions that cut across
+the five exam domains.
+
+| Topic | Evidence | Status |
+|---|---|---|
+| SFT, DPO, and RFT dataset contracts | D6 `01_sft_dataset.py`, `02_dpo_dataset.py`, `03_rft_dataset_grader.py` | **Local** — validates JSONL/grader syntax; no upload or job. |
+| Distillation and synthetic-data review | D6 `04_distillation_dataset.py` | **Preflight / Opt-in** — default validates prompts; `--apply` calls teacher once per prompt and writes a new local candidate dataset. |
+| SFT, DPO, and RFT training | D6 `05_submit_training.py`, `06_training_monitor.py` | **Preflight / Opt-in** — `--apply` uploads/submits one job or reads one job; no live-success claim. |
+| Fine-tuned checkpoint deployment and evaluation | D6 `07_deploy_checkpoint.py`, `08_evaluate_candidate.py` | **Preflight / Opt-in** — deployment mutation and inference comparison require `--apply`. |
+| Batch, quota, PTU, Priority, Instant, router, and cost | D6 `09_batch_inference.py`–`13_cost_review.py` | **Local / Preflight / Opt-in** — cloud calls/mutations require `--apply`; cost calculator is local arithmetic only. |
+
+## Supplemental domain 7: production platform
+
+Domain 7 is not an additional AI-103 objective. It supplies a current,
+locally validated production-platform baseline; it does not claim an Azure
+deployment succeeded.
+
+| Topic | Evidence | Status |
+|---|---|---|
+| Bicep and Terraform Foundry regional cell | D7 `bicep/main.bicep`, `terraform/` | **Preflight / Opt-in** — alternatives create private, keyless `AIServices` account/project cells only after explicit apply. |
+| VNet, private endpoints, and private DNS | D7 regional-cell templates and offline tests | **Preflight / Opt-in** — assets include account, Key Vault, and Blob private paths; no subscription DNS/reachability proof. |
+| CMK, Key Vault RBAC, Policy, diagnostics, and locks | D7 templates and `policy/deny-unapproved-foundry-connections.json` | **Preflight / Opt-in** — CMK availability, roles, policy category selection, and diagnostic category availability remain tenant and region dependent. |
+| CI/CD, HA, and DR | D7 contained OIDC/self-hosted runner workflow and README runbook | **Local / Preflight** — no active workflow, traffic failover, agent-state migration, or live recovery drill is claimed. |
+
+## Supplemental domain 8: advanced agents and current Foundry operations
+
+Domain 8 is not an AI-103 objective. It provides bounded, current-platform
+practice for capabilities adjacent to agent delivery and operations.
+
+| Topic | Evidence | Status |
+|---|---|---|
+| Foundry IQ keyless connection | D8 `01_foundry_iq_connection_preflight.py` | **Preflight / Opt-in** — validates current MCP URL locally; `--apply` creates or updates a project connection. |
+| Toolbox version and endpoints | D8 `02_toolbox_publish_preflight.py` | **Preflight / Opt-in** — validates a credential-free manifest; `--apply` creates a Toolbox version. |
+| A2A v1.0 card and endpoint | D8 `03_a2a_agent_card_preflight.py` | **Preflight / Opt-in** — default prints endpoints; `--apply` patches one agent. |
+| Routines | D8 `04_routines_preflight.py` | **Preflight / Opt-in** — default validates local manifest; `--apply` creates and optionally dispatches a routine. |
+| Gateway, endpoint release, and channel distribution | D8 `05_gateway_publishing_preflight.py` | **Preflight / Opt-in / Partial** — `--apply` pins a stable endpoint; AI Gateway and M365/Teams distribution retain explicit portal steps. |
+| Agent Optimizer | D8 `06_agent_optimizer_preflight.py` | **Preflight / Opt-in** — checks hosted-agent assets; `--apply` starts a job or applies a reviewed candidate locally, never deploys. |

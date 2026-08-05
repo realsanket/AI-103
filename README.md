@@ -1,7 +1,9 @@
 # AI-103 runnable study repository
 
 Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md).
-It has **117 numbered Python lessons** across five domains. Lessons use
+It has **137 numbered Python lessons** across five exam domains plus two
+supplemental domains, and a production-platform IaC lab.
+Lessons use
 Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many
 make billable remote calls or change persistent cloud state.
 
@@ -19,6 +21,9 @@ subscription.
 | [03 Computer vision](03-computer-vision/README.md) | 10–15% | 15 | `01_multimodal_understanding.py`, `10_reference_media_preflight.py`, `15_cu_visual_handoff.py` |
 | [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 25 | `05_language_pii.py`, `20_language_sentiment.py`, `21_speech_mcp_preflight.py`, `25_text_speech_governance_preflight.py` |
 | [05 Information extraction](05-information-extraction/README.md) | 10–15% | 21 | `00_search_index_setup.py`, `03_search_hybrid_semantic.py`, `18_search_monitoring.py` |
+| [06 Model customization and delivery](06-model-customization-other/README.md) | Supplemental | 14 | `00_customization_preflight.py`, `05_submit_training.py`, `10_quota_ptu_preflight.py` |
+| [07 Production platform](07-production-platform-other/README.md) | Cross-domain | IaC lab | offline preflight, then Bicep or Terraform plan |
+| [08 Advanced agents and current Foundry operations](08-advanced-agents-other/README.md) | Supplemental | 6 | `01_foundry_iq_connection_preflight.py`, `03_a2a_agent_card_preflight.py`, `04_routines_preflight.py` |
 
 Shared clients live in [`_shared/`](./_shared/); sample inputs live under
 `_shared/sample_data/`. `AI-103.md` is local study-guide source, `Slides.md`
@@ -103,6 +108,7 @@ URLs, or production data.
 | Domain 1 advanced labs and D2 cloud evaluation | `DEPLOYMENT_NAME`, `DEPLOYMENT_MODEL_NAME`, `DEPLOYMENT_MODEL_VERSION`, `PROVENANCE_SOURCE_URL`, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, `AZURE_AI_MODEL_DEPLOYMENT_NAME` |
 | Domain 2 external-tool preflights and D5 managed Search agent | `NORTHWIND_MCP_ENDPOINT`, `NORTHWIND_MCP_CONNECTION`, `SEARCH_CONNECTION_NAME` |
 | Domain 2 OpenAPI sample | `ORDERS_FN_ENDPOINT` |
+| Domain 8 advanced Foundry-agent labs | `FOUNDRY_IQ_SEARCH_ENDPOINT`, `FOUNDRY_IQ_KNOWLEDGE_BASE`, `FOUNDRY_IQ_CONNECTION_NAME`, `FOUNDRY_TOOLBOX_NAME`, `FOUNDRY_AGENT_NAME` |
 
 Template defaults currently include `gpt-4.1-mini`, `o4-mini`, `gpt-image-1`,
 `sora`, `text-embedding-3-large`, `model-router`, `northwind-docs`, and
@@ -187,6 +193,15 @@ Then follow each domain README:
    successful run before vector, hybrid, or manual-RAG queries. Lessons 16–20
    default to local preflights; use their documented explicit flags for any
    remote call.
+6. Domain 6: run dataset and delivery preflights first. Every cloud action
+   requires `--apply`; validate data, baseline, model support, quota/capacity,
+   region, roles, retention, and cost before applying.
+7. Domain 8: run current Foundry-agent preflights before `--apply`. Confirm
+   feature availability, region, role assignments, gateway state, and cost;
+   these labs use current agent endpoints, never Agent Applications.
+7. Domain 7: run offline preflight, select Bicep or Terraform, then run
+   `what-if`/`plan`. Its explicit `--apply` gate follows networking, CMK,
+   policy, diagnostics, and DR review.
 
 Examples:
 
@@ -200,6 +215,10 @@ uv run python 05-information-extraction/20_managed_search_agent_tool.py
 uv run python 02-generative-ai-and-agents/23_mcp_tool_preflight.py
 uv run python 02-generative-ai-and-agents/26_hosted_agent_responses.py
 uv run python 02-generative-ai-and-agents/29_cloud_evaluation.py --dataset cases.jsonl
+uv run python 06-model-customization-other/00_customization_preflight.py
+uv run python 06-model-customization-other/10_quota_ptu_preflight.py
+uv run python 08-advanced-agents-other/01_foundry_iq_connection_preflight.py
+uv run python 08-advanced-agents-other/03_a2a_agent_card_preflight.py
 ```
 
 ## Cross-domain chooser
@@ -238,6 +257,9 @@ uv run python 02-generative-ai-and-agents/29_cloud_evaluation.py --dataset cases
 | D4 L01–L20 | Remote-call paths; batch STT uses Blob and Speech processing. L18 creates then deletes an agent version and is protocol-only, not end-to-end voice playback. |
 | D4 L21–L25 | L21/L22/L23/L24 default to no-cloud-call preflights; `--run` lists Speech MCP tools (L21), sends reviewed text (L22), or streams Voice Live audio (L24). L23 `--apply` submits, inspects, or cancels a billable Document Translation batch with persistent Blob output. L25 reads local configuration only. These paths are not live-tested here. |
 | D5 | L00–L05 and L07–L15 contain documented cloud-call or persistent-resource paths; L06 is local. Indexer runs invoke embeddings. L16–L20 default to local preflights: L16 `--apply` submits CU input; L17 `--apply` mutates Search (`--run` starts indexing); L18/L19 `--run` are read-only; L20 requires `--enable` plus `--apply` and/or `--run`. These paths are not evidence of a successful live operation. |
+| D6 | L00–L03 and L13 are local only. L04 creates teacher-generated local candidates only with `--apply`; L05 uploads data and submits a training job only with `--apply`; L06 reads a job only with `--apply`; L07 creates/updates a deployment only with `--apply`; L08, L11, and L12 make billable inference calls only with `--apply`; L09 uploads input and creates a Batch job only with `--apply`; L10 reads management-plane quota/deployments only with `--apply`. These paths are not evidence of a successful live operation. |
+| D7 | Offline preflight reads local IaC only. Bicep defaults to Azure `what-if`; Terraform defaults to `plan`. Each engine mutates Azure only with explicit `--apply`. The separate policy deployment can deny unapproved connections after nonproduction review. No live deployment, private connectivity, CMK, CI/CD, failover, or recovery success is claimed. |
+| D8 | All six labs default to local preflight. `--apply` can create a Foundry IQ connection or Toolbox, patch an A2A card or stable endpoint, create/dispatch a routine, or start/apply an Agent Optimizer candidate. These operations can persist cloud state or bill; no successful live operation is evidenced. M365/Teams distribution remains an explicit Foundry portal step. |
 
 Preview examples include Foundry Memory, workflows, agent evaluators, Sora 2,
 Content Understanding, MAI-Transcribe, Language/Speech MCP, Voice Live, and
@@ -250,11 +272,15 @@ and delete lab-created resources when finished.
 No external link checker is required. Validate local Python/JSON after editing:
 
 ```bash
-python -m compileall -q 01-plan-and-manage 02-generative-ai-and-agents 03-computer-vision 04-text-and-speech 05-information-extraction _shared
+python -m compileall -q 01-plan-and-manage 02-generative-ai-and-agents 03-computer-vision 04-text-and-speech 05-information-extraction 06-model-customization-other 08-advanced-agents-other _shared
 python -m json.tool 05-information-extraction/skillset_configs/index.json >/dev/null
 python -m json.tool 05-information-extraction/skillset_configs/data_source.json >/dev/null
 python -m json.tool 05-information-extraction/skillset_configs/skillset.json >/dev/null
 python -m json.tool 05-information-extraction/skillset_configs/indexer.json >/dev/null
+python 07-production-platform-other/scripts/preflight.py --engine bicep
+python 07-production-platform-other/scripts/preflight.py --engine terraform
+az bicep build --file 07-production-platform-other/bicep/main.bicep --stdout >/dev/null
+terraform -chdir=07-production-platform-other/terraform validate
 ```
 
 Use `uv run python <lesson>` only after the lesson's domain README confirms

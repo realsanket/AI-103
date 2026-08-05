@@ -1,0 +1,61 @@
+# Copy to .github/workflows/ only after creating Azure OIDC federated credentials.
+# Private Foundry endpoints require this runner to resolve the production private DNS zones.
+name: Production Foundry platform
+
+on:
+  workflow_dispatch:
+    inputs:
+      engine:
+        description: IaC engine
+        required: true
+        type: choice
+        default: bicep
+        options: [bicep, terraform]
+      apply:
+        description: Apply persistent Azure changes
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  platform:
+    runs-on: [self-hosted, foundry-vnet]
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      PLATFORM_RESOURCE_GROUP: ${{ vars.PLATFORM_RESOURCE_GROUP }}
+      PLATFORM_LOCATION: ${{ vars.PLATFORM_LOCATION }}
+      PLATFORM_PREFIX: ${{ vars.PLATFORM_PREFIX }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      - uses: hashicorp/setup-terraform@v3
+        if: inputs.engine == 'terraform'
+      - name: Offline preflight
+        run: python 07-production-platform-other/scripts/preflight.py --engine "${{ inputs.engine }}"
+      - name: Plan
+        if: inputs.apply == false
+        run: >-
+          python 07-production-platform-other/scripts/deploy.py
+          --engine "${{ inputs.engine }}"
+          --resource-group "$PLATFORM_RESOURCE_GROUP"
+          --location "$PLATFORM_LOCATION"
+          --prefix "$PLATFORM_PREFIX"
+      - name: Apply
+        if: inputs.apply == true
+        run: >-
+          python 07-production-platform-other/scripts/deploy.py
+          --engine "${{ inputs.engine }}"
+          --apply
+          --resource-group "$PLATFORM_RESOURCE_GROUP"
+          --location "$PLATFORM_LOCATION"
+          --prefix "$PLATFORM_PREFIX"

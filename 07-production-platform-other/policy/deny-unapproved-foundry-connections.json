@@ -1,0 +1,32 @@
+{
+  "mode": "All",
+  "parameters": {
+    "allowedCategories": {
+      "type": "Array",
+      "metadata": {
+        "displayName": "Allowed Foundry connection categories",
+        "description": "Connection categories approved by platform governance."
+      }
+    }
+  },
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "field": "type",
+          "in": [
+            "Microsoft.CognitiveServices/accounts/connections",
+            "Microsoft.CognitiveServices/accounts/projects/connections"
+          ]
+        },
+        {
+          "field": "Microsoft.CognitiveServices/accounts/connections/category",
+          "notIn": "[parameters('allowedCategories')]"
+        }
+      ]
+    },
+    "then": {
+      "effect": "Deny"
+    }
+  }
+}

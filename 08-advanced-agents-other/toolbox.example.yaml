@@ -1,0 +1,8 @@
+# Copy outside source control, replace the connection name, then pass --manifest.
+# Project connections own credentials. Do not put keys, tokens, or URLs with SAS
+# parameters in this file.
+description: Foundry IQ retrieval toolbox for a disposable lab environment.
+connections:
+  - name: <foundry-iq-project-connection-name>
+tools:
+  - type: toolbox_search

@@ -1,0 +1,14 @@
+# Copy outside source control, replace the agent name, then pass --manifest.
+# Keep secrets and personal data out of routine input. Use connections and
+# managed identities for all downstream access.
+description: Weekday support-summary lab routine.
+enabled: false
+triggers:
+  weekday-morning:
+    type: schedule
+    cron_expression: "0 7 * * 1-5"
+    time_zone: "UTC"
+action:
+  type: invoke_agent_responses_api
+  agent_name: <current-agent-name>
+  input: "Summarize approved support activity from the last 24 hours with citations."
