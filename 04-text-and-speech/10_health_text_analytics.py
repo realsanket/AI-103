@@ -12,7 +12,10 @@ def main() -> None:
     client = language_client()
     poller = client.begin_analyze_healthcare_entities(_CLINICAL, language="en")
     result = poller.result()
-    for doc in (r for r in result if not r.is_error):
+    for idx, doc in enumerate(result):
+        if doc.is_error:
+            print(f"--- Document {idx + 1} failed: {doc.error.code} ---")
+            continue
         print("--- Clinical entities ---")
         for e in doc.entities:
             print(f"  [{e.category}] '{e.text}'  conf={e.confidence_score:.2f}  norm={getattr(e, 'normalized_text', None)}")

@@ -9,6 +9,7 @@ import httpx
 from azure.identity import DefaultAzureCredential
 
 from _shared.config import SAMPLE_DATA, settings
+from _shared.speech_config import speech_region
 
 _SCOPE = "https://cognitiveservices.azure.com/.default"
 
@@ -16,7 +17,7 @@ _SCOPE = "https://cognitiveservices.azure.com/.default"
 def _endpoint_base() -> str:
     s = settings()
     # Fast STT lives on `<region>.stt.speech.microsoft.com` OR at the resource endpoint.
-    return s.speech_endpoint or f"https://{s.speech_region}.stt.speech.microsoft.com"
+    return s.speech_endpoint or f"https://{speech_region()}.stt.speech.microsoft.com"
 
 
 def transcribe(audio_path: Path, locale: str = "en-US") -> str:

@@ -1,7 +1,7 @@
 # AI-103 runnable study repository
 
 Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md).
-It has **107 numbered Python lessons** across five domains. Lessons use
+It has **112 numbered Python lessons** across five domains. Lessons use
 Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many
 make billable remote calls or change persistent cloud state.
 
@@ -17,7 +17,7 @@ subscription.
 | [01 Plan and manage](01-plan-and-manage/README.md) | 25–30% | 26 | `01_model_catalog_list.py`, `02_deployment_types.py` |
 | [02 Generative AI and agents](02-generative-ai-and-agents/README.md) | 30–35% | 30 | `01_first_api_call.py`, `23_mcp_tool_preflight.py`, `29_cloud_evaluation.py` |
 | [03 Computer vision](03-computer-vision/README.md) | 10–15% | 15 | `01_multimodal_understanding.py`, `10_reference_media_preflight.py`, `15_cu_visual_handoff.py` |
-| [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 20 | `05_language_pii.py`, `20_language_sentiment.py`, `11_stt_fast_file.py` |
+| [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 25 | `05_language_pii.py`, `20_language_sentiment.py`, `21_speech_mcp_preflight.py`, `25_text_speech_governance_preflight.py` |
 | [05 Information extraction](05-information-extraction/README.md) | 10–15% | 16 | `00_search_index_setup.py`, `03_search_hybrid_semantic.py` |
 
 Shared clients live in [`_shared/`](./_shared/); sample inputs live under
@@ -48,7 +48,8 @@ Separate resources
     and batch Speech input
 
 Translator is different: shared helper calls
-https://api.cognitive.microsofttranslator.com directly with Entra auth.
+https://api.cognitive.microsofttranslator.com directly with Entra auth and
+`TRANSLATOR_RESOURCE_ID` as `Ocp-Apim-ResourceId`.
 ```
 
 Do not exchange these endpoints:
@@ -92,7 +93,7 @@ URLs, or production data.
 | Group | Variables |
 |---|---|
 | Foundry and deployments | `FOUNDRY_ENDPOINT`, `AZURE_OPENAI_ENDPOINT`, `PROJECT_ENDPOINT`, `DEFAULT_MODEL`, `REASONING_MODEL`, `IMAGE_MODEL`, `VIDEO_MODEL`, `EMBEDDING_MODEL`, `MODEL_ROUTER_DEPLOYMENT` |
-| Language | `LANGUAGE_ENDPOINT`, `LANGUAGE_MCP_URL` |
+| Language and Translator | `LANGUAGE_ENDPOINT`, `LANGUAGE_MCP_URL`, `TRANSLATOR_RESOURCE_ID` |
 | Speech and Voice Live | `SPEECH_REGION`, `SPEECH_ENDPOINT`, `SPEECH_MCP_URL`, `VOICE_LIVE_ENDPOINT`, `CUSTOM_SPEECH_ENDPOINT_ID` |
 | Content Understanding | `CU_ENDPOINT`, `CU_API_VERSION` |
 | Content Safety | `CONTENT_SAFETY_ENDPOINT` |
@@ -116,6 +117,7 @@ Lesson-local environment inputs are deliberately not template defaults:
 | CU document lessons | `CU_READ_SOURCE_URL`, `CU_LAYOUT_SOURCE_URL`, `SAMPLE_INVOICE_URL`, `CU_SUPPORT_NOTICE_URL`, `CU_PRO_SOURCE_URLS`, `CU_MARKDOWN_SOURCE_URL` |
 | D3 hosted visual media | `SAMPLE_IMAGE_URL`, `SAMPLE_VIDEO_URL`: service-reachable HTTPS URL or short-lived read-only Blob SAS; never `file://` |
 | Batch STT | `BATCH_STT_CONTAINER_SAS`: container SAS with read and list permission |
+| Translator document batch | `TRANSLATOR_DOCUMENT_KEY`: runtime-only secret for D4 L23; use Key Vault/CI secret store, never `.env.example` or source |
 | OpenAPI agent | `ORDERS_FN_ENDPOINT`: deployed Function URL; Agent Service cannot call `localhost` |
 
 Set `CU_API_VERSION=2025-11-01` for standard CU lessons. Domain 5 lesson 13
@@ -178,8 +180,9 @@ Then follow each domain README:
 3. Domain 3: run L10, L12–L15 without `--apply`/`--run` first, then
    local-image understanding/captions before image/video generation or CU URL
    analysis.
-4. Domain 4: work through Language/Translator before Speech. Run new
-   `20_language_sentiment.py` after L07.
+4. Domain 4: work through Language/Translator before Speech. Run
+   `20_language_sentiment.py` after L07. L21–L25 default to local
+   preflights; use their remote flags only after their domain README checks.
 5. Domain 5: provision index, skillset, then indexer (`--run`); wait for its
    successful run before vector, hybrid, or manual-RAG queries.
 
@@ -228,7 +231,8 @@ uv run python 02-generative-ai-and-agents/29_cloud_evaluation.py --dataset cases
 | D2 L26–L28 | Local hosted-agent contract/A2A/CI-CD asset checks. Contained `deploy.py --apply` can provision or deploy hosted-agent resources; no deployment is performed by default. |
 | D2 L29–L30 | L29 default is local JSONL/lifecycle preview; `--apply` uploads an eval file, creates evaluation/run records, and invokes model/evaluators. L30 only reads local configuration. |
 | D3 | L01–L09 contain remote-call paths; L02–L05 can overwrite generated files after successful responses. L10/L11/L15 are local preflights unless `--apply`; L12/L13 are local preflights unless `--run`; L14 is local only. These opt-in paths are not evidence of a successful live call. Sora 2, provenance, and CU availability remain service/region/version dependent. |
-| D4 | Remote calls throughout; batch STT uses Blob and Speech processing; L18 creates agent version and is protocol-only, not end-to-end voice playback. |
+| D4 L01–L20 | Remote-call paths; batch STT uses Blob and Speech processing. L18 creates then deletes an agent version and is protocol-only, not end-to-end voice playback. |
+| D4 L21–L25 | L21/L22/L23/L24 default to no-cloud-call preflights; `--run` lists Speech MCP tools (L21), sends reviewed text (L22), or streams Voice Live audio (L24). L23 `--apply` submits, inspects, or cancels a billable Document Translation batch with persistent Blob output. L25 reads local configuration only. These paths are not live-tested here. |
 | D5 | Index, datasource, skillset, indexer, CU analyzer, and agent lessons can update persistent resources; indexer runs invoke embeddings. |
 
 Preview examples include Foundry Memory, workflows, agent evaluators, Sora 2,

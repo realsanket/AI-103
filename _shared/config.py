@@ -33,6 +33,7 @@ class Settings:
     # Language
     language_endpoint: str
     language_mcp_url: str
+    translator_resource_id: str
     # Speech
     speech_region: str
     speech_endpoint: str
@@ -91,6 +92,7 @@ def settings() -> Settings:
         search_skillset=_opt("SEARCH_SKILLSET", "northwind-skillset"),
         language_endpoint=_opt("LANGUAGE_ENDPOINT"),
         language_mcp_url=_opt("LANGUAGE_MCP_URL"),
+        translator_resource_id=_opt("TRANSLATOR_RESOURCE_ID"),
         speech_region=_opt("SPEECH_REGION", "eastus"),
         speech_endpoint=_opt("SPEECH_ENDPOINT"),
         speech_mcp_url=_opt("SPEECH_MCP_URL"),

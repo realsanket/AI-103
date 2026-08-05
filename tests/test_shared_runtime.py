@@ -105,16 +105,32 @@ class SharedRuntimeTests(unittest.TestCase):
             json=lambda: [{"translations": [{"to": "fr", "text": "Bonjour"}]}],
         )
         credential.return_value.get_token.return_value.token = "token"
-
-        self.assertEqual(
-            translator_client.translate("Hello", ["fr", "ja"]),
-            [{"translations": [{"to": "fr", "text": "Bonjour"}]}],
-        )
+        with patch.dict(
+            os.environ,
+            {
+                "TRANSLATOR_RESOURCE_ID": (
+                    "/subscriptions/sub/resourceGroups/rg/providers/"
+                    "Microsoft.CognitiveServices/accounts/translator"
+                )
+            },
+            clear=True,
+        ):
+            self.assertEqual(
+                translator_client.translate("Hello", ["fr", "ja"]),
+                [{"translations": [{"to": "fr", "text": "Bonjour"}]}],
+            )
 
         post.assert_called_once_with(
             "https://api.cognitive.microsofttranslator.com/translate",
             params=[("api-version", "3.0"), ("from", "en"), ("to", "fr"), ("to", "ja")],
-            headers={"Authorization": "Bearer token", "Content-Type": "application/json"},
+            headers={
+                "Authorization": "Bearer token",
+                "Ocp-Apim-ResourceId": (
+                    "/subscriptions/sub/resourceGroups/rg/providers/"
+                    "Microsoft.CognitiveServices/accounts/translator"
+                ),
+                "Content-Type": "application/json",
+            },
             json=[{"Text": "Hello"}],
             timeout=30.0,
         )

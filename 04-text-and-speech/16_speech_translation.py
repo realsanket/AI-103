@@ -2,7 +2,7 @@
 import azure.cognitiveservices.speech as speechsdk
 from azure.identity import DefaultAzureCredential
 
-from _shared.config import settings
+from _shared.speech_config import speech_region
 
 _SCOPE = "https://cognitiveservices.azure.com/.default"
 
@@ -10,7 +10,7 @@ _SCOPE = "https://cognitiveservices.azure.com/.default"
 def main() -> None:
     token = DefaultAzureCredential().get_token(_SCOPE).token
     cfg = speechsdk.translation.SpeechTranslationConfig(
-        auth_token=token, region=settings().speech_region
+        auth_token=token, region=speech_region()
     )
     cfg.speech_recognition_language = "en-US"
     cfg.add_target_language("fr")

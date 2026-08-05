@@ -22,6 +22,7 @@ Beginner note:
 import asyncio
 import base64
 import json
+import time
 import wave
 
 import websockets
@@ -29,9 +30,9 @@ from azure.ai.projects.models import PromptAgentDefinition
 from azure.identity import DefaultAzureCredential
 
 from _shared.config import SAMPLE_DATA, settings
-from _shared.foundry_client import project_client
+from _shared.foundry_client import active_agent_reference, project_client
 
-_SCOPE = "https://cognitiveservices.azure.com/.default"
+_SCOPE = "https://ai.azure.com/.default"
 
 AGENT_NAME = "northwind-voice-live-agent"
 
@@ -41,8 +42,8 @@ _INSTRUCTIONS = (
 )
 
 
-def _ensure_agent(project) -> str:
-    """Create the agent inline; return the agent id for the Voice Live URL."""
+def _ensure_agent(project):
+    """Create one agent version and wait until it can serve Voice Live."""
     agent = project.agents.create_version(
         agent_name=AGENT_NAME,
         definition=PromptAgentDefinition(
@@ -50,7 +51,18 @@ def _ensure_agent(project) -> str:
             instructions=_INSTRUCTIONS,
         ),
     )
-    return agent.id
+    deadline = time.monotonic() + 60
+    while True:
+        status = str(getattr(getattr(agent, "status", "active"), "value", getattr(agent, "status", "active"))).lower()
+        if status == "active":
+            active_agent_reference(agent)
+            return agent
+        if status in {"failed", "deleting", "deleted"}:
+            raise RuntimeError(f"Voice Live agent {agent.name!r} is {status!r}.")
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"Voice Live agent {agent.name!r} did not become active within 60 seconds.")
+        time.sleep(2)
+        agent = project.agents.get_version(agent.name, agent.version)
 
 
 def _read_pcm16_mono(audio_path) -> bytes:
@@ -62,17 +74,17 @@ def _read_pcm16_mono(audio_path) -> bytes:
 
 async def _run() -> None:
     project = project_client()
-    agent_id = _ensure_agent(project)
+    agent = _ensure_agent(project)
 
     # PROJECT_ENDPOINT ends with `/api/projects/<project-name>` — take the last segment
     s = settings()
-    project_name = s.project_endpoint.rstrip("/").split("/")[-1]
+    project_name = s.require("PROJECT_ENDPOINT").rstrip("/").split("/")[-1]
 
     token = DefaultAzureCredential().get_token(_SCOPE).token
     url = (
-        f"{s.voice_live_endpoint}"
+        f"{s.require('VOICE_LIVE_ENDPOINT').rstrip('/')}"
         f"?api-version=2026-04-10"
-        f"&agent_id={agent_id}"
+        f"&agent_id={agent.id}"
         f"&project_id={project_name}"
     )
     headers = {"Authorization": f"Bearer {token}"}
@@ -81,23 +93,26 @@ async def _run() -> None:
     audio_bytes = _read_pcm16_mono(SAMPLE_DATA / "audio" / "northwind_support_message.wav")
     b64_audio = base64.b64encode(audio_bytes).decode("ascii")
 
-    async with websockets.connect(url, additional_headers=headers) as ws:
-        await ws.send(json.dumps({
-            "type": "session.update",
-            "session": {"input_audio_sampling_rate": 16000},
-        }))
-        await ws.send(json.dumps({
-            "type": "input_audio_buffer.append",
-            "audio": b64_audio,
-        }))
-        await ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
-        await ws.send(json.dumps({"type": "response.create"}))
+    try:
+        async with websockets.connect(url, additional_headers=headers) as ws:
+            await ws.send(json.dumps({
+                "type": "session.update",
+                "session": {"input_audio_sampling_rate": 16000},
+            }))
+            await ws.send(json.dumps({
+                "type": "input_audio_buffer.append",
+                "audio": b64_audio,
+            }))
+            await ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
+            await ws.send(json.dumps({"type": "response.create"}))
 
-        async for msg in ws:
-            event = json.loads(msg)
-            print(event.get("type"), "→", str(event)[:160])
-            if event.get("type") == "response.done":
-                break
+            async for msg in ws:
+                event = json.loads(msg)
+                print(event.get("type"), "→", str(event)[:160])
+                if event.get("type") == "response.done":
+                    break
+    finally:
+        project.agents.delete_version(agent.name, agent.version)
 
 
 def main() -> None:

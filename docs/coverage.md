@@ -129,22 +129,28 @@ execution. A **Runnable** lesson can require configured Azure access; an
 
 ## 4. Implement text analysis solutions (10–15%)
 
+The D4 advanced lessons are deliberately bounded: L21 and L22 default to
+**Preflight** and require `--run` for remote discovery or reviewed-text
+translation; L23 requires `--apply` for a Document Translation operation;
+L24 requires `--run` for Voice Live; L25 is **Local** configuration review.
+None is evidence of a successful remote operation.
+
 ### Apply language model text analysis
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
 | Implement solutions to extract entities, topics, summaries, and structured JSON outputs by using generative prompting and Foundry Tools | D4 `01_llm_ner.py`; D2 `07_structured_output.py` | **Partial** — entities/topics and strict JSON; no dedicated summary lesson. |
 | Configure detection of sentiment, tone, safety issues, and sensitive content | D4 `02_llm_sentiment.py`, `05_language_pii.py`, `20_language_sentiment.py`; D1 `09_content_safety_filters.py` | **Runnable / Cross-domain** |
-| Build solutions that translate text by using Azure Translator in Foundry Tools or LLM-powered translation flows | D4 `03_llm_translation.py`, `04_translator_rest.py` | **Runnable** |
+| Build solutions that translate text by using Azure Translator in Foundry Tools or LLM-powered translation flows | D4 `03_llm_translation.py`, `04_translator_rest.py`, `22_translator_secure_config.py`, `23_translator_batch_operations.py` | **Runnable / Preflight / Opt-in / Partial** — L04 is Text Translation v3; L22 sends reviewed text only with `--run`; L23 submits, inspects, or cancels a Document Translation batch only with `--apply`. No remote operation is live-tested. |
 | Customize language model outputs for domain tasks, such as compliance summarization and domain extraction | D4 `01_llm_ner.py`, `10_health_text_analytics.py` | **Partial** — domain extraction; no compliance-summarization lesson. |
 
 ### Implement speech solutions
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
-| Implement workflows to convert speech to text and text to speech for agentic interactions | D4 `11_stt_fast_file.py`–`15_tts_ssml_hd.py` | **Partial** — STT/TTS calls exist, but no complete agentic turn joining them. |
-| Integrate speech as an agent modality, including custom speech models | D4 `18_voice_live_prompt_agent.py`, `19_custom_speech_model.py` | **Partial** — Voice Live demo sends prerecorded audio and logs events only. |
-| Enable multimodal reasoning from audio inputs | D4 `17_llm_speech_preview.py`, `18_voice_live_prompt_agent.py` | **Partial** — transcription and Voice Live protocol demo; no explicit audio-reasoning workflow. |
+| Implement workflows to convert speech to text and text to speech for agentic interactions | D4 `11_stt_fast_file.py`–`15_tts_ssml_hd.py`, `24_voice_live_audio_flow.py` | **Runnable / Preflight / Opt-in / Partial** — STT/TTS calls exist. L24 has a `--run` PCM file-to-file path, but no complete agentic turn, playback, or live-success evidence. |
+| Integrate speech as an agent modality, including custom speech models | D4 `18_voice_live_prompt_agent.py`, `19_custom_speech_model.py`, `21_speech_mcp_preflight.py`, `24_voice_live_audio_flow.py` | **Runnable / Preflight / Opt-in / Partial** — L18 sends prerecorded audio and logs events; L19 consumes an existing Custom Speech deployment; L21 lists tools only with `--run`; L24 writes raw PCM only with `--run`. No end-to-end voice client or successful remote run is evidenced. |
+| Enable multimodal reasoning from audio inputs | D4 `17_llm_speech_preview.py`, `18_voice_live_prompt_agent.py`, `24_voice_live_audio_flow.py` | **Runnable / Preflight / Opt-in / Partial** — transcription and Voice Live protocol/file flows exist, but no explicit audio-reasoning workflow or live-success evidence. |
 | Translate speech into other languages by using language models and Foundry Tools | D4 `16_speech_translation.py` | **Runnable** |
 
 ## 5. Implement information extraction solutions (10–15%)
@@ -174,9 +180,9 @@ execution. A **Runnable** lesson can require configured Azure access; an
 | 1 — Plan and manage | 26 | Sequence is `01`–`26`; advanced Content Safety is `19`–`21`, evaluations `22`–`25`, tracing setup `26`. |
 | 2 — Generative AI and agents | 30 | `01`–`30`; L23–L25 default to local preflights, L26–L28 are local hosted-agent assets, L29 is opt-in cloud evaluation, and L30 is local preflight. |
 | 3 — Computer vision | 15 | `01`–`15`; L10–L15 are preflight/local by default except explicit `--apply`/`--run` paths. |
-| 4 — Text and speech | 20 | `01`–`20`; `20_language_sentiment.py` is included. |
+| 4 — Text and speech | 25 | `01`–`25`; L21–L22 and L24 default to local preflights and use `--run` for remote requests, L23 uses `--apply`, and L25 is local only. |
 | 5 — Information extraction | 16 | `00`–`15`; `00_search_index_setup.py` is included. |
-| **Total** | **107** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
+| **Total** | **112** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
 
 Gaps and partial labels are intentional. They prevent a local study repository
 from claiming live implementation of hosted deployment, A2A, MCP, Toolbox,
