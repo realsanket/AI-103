@@ -1,7 +1,7 @@
 # AI-103 runnable study repository
 
 Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md).
-It has **143 numbered Python lessons** across five exam domains plus three
+It has **149 numbered Python lessons** across five exam domains, three
 supplemental domains, and a production-platform IaC lab.
 Lessons use
 Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many
@@ -22,9 +22,9 @@ subscription.
 | [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 25 | `05_language_pii.py`, `20_language_sentiment.py`, `21_speech_mcp_preflight.py`, `25_text_speech_governance_preflight.py` |
 | [05 Information extraction](05-information-extraction/README.md) | 10–15% | 21 | `00_search_index_setup.py`, `03_search_hybrid_semantic.py`, `18_search_monitoring.py` |
 | [06 Model customization and delivery](06-model-customization-other/README.md) | Supplemental | 14 | `00_customization_preflight.py`, `05_submit_training.py`, `10_quota_ptu_preflight.py` |
-| [07 Production platform](07-production-platform-other/README.md) | Cross-domain | IaC lab | offline preflight, then Bicep or Terraform plan |
+| [07 Production platform](07-production-platform-other/README.md) | Cross-domain | 6 | `01_bicep_preflight.py`, then local platform preflights |
 | [08 Advanced agents and current Foundry operations](08-advanced-agents-other/README.md) | Supplemental | 6 | `01_foundry_iq_connection_preflight.py`, `03_a2a_agent_card_preflight.py`, `04_routines_preflight.py` |
-| [09 Current AI services](09-current-ai-services-other/README.md) | Supplemental | 6 | `01_read_ocr.py`, `02_layout_markdown_tables.py`, `05_custom_neural_preflight.py` |
+| [09 Current Azure AI Document Intelligence](09-current-ai-services-other/README.md) | Supplemental | 6 | `01_read_ocr.py`, `02_layout_markdown_tables.py`, `05_custom_neural_preflight.py` |
 
 Shared clients live in [`_shared/`](./_shared/); sample inputs live under
 `_shared/sample_data/`. `AI-103.md` is local study-guide source, `Slides.md`
@@ -128,7 +128,7 @@ Lesson-local environment inputs are deliberately not template defaults:
 | CU document lessons | `CU_READ_SOURCE_URL`, `CU_LAYOUT_SOURCE_URL`, `SAMPLE_INVOICE_URL`, `CU_SUPPORT_NOTICE_URL`, `CU_PRO_SOURCE_URLS`, `CU_MARKDOWN_SOURCE_URL` |
 | D9 Document Intelligence document lessons | `DI_READ_SOURCE_URL`, `DI_LAYOUT_SOURCE_URL`, `DI_INVOICE_SOURCE_URL`, `DI_ID_SOURCE_URL`, `DI_TRAINING_CONTAINER_URL`: runtime-only HTTPS URLs that can contain a Blob SAS; never commit them. |
 | D3 hosted visual media | `SAMPLE_IMAGE_URL`, `SAMPLE_VIDEO_URL`: service-reachable HTTPS URL or short-lived read-only Blob SAS; never `file://` |
-| Batch STT | `BATCH_STT_CONTAINER_SAS`: container SAS with read and list permission |
+| Batch STT | `BATCH_STT_CONTAINER_SAS`: runtime-only container SAS with read and list permission; use shell, Key Vault, or CI secret store, never `.env.example` or source |
 | Translator document batch | `TRANSLATOR_DOCUMENT_KEY`: runtime-only secret for D4 L23; use Key Vault/CI secret store, never `.env.example` or source |
 | OpenAPI agent | `ORDERS_FN_ENDPOINT`: deployed Function URL; Agent Service cannot call `localhost` |
 

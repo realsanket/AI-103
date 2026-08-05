@@ -208,10 +208,11 @@ Steps 1–4 come from Domain 1. Steps 5–8 are Domain 4 additions.
    in your operating system. L18 doesn't use your microphone.
 8. **For L13 (Batch STT)** — create a Blob *container* SAS with **read**
    and **list** permissions for only the input container. Set
-   `BATCH_STT_CONTAINER_SAS` only in your shell or uncommitted `.env`; make
-   its expiry outlast the batch job, then revoke or let it expire. A SAS is a
-   bearer secret: do not commit it, put it in command history, print it, or
-   attach it to support tickets.
+   `BATCH_STT_CONTAINER_SAS` only through your shell, Key Vault, or CI secret
+   store; never add it to `.env.example` or source. Make its expiry outlast
+   the batch job, then revoke or let it expire. A SAS is a bearer secret: do
+   not commit it, put it in command history, print it, or attach it to support
+   tickets.
 9. **For L19 (Custom Speech)** — train + deploy a model in Speech Studio, paste the endpoint GUID.
 10. **For L23 (Document Translation)** — use separate short-lived HTTPS Blob
     SAS URLs: source requires `r` and `l`, target requires `w` and `l`, and every target
@@ -1153,8 +1154,9 @@ print("Listening — press Ctrl+C to stop.")
 
 **You'll learn:** submit many audio files at once via the async Speech REST
 endpoint; poll until done; list and download each transcription JSON file.
-**Prereqs:** `SPEECH_REGION` in `.env`; `BATCH_STT_CONTAINER_SAS` set to a
-Blob container SAS with read and list permissions.
+**Prereqs:** `SPEECH_REGION` in `.env`; runtime-only
+`BATCH_STT_CONTAINER_SAS` set to a Blob container SAS with read and list
+permissions.
 **Time:** ~30 min (batch runs in the background, region-serial).
 
 **Concept:** Three steps:

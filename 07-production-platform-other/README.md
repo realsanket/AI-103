@@ -10,6 +10,37 @@ The lab is intentionally a platform baseline, not an application deployment.
 Bring model deployments, agents, Standard Agent Service capability hosts, data
 schemas, and workload-specific RBAC only after this baseline passes review.
 
+## Numbered local entrypoints
+
+Each numbered entrypoint reads repository assets only and ends with `No cloud
+calls made.` It accepts no secrets. Only Bicep, Terraform, and policy support
+`--apply`; that explicit flag invokes persistent Azure changes. CI/CD,
+diagnostics, and HA/DR remain reviewed local guidance.
+
+| Lab | Asset | Default |
+|---|---|---|
+| `01_bicep_preflight.py` | Bicep cell | Local asset and control validation |
+| `02_terraform_preflight.py` | Terraform cell | Local asset and control validation |
+| `03_policy_preflight.py` | Policy definition and assignment | Local Deny-policy validation |
+| `04_cicd_preflight.py` | Reference GitHub Actions workflow | Local OIDC/manual-apply validation |
+| `05_diagnostics_preflight.py` | Bicep and Terraform diagnostics | Local category validation |
+| `06_ha_dr_preflight.py` | HA/DR operating guidance | Local regional-recovery validation |
+
+```bash
+python 07-production-platform-other/01_bicep_preflight.py
+python 07-production-platform-other/02_terraform_preflight.py
+python 07-production-platform-other/03_policy_preflight.py
+python 07-production-platform-other/04_cicd_preflight.py
+python 07-production-platform-other/05_diagnostics_preflight.py
+python 07-production-platform-other/06_ha_dr_preflight.py
+```
+
+For a reviewed Bicep deployment, `--apply` still requires
+`--resource-group`, `--location`, and `--prefix`. Policy also requires an
+explicit `--allowed-category`; Terraform reads its uncommitted local
+`terraform.tfvars`. Run `scripts/deploy.py` without `--apply` for its
+cloud-read-only Bicep what-if or Terraform plan.
+
 ## What deploys
 
 ```text
