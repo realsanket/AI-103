@@ -13,16 +13,26 @@ Beginner note:
   This sample uses anonymous authentication only because its static order data
   is public demo data. Do not use anonymous authentication for production APIs:
   configure API-key or managed-identity authentication in the OpenAPI tool.
+
+  Treat OpenAPI descriptions and responses as untrusted. Use least-privilege
+  RBAC, validate arguments server-side, and review DPA, data residency,
+  retention, observability, region, and model/API costs. Delete lab agent
+  versions when done.
 """
 import json
 import os
 from pathlib import Path
 from urllib.parse import urlparse
 
-from azure.ai.projects.models import OpenApiAnonymousAuthDetails, OpenApiTool, PromptAgentDefinition
+from azure.ai.projects.models import (
+    OpenApiAnonymousAuthDetails,
+    OpenApiFunctionDefinition,
+    OpenApiTool,
+    PromptAgentDefinition,
+)
 
 from _shared.config import settings
-from _shared.foundry_client import project_client
+from _shared.foundry_client import active_agent_reference, project_client
 
 AGENT_NAME = "northwind-orders-agent"
 SPEC_PATH = Path(__file__).parent / "azure_functions_orders" / "northwind_spec.json"
@@ -36,9 +46,15 @@ def _load_spec_with_backend() -> dict:
             "ORDERS_FN_ENDPOINT is not set in .env.\n"
             "  Test locally: cd 02-generative-ai-and-agents/azure_functions_orders && func start\n"
             "                curl http://localhost:7071/api/orders\n"
-            "  Run this agent: set ORDERS_FN_ENDPOINT=https://<reachable-function-app>"
+            "  Run this agent: set ORDERS_FN_ENDPOINT=https://<reachable-function-app> (without /api)"
         )
-    if urlparse(backend).hostname in {"localhost", "127.0.0.1", "::1"}:
+    parsed = urlparse(backend)
+    if parsed.scheme != "https" or not parsed.netloc or parsed.path not in {"", "/"}:
+        raise SystemExit(
+            "ORDERS_FN_ENDPOINT must be a reachable HTTPS origin without a path or /api suffix, "
+            "for example https://<function-app>.azurewebsites.net."
+        )
+    if parsed.hostname in {"localhost", "127.0.0.1", "::1"}:
         raise SystemExit(
             "ORDERS_FN_ENDPOINT points to localhost. It is useful for curl testing, "
             "but Foundry Agent Service needs a reachable deployed backend."
@@ -51,10 +67,12 @@ def _load_spec_with_backend() -> dict:
 def main() -> None:
     spec = _load_spec_with_backend()
     tool = OpenApiTool(
-        name="northwind_orders",
-        spec=spec,
-        description="Read Northwind customer orders.",
-        auth=OpenApiAnonymousAuthDetails(),
+        openapi=OpenApiFunctionDefinition(
+            name="northwind_orders",
+            spec=spec,
+            description="Read Northwind customer orders.",
+            auth=OpenApiAnonymousAuthDetails(),
+        )
     )
     client = project_client()
     agent = client.agents.create_version(
@@ -72,17 +90,11 @@ def main() -> None:
     print(f"Agent {agent.name} v{agent.version} created — tools discovered from OpenAPI spec.")
 
     openai = client.get_openai_client()
-    r = openai.responses.create(
+    response = openai.responses.create(
         input="What is the status of order 1002?",
-        extra_body={
-            "agent_reference": {
-                "type": "agent_reference",
-                "name": agent.name,
-                "version": agent.version,
-            }
-        },
+        extra_body={"agent_reference": active_agent_reference(agent)},
     )
-    print(r.output_text)
+    print(response.output_text)
 
 
 if __name__ == "__main__":

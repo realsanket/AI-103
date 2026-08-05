@@ -11,7 +11,7 @@ Beginner note:
 from azure.ai.projects.models import PromptAgentDefinition
 
 from _shared.config import settings
-from _shared.foundry_client import project_client
+from _shared.foundry_client import active_agent_reference, project_client
 
 AGENT_NAME = "northwind-support-agent-conv"
 
@@ -21,24 +21,21 @@ _INSTRUCTIONS = (
 )
 
 
-def _ref() -> dict:
-    return {"type": "agent_reference", "name": AGENT_NAME}
-
-
-def _ensure_agent(project) -> None:
-    """Create-or-update the agent — safe to run every time; version bumps."""
-    project.agents.create_version(
+def _ensure_agent(project) -> dict[str, str]:
+    """Create a versioned lesson agent and return its pinned active reference."""
+    agent = project.agents.create_version(
         agent_name=AGENT_NAME,
         definition=PromptAgentDefinition(
             model=settings().default_model,
             instructions=_INSTRUCTIONS,
         ),
     )
+    return active_agent_reference(agent)
 
 
 def main() -> None:
     project = project_client()
-    _ensure_agent(project)
+    reference = _ensure_agent(project)
 
     openai = project.get_openai_client()
 
@@ -48,14 +45,14 @@ def main() -> None:
     first = openai.responses.create(
         conversation=sara.id,
         input="My order #4521 is late.",
-        extra_body={"agent_reference": _ref()},
+        extra_body={"agent_reference": reference},
     )
     print("\nturn 1:", first.output_text)
 
     followup = openai.responses.create(
         conversation=sara.id,
         input="Any update on it?",  # relies on server-side history to know which order
-        extra_body={"agent_reference": _ref()},
+        extra_body={"agent_reference": reference},
     )
     print("\nturn 2:", followup.output_text)
 

@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: domain2-responses-hosted-agent
+
+requiredVersions:
+  extensions:
+    azure.ai.agents: ">=1.0.0-beta.4"
+
+services:
+  foundry-project:
+    host: azure.ai.project
+    endpoint: ${FOUNDRY_PROJECT_ENDPOINT}
+
+  domain2-responses-agent:
+    host: azure.ai.agent
+    project: .
+    language: python
+    uses:
+      - foundry-project
+    kind: hosted
+    name: domain2-responses-agent
+    description: Domain 2 Responses protocol hosted-agent sample.
+    startupCommand: python main.py
+    codeConfiguration:
+      runtime: python_3_13
+      entryPoint:
+        - python
+        - main.py
+      dependencyResolution: remote_build
+    protocols:
+      - protocol: responses
+        version: 2.0.0
+    env:
+      FOUNDRY_MODEL_NAME: ${FOUNDRY_MODEL_NAME}
+    container:
+      resources:
+        cpu: "0.5"
+        memory: 1Gi

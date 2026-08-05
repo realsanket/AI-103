@@ -1,0 +1,47 @@
+# Copy to .github/workflows/ only after configuring GitHub OIDC and an existing azd environment.
+name: Domain 2 hosted-agent CI/CD reference
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "02-generative-ai-and-agents/hosted_agent_responses/**"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AGENT_PROJECT_DIR: 02-generative-ai-and-agents/hosted_agent_responses
+  AZD_ENV_NAME: hosted-agent-ci
+  AGENT_TEST_PROMPT: "Reply with: hosted agent smoke test passed."
+
+jobs:
+  deploy-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Azure/setup-azd@v2
+      - run: |
+          azd ext install azure.ai.agents
+          azd ai agent --help
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Configure azd environment
+        working-directory: ${{ env.AGENT_PROJECT_DIR }}
+        run: |
+          azd config set auth.useAzCliAuth true
+          azd env new "$AZD_ENV_NAME" --no-prompt
+          azd env set FOUNDRY_PROJECT_ENDPOINT "${{ vars.FOUNDRY_PROJECT_ENDPOINT }}"
+          azd env set FOUNDRY_MODEL_NAME "${{ vars.FOUNDRY_MODEL_NAME }}"
+      - name: Preflight and deploy
+        working-directory: ${{ env.AGENT_PROJECT_DIR }}
+        run: |
+          python preflight.py
+          python deploy.py --apply
+      - name: Smoke test
+        working-directory: ${{ env.AGENT_PROJECT_DIR }}
+        run: azd ai agent invoke "$AGENT_TEST_PROMPT" --no-prompt

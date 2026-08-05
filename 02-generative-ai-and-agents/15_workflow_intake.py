@@ -15,7 +15,7 @@ from pathlib import Path
 from azure.ai.projects.models import PromptAgentDefinition
 
 from _shared.config import settings
-from _shared.foundry_client import project_client
+from _shared.foundry_client import active_agent_reference, project_client
 
 AGENT_NAME = "wf-IntakeAgent"
 SCHEMA_FILE = Path(__file__).parent / "workflows" / "wf_intake_schema.json"
@@ -40,7 +40,7 @@ def main() -> None:
             ),
         ),
     )
-    ref = {"type": "agent_reference", "name": agent.name, "version": agent.version}
+    ref = active_agent_reference(agent)
     openai = project.get_openai_client()
     r = openai.responses.create(
         input=_SAMPLE_TICKET,

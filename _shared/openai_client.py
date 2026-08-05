@@ -12,9 +12,13 @@ from .config import settings
 _SCOPE = "https://ai.azure.com/.default"
 
 
+def azure_openai_token_provider():
+    """Return a callable that obtains a fresh Entra token for Azure OpenAI."""
+    return get_bearer_token_provider(DefaultAzureCredential(), _SCOPE)
+
+
 def openai_client() -> OpenAI:
-    token_provider = get_bearer_token_provider(DefaultAzureCredential(), _SCOPE)
     return OpenAI(
         base_url=f"{settings().require('AZURE_OPENAI_ENDPOINT')}/openai/v1",
-        api_key=token_provider,
+        api_key=azure_openai_token_provider(),
     )

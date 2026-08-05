@@ -7,9 +7,10 @@ model decides which specialist to invoke per turn — no hardcoded routing.
 import json
 
 from azure.ai.projects.models import FunctionTool, PromptAgentDefinition
+from openai import APIConnectionError, APIStatusError, APITimeoutError
 
 from _shared.config import settings
-from _shared.foundry_client import project_client
+from _shared.foundry_client import active_agent_reference, project_client
 
 ROUTER = "northwind-router"
 BILLING = "northwind-billing-specialist"
@@ -17,21 +18,25 @@ TECHNICAL = "northwind-tech-specialist"
 MAX_TOOL_ROUNDS = 8
 
 
-def _ensure_specialists(project) -> None:
-    project.agents.create_version(
+def _ensure_specialists(project) -> dict[str, dict[str, str]]:
+    billing = project.agents.create_version(
         agent_name=BILLING,
         definition=PromptAgentDefinition(
             model=settings().default_model,
             instructions="You are a Northwind billing specialist. Answer billing / refund questions only.",
         ),
     )
-    project.agents.create_version(
+    technical = project.agents.create_version(
         agent_name=TECHNICAL,
         definition=PromptAgentDefinition(
             model=settings().default_model,
             instructions="You are a Northwind technical specialist. Answer product / troubleshooting questions only.",
         ),
     )
+    return {
+        "ask_billing_specialist": active_agent_reference(billing),
+        "ask_tech_specialist": active_agent_reference(technical),
+    }
 
 
 def _router_tools() -> list[FunctionTool]:
@@ -49,20 +54,23 @@ def _router_tools() -> list[FunctionTool]:
     ]
 
 
-def _delegate(project, target_agent: str, question: str) -> str:
+def _delegate(project, target: dict[str, str], question: str) -> str:
     openai = project.get_openai_client()
     try:
-        r = openai.responses.create(
-            extra_body={"agent_reference": {"type": "agent_reference", "name": target_agent}},
+        response = openai.responses.create(
+            extra_body={"agent_reference": target},
             input=question,
         )
-        return r.output_text
-    except Exception as exc:
-        return json.dumps({"error": f"Specialist request failed: {exc}"})
+    except (APIConnectionError, APITimeoutError):
+        return json.dumps({"error": "Specialist is temporarily unavailable. Try again."})
+    except APIStatusError as exc:
+        return json.dumps({"error": f"Specialist request failed with status {exc.status_code}."})
+    return response.output_text
 
 
-def _run_router_tool(project, name: str, arguments_json: str) -> str:
-    targets = {"ask_billing_specialist": BILLING, "ask_tech_specialist": TECHNICAL}
+def _run_router_tool(
+    project, name: str, arguments_json: str, targets: dict[str, dict[str, str]]
+) -> str:
     target = targets.get(name)
     if target is None:
         return json.dumps({"error": f"Unknown router tool: {name}"})
@@ -80,7 +88,7 @@ def _run_router_tool(project, name: str, arguments_json: str) -> str:
 
 def main() -> None:
     project = project_client()
-    _ensure_specialists(project)
+    specialist_references = _ensure_specialists(project)
 
     router = project.agents.create_version(
         agent_name=ROUTER,
@@ -93,7 +101,7 @@ def main() -> None:
             tools=_router_tools(),
         ),
     )
-    ref = {"type": "agent_reference", "name": router.name, "version": router.version}
+    ref = active_agent_reference(router)
     openai = project.get_openai_client()
     conv = openai.conversations.create()
 
@@ -112,7 +120,9 @@ def main() -> None:
                     {
                         "type": "function_call_output",
                         "call_id": item.call_id,
-                        "output": _run_router_tool(project, item.name, item.arguments),
+                        "output": _run_router_tool(
+                            project, item.name, item.arguments, specialist_references
+                        ),
                     }
                 )
         if not tool_outputs:

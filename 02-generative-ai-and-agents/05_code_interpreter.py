@@ -2,6 +2,12 @@
 
 Prints both the code the model wrote and the answer that came back — so you can
 see the difference between "described the math" and "did the math".
+
+Treat generated code and its output as untrusted until reviewed. An isolated
+container doesn't approve sensitive-data use: confirm DPA, retention, region,
+access controls, and container/model costs before uploading data. Delete
+containers and uploaded files created by a real lab when they're no longer
+needed.
 """
 from _shared.openai_client import openai_client
 from _shared.config import settings

@@ -4,10 +4,12 @@ Shows LangGraph's core primitives: `StateGraph`, `MessagesState`, nodes,
 conditional edges. RAG uses a local FAISS index over the Northwind policy
 PDFs in `_shared/sample_data/northwind_policies/`.
 
-Not production RAG — for production, index in Azure AI Search (see Domain 5).
-This lesson is about the *graph orchestration* pattern.
+Not production RAG — FAISS is local, in-memory, rebuilt from sample PDFs on
+each run, and has no service RBAC, network boundary, or operational index
+lifecycle. For production, use Azure AI Search (see Domain 5), with managed
+indexing, RBAC, private networking, and retention controls. This lesson is
+about the *graph orchestration* pattern.
 """
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from langchain.tools import tool
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
@@ -17,15 +19,13 @@ from langgraph.graph import END, MessagesState, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from _shared.config import SAMPLE_DATA, settings
-
-_SCOPE = "https://cognitiveservices.azure.com/.default"
+from _shared.openai_client import azure_openai_token_provider
 
 
 def _clients() -> tuple[ChatOpenAI, OpenAIEmbeddings]:
     s = settings()
-    token_provider = get_bearer_token_provider(DefaultAzureCredential(), _SCOPE)
-    api_key = token_provider()
-    base_url = f"{s.azure_openai_endpoint}/openai/v1"
+    api_key = azure_openai_token_provider()
+    base_url = f"{s.require('AZURE_OPENAI_ENDPOINT')}/openai/v1"
     return (
         ChatOpenAI(base_url=base_url, api_key=api_key, model=s.default_model),
         OpenAIEmbeddings(base_url=base_url, api_key=api_key, model=s.embedding_model),

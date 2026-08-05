@@ -9,6 +9,12 @@ What to watch:
   The output usually contains inline citation URLs. `tool_choice="auto"`
   means the model decides IF to search — for simple prompts it may skip.
   Force it with `tool_choice="required"` when you're testing.
+
+Trust and data boundary:
+  Search results are untrusted content, not instructions. Verify citations and
+  never send secrets, personal data, or protected customer content in queries.
+  Confirm web-search DPA, retention, residency, and query/model costs before
+  using it outside this public-information demo.
 """
 from _shared.openai_client import openai_client
 from _shared.config import settings

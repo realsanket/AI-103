@@ -18,7 +18,7 @@ from azure.ai.projects.models import (
 )
 
 from _shared.config import settings
-from _shared.foundry_client import project_client
+from _shared.foundry_client import active_agent_reference, project_client
 
 AGENT_NAME = "northwind-support-with-memory"
 MEMORY_STORE_NAME = "northwind-support-memory"
@@ -70,7 +70,7 @@ def main() -> None:
     )
     openai = project.get_openai_client()
     headers = {"x-memory-user-id": USER_ID}
-    reference = {"type": "agent_reference", "name": agent.name, "version": agent.version}
+    reference = active_agent_reference(agent)
 
     first = openai.responses.create(
         conversation=openai.conversations.create().id,

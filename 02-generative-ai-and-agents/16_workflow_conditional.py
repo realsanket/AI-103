@@ -1,4 +1,4 @@
-"""Foundry workflow preview — deploy the conditional-routing YAML.
+"""Foundry workflow preview — create a conditional-routing YAML version.
 
 Microsoft Foundry retires workflows on December 1, 2026. Use this lesson to
 study the existing preview artifact, then move new orchestration to Microsoft
@@ -18,7 +18,7 @@ Beginner note:
     1. Creates the two "leaf" agents (Knowledge + Ticket) inline so the
        workflow deploy doesn't reference missing agents.
     2. Verifies wf-IntakeAgent exists (created by L15 — you must run L15 first).
-    3. Uploads/updates the workflow itself.
+    3. Creates a workflow version. It does not deploy a hosted runtime.
 
   While the preview remains available, test it in the Foundry portal → Agents
   playground → wf-Triage.
@@ -28,7 +28,7 @@ from pathlib import Path
 from azure.ai.projects.models import PromptAgentDefinition
 
 from _shared.config import settings
-from _shared.foundry_client import project_client
+from _shared.foundry_client import active_agent_reference, project_client
 
 WORKFLOW_NAME = "wf-Triage"
 WORKFLOW_FILE = Path(__file__).parent / "workflows" / "wf_triage.yml"
@@ -40,7 +40,7 @@ TICKET = "wf-TicketAgent"
 
 def _ensure_leaf_agents(project) -> None:
     """Create Knowledge + Ticket agents referenced by the workflow YAML."""
-    project.agents.create_version(
+    knowledge = project.agents.create_version(
         agent_name=KNOWLEDGE,
         definition=PromptAgentDefinition(
             model=settings().default_model,
@@ -51,7 +51,7 @@ def _ensure_leaf_agents(project) -> None:
             ),
         ),
     )
-    project.agents.create_version(
+    ticket = project.agents.create_version(
         agent_name=TICKET,
         definition=PromptAgentDefinition(
             model=settings().default_model,
@@ -62,6 +62,8 @@ def _ensure_leaf_agents(project) -> None:
             ),
         ),
     )
+    active_agent_reference(knowledge)
+    active_agent_reference(ticket)
 
 
 def _verify_intake_exists(project) -> None:
@@ -86,7 +88,8 @@ def main() -> None:
         agent_name=WORKFLOW_NAME,
         definition={"kind": "workflow", "definition": yaml_text},
     )
-    print(f"Workflow {workflow.name} v{workflow.version} deployed.")
+    active_agent_reference(workflow)
+    print(f"Workflow {workflow.name} v{workflow.version} version created.")
     print("Preview only: test in the Foundry portal → Agents playground → wf-Triage.")
 
 

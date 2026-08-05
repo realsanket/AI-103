@@ -4,24 +4,24 @@ Beginner note:
   Uses `create_agent()` (the modern LangChain agent constructor) with two
   local `@tool`-decorated Python functions. Auth is keyless — `ChatOpenAI`
   is pointed at the Azure OpenAI-compatible `openai/v1` endpoint with a bearer token from
-  `DefaultAzureCredential`, same shape as the plain OpenAI SDK.
+  `DefaultAzureCredential`, same shape as the plain OpenAI SDK. The callable
+  token provider is passed to LangChain, so it obtains renewed tokens per request.
 
   Use this pattern when you already have LangChain chains/tools you want
   to reuse. For a graph-shaped agent with conditional edges and stateful
-  routing, see L22 (LangGraph).
+  routing, see L22 (LangGraph). Evaluate a complete agent conversation locally
+  in L19, then use an approved dataset for a persistent cloud run in L29.
 
 What to watch:
   The final assistant message answers both sub-questions (order + inventory)
   after the model has invoked both tools.
 """
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from langchain.agents import create_agent
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
 
 from _shared.config import settings
-
-_SCOPE = "https://cognitiveservices.azure.com/.default"
+from _shared.openai_client import azure_openai_token_provider
 
 
 @tool
@@ -44,10 +44,9 @@ def get_inventory(product_id: str) -> str:
 
 def main() -> None:
     s = settings()
-    token_provider = get_bearer_token_provider(DefaultAzureCredential(), _SCOPE)
     model = ChatOpenAI(
-        base_url=f"{s.azure_openai_endpoint}/openai/v1",
-        api_key=token_provider(),
+        base_url=f"{s.require('AZURE_OPENAI_ENDPOINT')}/openai/v1",
+        api_key=azure_openai_token_provider(),
         model=s.default_model,
     )
     agent = create_agent(

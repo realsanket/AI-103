@@ -1,7 +1,7 @@
 # AI-103 runnable study repository
 
 Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md).
-It has **93 numbered Python lessons** across five domains. Lessons use
+It has **101 numbered Python lessons** across five domains. Lessons use
 Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many
 make billable remote calls or change persistent cloud state.
 
@@ -15,7 +15,7 @@ subscription.
 | Domain | Exam weight | Lessons | Start here |
 |---|---:|---:|---|
 | [01 Plan and manage](01-plan-and-manage/README.md) | 25–30% | 26 | `01_model_catalog_list.py`, `02_deployment_types.py` |
-| [02 Generative AI and agents](02-generative-ai-and-agents/README.md) | 30–35% | 22 | `01_first_api_call.py`, `07_structured_output.py` |
+| [02 Generative AI and agents](02-generative-ai-and-agents/README.md) | 30–35% | 30 | `01_first_api_call.py`, `23_mcp_tool_preflight.py`, `29_cloud_evaluation.py` |
 | [03 Computer vision](03-computer-vision/README.md) | 10–15% | 9 | `01_multimodal_understanding.py`, `07_alt_text_captions.py` |
 | [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 20 | `05_language_pii.py`, `20_language_sentiment.py`, `11_stt_fast_file.py` |
 | [05 Information extraction](05-information-extraction/README.md) | 10–15% | 16 | `00_search_index_setup.py`, `03_search_hybrid_semantic.py` |
@@ -43,6 +43,7 @@ Microsoft Foundry resource
 
 Separate resources
 ├── Azure AI Search: https://<search>.search.windows.net
+│   └── SEARCH_CONNECTION_NAME: existing Foundry project connection for D2 L25
 └── Azure Blob Storage: source documents, Search ingestion, CU SAS inputs,
     and batch Speech input
 
@@ -98,8 +99,9 @@ URLs, or production data.
 | Search | `SEARCH_ENDPOINT`, `SEARCH_INDEX`, `SEARCH_INDEX_VECTOR`, `SEARCH_INDEXER`, `SEARCH_SKILLSET` |
 | Storage | `STORAGE_ACCOUNT`, `STORAGE_CONTAINER`, `STORAGE_CONNECTION_STRING` |
 | Monitoring and RBAC | `APPLICATIONINSIGHTS_CONNECTION_STRING`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP` |
-| Domain 1 advanced labs | `DEPLOYMENT_NAME`, `DEPLOYMENT_MODEL_NAME`, `DEPLOYMENT_MODEL_VERSION`, `PROVENANCE_SOURCE_URL`, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, `AZURE_AI_MODEL_DEPLOYMENT_NAME` |
-| OpenAPI sample | `ORDERS_FN_ENDPOINT` |
+| Domain 1 advanced labs and D2 cloud evaluation | `DEPLOYMENT_NAME`, `DEPLOYMENT_MODEL_NAME`, `DEPLOYMENT_MODEL_VERSION`, `PROVENANCE_SOURCE_URL`, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, `AZURE_AI_MODEL_DEPLOYMENT_NAME` |
+| Domain 2 external-tool preflights | `NORTHWIND_MCP_ENDPOINT`, `NORTHWIND_MCP_CONNECTION`, `SEARCH_CONNECTION_NAME` |
+| Domain 2 OpenAPI sample | `ORDERS_FN_ENDPOINT` |
 
 Template defaults currently include `gpt-4.1-mini`, `o4-mini`, `gpt-image-1`,
 `sora`, `text-embedding-3-large`, `model-router`, `northwind-docs`, and
@@ -168,9 +170,11 @@ Then follow each domain README:
 
 1. Domain 1: learn deployment types, quota reads, identity, safety, and
    telemetry before creating deployments or persistent blocklists.
-2. Domain 2: run Responses lessons 01–07; then agents 08–13; treat memory,
-   workflows, evaluators, and framework integrations as separately documented
-   phases.
+2. Domain 2: run Responses lessons 01–07, then agents 08–13. Lessons 23–25
+   and 29 default to local preflights; use `--apply` only after their
+   connection, data, RBAC, lifecycle, and cost checks. Lessons 26–28 validate
+   local hosted-agent assets; their contained deploy wrapper also requires
+   `--apply`.
 3. Domain 3: run local-image understanding/captions before image/video
    generation or CU URL analysis.
 4. Domain 4: work through Language/Translator before Speech. Run new
@@ -185,6 +189,9 @@ uv run python 04-text-and-speech/20_language_sentiment.py
 uv run python 05-information-extraction/00_search_index_setup.py
 uv run python 05-information-extraction/05_search_skillset.py
 uv run python 05-information-extraction/04_search_indexer_setup.py --run
+uv run python 02-generative-ai-and-agents/23_mcp_tool_preflight.py
+uv run python 02-generative-ai-and-agents/26_hosted_agent_responses.py
+uv run python 02-generative-ai-and-agents/29_cloud_evaluation.py --dataset cases.jsonl
 ```
 
 ## Cross-domain chooser
@@ -215,7 +222,10 @@ uv run python 05-information-extraction/04_search_indexer_setup.py --run
 | D1 L19–L21 | Content Safety checks; L21 polls a Blob-backed provenance job only with `--run`. |
 | D1 L22–L25 | Evaluations, monitoring rules, telemetry feedback, and red-team scans only with explicit `--apply`; can persist state and bill. |
 | D1 L26 | Local tracing/App Insights preflight only; no Azure call or mutation. |
-| D2 | Model/tool calls; agent versions, vector stores/files, memory stores/items, workflow assets, Functions, and telemetry can persist or bill. |
+| D2 L01–L22 | Model/tool calls; agent versions, vector stores/files, memory stores/items, workflow assets, Functions, and telemetry can persist or bill. |
+| D2 L23–L25 | Default commands are local preflights. `--apply` for L23/L25 creates, invokes, then deletes a temporary agent version; L24 creates a persistent Toolbox version and deletes one only with explicit version and `--apply`. |
+| D2 L26–L28 | Local hosted-agent contract/A2A/CI-CD asset checks. Contained `deploy.py --apply` can provision or deploy hosted-agent resources; no deployment is performed by default. |
+| D2 L29–L30 | L29 default is local JSONL/lifecycle preview; `--apply` uploads an eval file, creates evaluation/run records, and invokes model/evaluators. L30 only reads local configuration. |
 | D3 | Remote calls throughout; L02–L05 overwrite generated files. Sora 2 and CU lessons have preview/availability constraints described in domain README. |
 | D4 | Remote calls throughout; batch STT uses Blob and Speech processing; L18 creates agent version and is protocol-only, not end-to-end voice playback. |
 | D5 | Index, datasource, skillset, indexer, CU analyzer, and agent lessons can update persistent resources; indexer runs invoke embeddings. |

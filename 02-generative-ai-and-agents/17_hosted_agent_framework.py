@@ -15,7 +15,7 @@ from _shared.config import settings
 
 async def _run() -> None:
     chat_client = FoundryChatClient(
-        project_endpoint=settings().project_endpoint,
+        project_endpoint=settings().require("PROJECT_ENDPOINT"),
         model=settings().default_model,
         credential=DefaultAzureCredential(),
     )

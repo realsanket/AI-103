@@ -6,7 +6,9 @@ in what we returned.
 """
 import json
 
-from _shared.foundry_client import project_client
+from azure.core.exceptions import ResourceNotFoundError
+
+from _shared.foundry_client import active_agent_reference, project_client
 from _shared.helpdesk_functions import (
     get_password_reset_steps,
     get_software_install_guide,
@@ -14,8 +16,6 @@ from _shared.helpdesk_functions import (
 )
 
 AGENT_NAME = "IT-HelpDesk-Agent"
-# Omitting `version` = Foundry uses the latest version — run L08 as many times
-# as you like without touching this file.
 
 _LOCAL_FUNCTIONS = {
     "get_password_reset_steps": lambda **_: get_password_reset_steps(),
@@ -57,13 +57,21 @@ def _run_local(name: str, arguments_json: str) -> str:
         return json.dumps({"error": f"Function rejected arguments: {exc}"})
 
 
-def _agent_ref() -> dict:
-    return {"type": "agent_reference", "name": AGENT_NAME}
+def _agent_ref(project) -> dict[str, str]:
+    try:
+        agent = project.agents.get(AGENT_NAME)
+    except ResourceNotFoundError as exc:
+        raise SystemExit(
+            "IT-HelpDesk-Agent was not found. Run lesson 08 before lesson 09:\n"
+            "  uv run python 02-generative-ai-and-agents/08_prompt_agent_create.py"
+        ) from exc
+    return active_agent_reference(agent.versions.latest)
 
 
 def main() -> None:
     project = project_client()
     openai = project.get_openai_client()
+    reference = _agent_ref(project)
 
     conversation = openai.conversations.create()
     print(f"conversation: {conversation.id}")
@@ -71,7 +79,7 @@ def main() -> None:
     response = openai.responses.create(
         conversation=conversation.id,
         input="My VPN keeps disconnecting. What should I do?",
-        extra_body={"agent_reference": _agent_ref()},
+        extra_body={"agent_reference": reference},
     )
 
     for _ in range(MAX_TOOL_ROUNDS):
@@ -93,7 +101,7 @@ def main() -> None:
         response = openai.responses.create(
             conversation=conversation.id,
             input=tool_outputs,
-            extra_body={"agent_reference": _agent_ref()},
+            extra_body={"agent_reference": reference},
         )
     raise RuntimeError(f"Agent exceeded {MAX_TOOL_ROUNDS} function-call rounds.")
 

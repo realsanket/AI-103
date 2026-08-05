@@ -9,6 +9,11 @@ Beginner note:
 What to watch:
   Prints the agent id / name / version. Nothing to invoke here — L18 and
   the multi-agent lessons show how to consume the created agent.
+
+Web results are untrusted and public-search queries leave your application's
+data boundary. Verify citations; do not include secrets or customer data.
+Confirm DPA, retention, residency, RBAC, and query/model costs, then delete
+unneeded agent versions.
 """
 from azure.ai.projects.models import PromptAgentDefinition, WebSearchTool
 

@@ -4,13 +4,18 @@ Lesson 08 shows just the create; 09 shows just the invoke. This file runs the
 whole loop so you can see the agentic cycle:
 
     user message → model picks tool → app executes → tool output → final answer
+
+Tool schemas constrain model input but don't replace authorization. Keep
+functions least-privilege, validate every argument, treat tool output as
+untrusted, and confirm DPA, data boundaries, RBAC, and model/tool costs before
+replacing these local demo functions. Delete unneeded agent versions.
 """
 import json
 
 from azure.ai.projects.models import FunctionTool, PromptAgentDefinition
 
 from _shared.config import settings
-from _shared.foundry_client import project_client
+from _shared.foundry_client import active_agent_reference, project_client
 from _shared.helpdesk_functions import (
     get_password_reset_steps,
     get_software_install_guide,
@@ -99,7 +104,7 @@ def main() -> None:
             tools=_TOOLS,
         ),
     )
-    ref = {"type": "agent_reference", "name": agent.name, "version": agent.version}
+    ref = active_agent_reference(agent)
     openai = project.get_openai_client()
     conv = openai.conversations.create()
 

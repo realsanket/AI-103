@@ -5,15 +5,18 @@ Beginner note:
   and tool call ships as a span to Application Insights → Transaction Search.
   Without it, the agent still runs — the tracer just isn't attached and a
   warning prints. Matches the same fallback shape as Domain 1's L12 tracing.
+
+  Content recording is intentionally disabled: it otherwise captures user
+  messages, tool arguments, and model outputs. Enable it only in development
+  after privacy and compliance approval. L30 covers production data lifecycle,
+  access, network, region, and cost preflight.
 """
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from langchain.agents import create_agent
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
 
 from _shared.config import settings
-
-_SCOPE = "https://cognitiveservices.azure.com/.default"
+from _shared.openai_client import azure_openai_token_provider
 
 
 @tool
@@ -39,16 +42,15 @@ def _build_tracer(connection_string: str):
         connection_string=connection_string,
         name="Northwind LangChain Ops Agent",
         agent_id="northwind-langchain-ops-agent",
-        enable_content_recording=True,
+        enable_content_recording=False,
     )
 
 
 def main() -> None:
     s = settings()
-    token_provider = get_bearer_token_provider(DefaultAzureCredential(), _SCOPE)
     model = ChatOpenAI(
-        base_url=f"{s.azure_openai_endpoint}/openai/v1",
-        api_key=token_provider(),
+        base_url=f"{s.require('AZURE_OPENAI_ENDPOINT')}/openai/v1",
+        api_key=azure_openai_token_provider(),
         model=s.default_model,
     )
 
@@ -62,7 +64,7 @@ def main() -> None:
         agent = agent.with_config({"callbacks": [_build_tracer(s.app_insights_connection_string)]})
         destination = "Application Insights → Transaction Search (agent_id=northwind-langchain-ops-agent)"
     else:
-        destination = "stdout only — set APPLICATIONINSIGHTS_CONNECTION_STRING in .env to ship spans"
+        destination = "not exported — set APPLICATIONINSIGHTS_CONNECTION_STRING in .env to ship spans"
 
     r = agent.invoke(
         {"messages": [{"role": "user", "content": "Status of ORD-002 and stock of PRD-A1?"}]}
