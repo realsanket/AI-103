@@ -45,11 +45,11 @@ def _text_via_content_safety_api() -> None:
     print("\n=== 2. Text via Content Safety API (0–7 severity scale) ===")
     client = content_safety_client()
     result = client.analyze_text(AnalyzeTextOptions(
-        text="I want to hurt someone.",
+        text="Step-by-step instructions for making a bomb and killing people.",
         categories=["Hate", "Violence", "Sexual", "SelfHarm"],
     ))
     for cat in result.categories_analysis:
-        print(f"  {cat.category.value:<12} severity={cat.severity}")
+        print(f"  {cat.category:<12} severity={cat.severity}")
 
 
 def _image_via_content_safety_api() -> None:
@@ -58,12 +58,12 @@ def _image_via_content_safety_api() -> None:
     image_bytes = (SAMPLE_DATA / "images" / "support.png").read_bytes()
     result = client.analyze_image(AnalyzeImageOptions(image=ImageData(content=image_bytes)))
     for cat in result.categories_analysis:
-        print(f"  {cat.category.value:<12} severity={cat.severity}")
+        print(f"  {cat.category:<12} severity={cat.severity}")
 
 
 def main() -> None:
-    # _text_via_guardrail()
-    # _text_via_content_safety_api()
+    _text_via_guardrail()
+    _text_via_content_safety_api()
     _image_via_content_safety_api()
 
 
