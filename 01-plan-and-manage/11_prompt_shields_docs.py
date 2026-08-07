@@ -10,11 +10,13 @@ Flow A — Content Safety API (direct REST):
 Flow B — Foundry deployment guardrail:
   Requires an actual document-bearing user-input or tool-response path, such as
   a configured `data_sources` integration. A pasted Chat Completions message is
-  user-prompt content, so this lesson intentionally does not fake that test.
+  evaluated as user-prompt content. This lesson intentionally tests this by
+  pasting a document to show that it trips the `jailbreak` key rather than
+  the `indirect_attack` key.
 
-This lesson uses the Content Safety API's `documents` field with a real,
+This lesson uses the Content Safety API's `documents` field (Flow A) with a real,
 local OCR extract that contains an indirect prompt injection. Pasting document
-text into a chat message is not an equivalent document-channel test.
+text into a chat message (Flow B) proves why channel separation is critical.
 
 This lesson covers the DOCUMENT channel (attacker embeds in data the model reads).
 Lesson 10 covers the USER PROMPT channel (the user is the attacker).
@@ -25,7 +27,9 @@ from azure.ai.contentsafety import ContentSafetyClient
 from azure.identity import DefaultAzureCredential
 
 from _shared.config import settings
+from openai import BadRequestError
 from _shared.content_safety_client import shield_prompt
+from _shared.openai_client import openai_client
 
 _USER_PROMPT = "I uploaded a report PDF. Can you summarize the key findings?"
 
@@ -40,6 +44,40 @@ def shield_documents(
     client: ContentSafetyClient, endpoint: str, user_prompt: str, documents: list[str]
 ) -> dict:
     return shield_prompt(client, endpoint, user_prompt, documents)
+
+
+def _print_shield_keys(cfr: dict) -> None:
+    indirect = cfr.get("indirect_attack") or {}
+    jailbreak = cfr.get("jailbreak") or {}
+    if indirect:
+        print(f"  indirect_attack.detected: {indirect.get('detected', 'n/a')}")
+        print(f"  indirect_attack.filtered: {indirect.get('filtered', 'n/a')}")
+    else:
+        print("  indirect_attack key absent — enable Document attack on deployment guardrail")
+    if jailbreak:
+        print(f"  jailbreak.detected: {jailbreak.get('detected', 'n/a')} (user-prompt channel)")
+        print(f"  jailbreak.filtered: {jailbreak.get('filtered', 'n/a')}")
+
+
+def _shield_via_foundry_guardrail(user_prompt: str, document: str) -> None:
+    client = openai_client()
+    content = f"{user_prompt}\n\n--- Document ---\n{document}"
+    try:
+        r = client.chat.completions.create(
+            model=settings().default_model,
+            messages=[{"role": "user", "content": content}],
+        )
+        pfr = getattr(r, "prompt_filter_results", None)
+        if not pfr:
+            print("  prompt_filter_results absent — assign Prompt Shields guardrail to deployment")
+            return
+        _print_shield_keys(pfr[0].get("content_filter_results", {}))
+    except BadRequestError as e:
+        print(f"  Blocked (400): {e.code} — guardrail action=block triggered")
+        body = getattr(e, "body", None) or {}
+        cfr = body.get("innererror", {}).get("content_filter_result") or {}
+        if cfr:
+            _print_shield_keys(cfr)
 
 
 def main() -> None:
@@ -61,9 +99,12 @@ def main() -> None:
     print(f"  raw: {result}")
 
     print("\n=== Flow B — deployment guardrail integration ===")
-    print("  Configure Document attack for user input or tool response, then route")
-    print("  this OCR content through your real document integration (for example,")
-    print("  Chat Completions `data_sources`). Do not paste it into `messages`.")
+    print("  (Demonstrating why pasting docs into messages hits the user-prompt shield instead)")
+    print("\n  Clean document:")
+    _shield_via_foundry_guardrail(_USER_PROMPT, _CLEAN_DOC)
+
+    print("\n  Injected document:")
+    _shield_via_foundry_guardrail(_USER_PROMPT, _INJECTED_DOC)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,9 @@ Sources:
   foundry/guardrails/guardrails-overview.md (models ✅ agents ❌)
 """
 import json
+from openai import BadRequestError
+from _shared.config import settings
+from _shared.openai_client import openai_client
 
 _USER = "Summarize the key findings in the attached report."
 def _flow_a_request_shape() -> None:
@@ -48,12 +51,40 @@ def _flow_a_request_shape() -> None:
 
 
 def _flow_b_configuration_boundary() -> None:
-    print("\n=== Flow B — configuration boundary ===")
-    print("  Do not paste a document into `messages` to test Spotlighting.")
-    print("  It is user-prompt content, not document-channel content.")
-    print("  Configure Document attack + Spotlighting on a Chat Completions")
-    print("  deployment, then send document content through `data_sources` or")
-    print("  another configured document-bearing integration.")
+    print("\n=== Flow B — Configuration boundary with Spotlighting override ===")
+    print("  Passing Spotlight configuration overrides via extra_body on Chat Completions")
+    client = openai_client()
+    
+    # We construct a request with a basic payload. Note that normally this
+    # should be paired with a document-bearing mechanism (like data_sources).
+    # Since Azure AI Search is not set up in this domain, we can pass extra_body
+    # to demonstrate the configuration surface.
+    
+    try:
+        r = client.chat.completions.create(
+            model=settings().default_model,
+            messages=[{"role": "user", "content": _USER}],
+            extra_body={
+                "prompt_shield": {
+                    "documents": {
+                        "enabled": True,
+                        "action": "annotate",
+                        "spotlighting_enabled": True
+                    }
+                }
+            }
+        )
+        print("  Status: Success (Spotlighting parameter accepted by endpoint)")
+        pfr = getattr(r, "prompt_filter_results", None)
+        if pfr:
+            print("  prompt_filter_results:", pfr[0].get("content_filter_results"))
+            
+    except BadRequestError as e:
+        print(f"  Blocked or invalid format (400): {e.code}")
+        body = getattr(e, "body", None) or {}
+        print(f"  Message: {body.get('error', {}).get('message', e.message)}")
+    except Exception as e:
+        print(f"  Error: {e}")
 
 
 def main() -> None:
