@@ -14,13 +14,26 @@ concurrently. Identify the most likely root cause and propose a solution.
 
 def main() -> None:
     client = openai_client()
-    response = client.responses.create(
+
+    print("Streaming reasoning and final answer...\n")
+    response_stream = client.responses.create(
         model=settings().reasoning_model,
         instructions="You are a senior software architect.",
         input=_PROBLEM,
         reasoning={"effort": "high"},
+        stream=True,
     )
-    print(response.output_text)
+
+    for event in response_stream:
+        event_type = getattr(event, "type", "")
+        delta = getattr(event, "delta", None)
+
+        if event_type in {"response.reasoning_summary_text.delta", "response.reasoning_text.delta"} and delta:
+            print(f"[thinking] {delta}", end="", flush=True)
+        elif event_type == "response.output_text.delta" and delta:
+            print(delta, end="", flush=True)
+
+    print()
 
 
 if __name__ == "__main__":

@@ -12,7 +12,8 @@ from _shared.config import settings
 def creative_tagline(temperature: float) -> str:
     client = openai_client()
     r = client.responses.create(
-        model=settings().default_model,
+        #hard coding model since temprature can be use with set of specific models.
+        model="gpt-4.1",
         instructions="You are a creative copywriter.",
         input="Write a two-sentence tagline for a new AI-powered productivity app.",
         temperature=temperature,
