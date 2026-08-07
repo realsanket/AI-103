@@ -1,6 +1,8 @@
-# Run: uv run python 02-generative-ai-and-agents/03_reasoning.py
+# Run:
+# uv run python 02-generative-ai-and-agents/03_reasoning.py
 
-"""Multi-step reasoning via `reasoning.effort=high` on a reasoning-tier model."""
+"""Reasoning example with streaming."""
+
 from _shared.openai_client import openai_client
 from _shared.config import settings
 
@@ -15,23 +17,38 @@ concurrently. Identify the most likely root cause and propose a solution.
 def main() -> None:
     client = openai_client()
 
-    print("Streaming reasoning and final answer...\n")
-    response_stream = client.responses.create(
+    print(f"Model: {settings().reasoning_model}")
+    print("\nStreaming...\n")
+
+    stream = client.responses.create(
         model=settings().reasoning_model,
         instructions="You are a senior software architect.",
         input=_PROBLEM,
-        reasoning={"effort": "high"},
+        reasoning={
+            "effort": "high",
+            "summary": "detailed",  # try "auto" if "detailed" isn't supported
+        },
         stream=True,
     )
 
-    for event in response_stream:
-        event_type = getattr(event, "type", "")
-        delta = getattr(event, "delta", None)
+    saw_summary = False
 
-        if event_type in {"response.reasoning_summary_text.delta", "response.reasoning_text.delta"} and delta:
-            print(f"[thinking] {delta}", end="", flush=True)
-        elif event_type == "response.output_text.delta" and delta:
-            print(delta, end="", flush=True)
+    for event in stream:
+        # Uncomment while debugging
+        # print(event.type)
+
+        if event.type == "response.reasoning_summary_text.delta":
+            if not saw_summary:
+                print("\n=== Reasoning Summary ===\n")
+                saw_summary = True
+            print(event.delta, end="", flush=True)
+
+        elif event.type == "response.output_text.delta":
+            if saw_summary:
+                # transition to answer once
+                print("\n\n=== Final Answer ===\n")
+                saw_summary = False
+            print(event.delta, end="", flush=True)
 
     print()
 
