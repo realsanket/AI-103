@@ -387,16 +387,38 @@ it rather than every caller reimplementing behavior.
 
 **Background.** Azure RBAC binds a principal, role definition, and scope. Least privilege limits blast radius: a user who invokes one agent should not also create deployments or query all resource-group assignments.
 
-**Code path.**
+**Learning goal.** Understand how authorization decisions are made in Foundry and Azure AI so you can choose the minimum role at the minimum scope for each workload.
 
-1. `AuthorizationManagementClient` reads role assignments at configured
-resource-group scope by default.
-2. `_ROLES` contains documented role IDs for Foundry and Search examples.
-3. `assign_role()` rejects unknown roles before any Azure call.
-4. `--apply --assign-principal-id <object-id> --role <role>` creates an
-assignment; optional `--scope` permits a narrower target.
+**RBAC decision model (exam mental model).**
 
-Use the managed identity **principal object ID**, not client ID. Prefer agent/project/resource scope over resource group/subscription. `Foundry Agent Consumer` is appropriate for endpoint-only callers; `Foundry User` is for builders. Wait for propagation and test with intended workload identity.
+1. Identify principal type: user, service principal, or managed identity.
+2. Identify plane: control plane (manage resources) or data plane (use models/agents).
+3. Identify API surface: Foundry project/resource APIs or direct Azure OpenAI resource APIs.
+4. Identify minimum scope: agent, project, resource, resource group, or subscription.
+5. Assign minimum role that includes required actions or dataActions.
+6. Validate effective access after propagation, including inherited parent-scope assignments.
+
+**Useful commands.**
+
+```bash
+# List aliases supported by this lesson
+uv run python 01-plan-and-manage/08_rbac_role_policies.py --list-roles
+
+# Review only direct assignments at configured scope (default)
+uv run python 01-plan-and-manage/08_rbac_role_policies.py
+
+# Review one principal across inherited parent scopes
+uv run python 01-plan-and-manage/08_rbac_role_policies.py \
+  --include-inherited \
+  --principal-id <object-id>
+
+# Review one role alias at a narrow project/agent/resource scope
+uv run python 01-plan-and-manage/08_rbac_role_policies.py \
+  --role-filter "Foundry Agent Consumer" \
+  --scope "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<account>/projects/<project>/agents/<agent>"
+```
+
+Use the managed identity **principal object ID**, not client ID. Prefer agent/project/resource scope over resource group/subscription. `Foundry Agent Consumer` is for endpoint-only callers; `Foundry User` is for builders. Wait for propagation and test with intended workload identity.
 
 ## Lessons 01–08: plan, deploy, operate, secure
 
@@ -536,24 +558,57 @@ Use managed identity in deployed workloads instead of stored secrets whenever su
 
 ### 08 — RBAC role policies
 
-**Question answered:** Which principal can manage, infer, or inspect?
+**Question answered:** How does RBAC actually authorize Foundry and Azure AI operations, and how do I pick least privilege under exam pressure?
 
 ```bash
 uv run python 01-plan-and-manage/08_rbac_role_policies.py
 ```
 
-The default behavior lists assignments. Role mutation requires `--apply`, `--assign-principal-id`, and `--role` because it is an administrative action. Review target principal, role, scope, and propagation before running it.
+The script is a study aid. It helps you inspect role assignments and practice narrow-scope access reviews. The learning value is the authorization model, not the printed list itself.
+
+**How RBAC evaluation works**
+
+An access decision depends on all of these at once:
+
+1. **Principal**: who is calling (user, service principal, managed identity).
+2. **Role definition**: which allowed actions or dataActions the role grants.
+3. **Scope**: where the role is assigned and inherited.
+4. **Plane and API surface**: control-plane management operation versus data-plane runtime operation.
+5. **Resource endpoint path**: Foundry project/resource endpoint versus direct Azure OpenAI endpoint.
+
+If any one is mismatched, access fails even when another piece looks correct.
+
+**Foundry exam anchors from Microsoft docs**
+
+1. Foundry separates control plane and data plane permissions.
+2. Microsoft Entra ID with RBAC is recommended for production least privilege.
+3. Key-based auth is coarse-grained and bypasses per-principal RBAC granularity.
+4. For Foundry project scenarios, use Foundry roles (`Foundry User`, `Foundry Project Manager`, and others).
+5. `Foundry Agent Consumer` is least-privilege for callers that only interact with agent endpoints.
+6. Agent-scope assignments are currently evaluated for agent endpoint access, not broad management permissions.
+
+**Role-selection quick map**
 
 | Operation | Starting role | Scope | Why |
 |---|---|---|---|
-| Project APIs, pre-deployed model use, project agents | `Foundry User` | Project or resource | Foundry project data-plane path. |
-| Direct Azure OpenAI inference | `Cognitive Services OpenAI User` | Azure OpenAI resource | Direct OpenAI-only data actions. |
-| Broader Cognitive Services data capabilities | `Cognitive Services User` where appropriate | Resource | Broader resource data actions. |
-| Deployment changes | `Cognitive Services Contributor` or suitable control-plane role | Foundry resource | Management-plane operation. |
+| Build and develop in Foundry project with predeployed models | `Foundry User` | Project or resource | Foundry project data-plane path. |
+| Interact with one or more agent endpoints only | `Foundry Agent Consumer` | Agent or project | Endpoint-only least privilege. |
+| Manage project and publish agents | `Foundry Project Manager` | Resource or project | Adds management actions beyond builder role. |
+| Create/manage Foundry accounts and deployments | `Foundry Account Owner` or `Foundry Owner` | Resource | High-privilege control-plane actions. |
+| Direct Azure OpenAI endpoint inference (outside project API path) | `Cognitive Services OpenAI User` | Azure OpenAI resource | Direct OpenAI data actions on that resource. |
+| Broad AI Services data operations on resource | `Cognitive Services User` where required | Resource | Broader data-plane capability set. |
 | Quota inspection | `Cognitive Services Usages Reader` or `Reader` | Subscription | Usage visibility is subscription scoped. |
-| Telemetry query | `Log Analytics Reader` plus protected-table access if needed | Telemetry resource | Manual trace visibility. |
+| Telemetry query | `Log Analytics Reader` (+ protected-table role if required) | Monitoring resource | Trace/log read access boundary. |
 
-Use groups for humans, managed identities/workload identities for applications, and resource/project scope before subscription scope. An application needing one specific agent endpoint should not automatically receive resource-wide management access.
+**High-yield exam traps**
+
+1. Control-plane role does not automatically grant all data-plane inference actions.
+2. Correct role at wrong scope still fails.
+3. Correct role on Foundry project does not automatically grant direct Azure OpenAI resource access.
+4. Using client ID instead of principal object ID for assignment causes identity confusion.
+5. Broad inherited subscription roles can hide least-privilege gaps in project-level design.
+
+Use groups for human access, managed identities or workload identities for application access, and narrow scope before broad scope. A caller that needs one agent endpoint should not receive resource-wide management rights.
 
 ### 09 - Separate model guardrails from explicit moderation
 
