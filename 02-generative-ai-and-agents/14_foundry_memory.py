@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/14_foundry_memory.py
+
 """Foundry Memory (preview) with a memory store and memory search tool.
 
 This lesson creates a store with the configured chat and embedding deployments,

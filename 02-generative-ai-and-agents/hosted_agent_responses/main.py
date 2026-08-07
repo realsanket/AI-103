@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/hosted_agent_responses/main.py
+
 """Responses endpoint hosted by Foundry Agent Server."""
 import asyncio
 import os

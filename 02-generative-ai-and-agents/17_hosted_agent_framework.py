@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/17_hosted_agent_framework.py
+
 """Local Microsoft Agent Framework agent backed by a Foundry model.
 
 This lesson runs on your machine; it is not a hosted-agent deployment. It uses

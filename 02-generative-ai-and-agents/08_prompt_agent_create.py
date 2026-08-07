@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/08_prompt_agent_create.py
+
 """Create the IT HelpDesk Prompt Agent — instructions + function tool schemas.
 
 Registers a new version of the agent. Run this once (or after editing the

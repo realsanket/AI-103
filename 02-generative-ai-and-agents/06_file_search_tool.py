@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/06_file_search_tool.py
+
 """Built-in File Search — RAG without AI Search.
 
 Upload a few docs, attach the File Search tool with a vector store id, then

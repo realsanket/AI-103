@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/07_structured_output.py
+
 """Structured JSON output — Responses API `text.format` with `json_schema` + `strict=True`.
 
 Plain "respond in JSON" is advisory. `strict=True` constrains the token sampler

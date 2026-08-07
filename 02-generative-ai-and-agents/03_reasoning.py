@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/03_reasoning.py
+
 """Multi-step reasoning via `reasoning.effort=high` on a reasoning-tier model."""
 from _shared.openai_client import openai_client
 from _shared.config import settings

@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/18_multi_agent_coord.py
+
 """Multi-agent coordination — one router agent delegating to two specialists.
 
 Pattern: the router uses `agent_as_tool` (each specialist is exposed as a

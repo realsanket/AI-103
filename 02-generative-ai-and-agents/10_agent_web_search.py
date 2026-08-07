@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/10_agent_web_search.py
+
 """Prompt Agent with the built-in Web Search tool — real-time grounding.
 
 Beginner note:

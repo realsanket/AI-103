@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/hosted_agent_responses/deploy.py
+
 """Deploy guard. Cloud commands run only after an explicit --apply."""
 import argparse
 from pathlib import Path

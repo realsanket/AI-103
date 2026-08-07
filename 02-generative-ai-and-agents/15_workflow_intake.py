@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/15_workflow_intake.py
+
 """Preview workflow prerequisite — intake agent producing structured triage output.
 
 The workflow definition (`workflows/wf_intake_schema.json`) shows the JSON

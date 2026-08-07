@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/24_toolbox_tool_catalog_preflight.py
+
 """Toolbox and tool catalog lab — publish a governed, versioned tool collection.
 
 Run without flags for a no-cloud preflight. `--apply` creates one Toolbox version

@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/16_workflow_conditional.py
+
 """Foundry workflow preview — create a conditional-routing YAML version.
 
 Microsoft Foundry retires workflows on December 1, 2026. Use this lesson to

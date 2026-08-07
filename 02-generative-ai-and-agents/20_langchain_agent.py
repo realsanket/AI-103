@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/20_langchain_agent.py
+
 """LangChain agent using Foundry as the model backend.
 
 Beginner note:

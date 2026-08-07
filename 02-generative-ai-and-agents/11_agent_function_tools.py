@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/11_agent_function_tools.py
+
 """End-to-end IT HelpDesk agent demo — create + invoke + execute functions in one run.
 
 Lesson 08 shows just the create; 09 shows just the invoke. This file runs the

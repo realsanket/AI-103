@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/azure_functions_orders/function_app.py
+
 import azure.functions as func
 import json
 

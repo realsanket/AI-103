@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/northwind_mcp/function_app.py
+
 import json
 
 import azure.functions as func

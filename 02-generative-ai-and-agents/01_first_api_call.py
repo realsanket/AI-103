@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/01_first_api_call.py
+
 """First Responses API call — keyless auth via DefaultAzureCredential.
 
 Prints a short answer from the default model. Zero infra prereqs beyond

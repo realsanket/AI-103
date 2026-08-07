@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/22_langgraph_agent.py
+
 """LangGraph stateful agent — Northwind policy Q&A backed by FAISS + PDFs.
 
 Shows LangGraph's core primitives: `StateGraph`, `MessagesState`, nodes,

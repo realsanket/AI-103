@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/hosted_agent_responses/test_hosted_agent.py
+
 import unittest
 from pathlib import Path
 import sys

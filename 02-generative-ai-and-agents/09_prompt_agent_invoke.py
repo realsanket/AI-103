@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/09_prompt_agent_invoke.py
+
 """Invoke the IT HelpDesk agent + execute its function-tool requests locally.
 
 The agent decides which tool to call; this app is the executor. Round-trips the

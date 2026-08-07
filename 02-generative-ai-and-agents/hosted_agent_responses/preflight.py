@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/hosted_agent_responses/preflight.py
+
 """Static hosted-agent checks; no Azure calls and no deployment mutation."""
 import argparse
 from pathlib import Path

@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/02_model_behavior.py
+
 """Tune generation behavior — temperature knob.
 
 Run twice mentally: temperature=0 → deterministic; temperature=2 → wild.

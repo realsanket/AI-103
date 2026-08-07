@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/13_conversation_thread.py
+
 """Conversation threads — server-managed history via `client.conversations.create()`.
 
 Beginner note:

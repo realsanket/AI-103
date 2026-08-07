@@ -1,3 +1,5 @@
+# Run: uv run python 02-generative-ai-and-agents/05_code_interpreter.py
+
 """Built-in Code Interpreter — model writes + executes Python in an isolated sandbox.
 
 Prints both the code the model wrote and the answer that came back — so you can
