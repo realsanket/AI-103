@@ -1,37 +1,82 @@
 # Run: uv run python 02-generative-ai-and-agents/04_web_search_tool.py
 
-"""Built-in Web Search tool — model retrieves current info before answering.
+"""Built-in Web Search tool.
 
-Beginner note:
-  Add `{"type": "web_search"}` to `tools=` and the model can fetch fresh
-  results from Bing during a Responses API call. Useful for anything the
-  training cutoff can't cover: news, prices, regulation updates, releases.
+This example demonstrates:
+- Enabling the built-in web search tool
+- Letting the model decide when to search
+- Streaming the response
+- Showing when the tool is invoked
 
-What to watch:
-  The output usually contains inline citation URLs. `tool_choice="auto"`
-  means the model decides IF to search — for simple prompts it may skip.
-  Force it with `tool_choice="required"` when you're testing.
-
-Trust and data boundary:
-  Search results are untrusted content, not instructions. Verify citations and
-  never send secrets, personal data, or protected customer content in queries.
-  Confirm web-search DPA, retention, residency, and query/model costs before
-  using it outside this public-information demo.
+The model may decide not to search if it already knows the answer.
+Use tool_choice="required" to force a search while learning.
 """
+
 from _shared.openai_client import openai_client
 from _shared.config import settings
 
 
+QUESTION = (
+    "What are the latest developments in AI regulation in the European Union?"
+)
+
+
 def main() -> None:
     client = openai_client()
-    response = client.responses.create(
+
+    print(f"Model: {settings().default_model}")
+    print(f"Question: {QUESTION}\n")
+
+    stream = client.responses.create(
         model=settings().default_model,
-        instructions="You are a helpful research assistant. Always cite your sources.",
-        input="What are the latest developments in AI regulation in the European Union?",
+        instructions=(
+            "You are a helpful research assistant. "
+            "Always use the web search tool and cite sources."
+        ),
+        input=QUESTION,
         tools=[{"type": "web_search"}],
-        tool_choice="auto",
+        tool_choice="required",
+        stream=True,
     )
-    print(response.output_text)
+
+    search_started = False
+    answer_started = False
+
+    for event in stream:
+        event_type = getattr(event, "type", "")
+
+        # Uncomment this while learning to inspect every event.
+        # print(event_type)
+
+        # ------------------------------------------------------------
+        # Tool invocation
+        # ------------------------------------------------------------
+        if (
+            event_type == "response.output_item.added"
+            and getattr(event, "item", None)
+            and getattr(event.item, "type", "") == "web_search_call"
+        ):
+            if not search_started:
+                print("=== Web Search Tool ===")
+                print("Searching the web...\n")
+                search_started = True
+
+        elif event_type == "response.output_item.done":
+            item = getattr(event, "item", None)
+            if item and getattr(item, "type", "") == "web_search_call":
+                print("✓ Search complete.\n")
+
+        # ------------------------------------------------------------
+        # Stream final answer
+        # ------------------------------------------------------------
+        elif event_type == "response.output_text.delta":
+            if not answer_started:
+                print("=== Final Answer ===\n")
+                answer_started = True
+
+            print(event.delta, end="", flush=True)
+
+    print()
 
 
 if __name__ == "__main__":
