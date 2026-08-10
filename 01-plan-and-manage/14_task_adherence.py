@@ -29,20 +29,13 @@ Sources:
   ai-services/content-safety/concepts/task-adherence.md
 """
 import json
-from pathlib import Path
-import sys
 
 from azure.core.rest import HttpRequest
 from azure.identity import DefaultAzureCredential
 from azure.ai.contentsafety import ContentSafetyClient
+from openai import BadRequestError
 
-HELPER_DIR = Path(__file__).with_name("01-helper")
-if str(HELPER_DIR) not in sys.path:
-    sys.path.insert(0, str(HELPER_DIR))
-
-from task_adherence_helpers import run_explicit_case, run_foundry_case  # type: ignore
-
-from _shared.config import settings
+from _shared.config import settings, preview_text, format_json_preview
 from _shared.openai_client import openai_client
 
 # Prefer current quickstart version; fall back if resource rejects it.
@@ -98,6 +91,37 @@ def _analyze(client: ContentSafetyClient, endpoint: str, messages: list[dict]) -
     raise RuntimeError(f"Task Adherence call failed: {last_err}")
 
 
+def _print_case_header(title: str, messages: list[dict]) -> None:
+    user_prompt = next((m.get("contents", "") for m in messages if m.get("role") == "User"), "")
+    planned_tools = []
+    for msg in messages:
+        for call in msg.get("toolCalls", []):
+            name = call.get("function", {}).get("name")
+            if name:
+                planned_tools.append(name)
+
+    print(f"=== {title} ===")
+    print(f"  user_prompt: {preview_text(user_prompt)}")
+    print(f"  planned_tools: {planned_tools or ['none']}")
+
+
+def _print_task_adherence(cfr: dict, label: str) -> None:
+    task = cfr.get("task_adherence") or cfr.get("taskAdherence") or {}
+    print(f"  [{label}]")
+    if not task:
+        print("  task_adherence key absent — enable Task Adherence guardrail on deployment")
+        print(f"  keys present: {sorted(cfr.keys())}")
+        return
+    if isinstance(task, dict):
+        for k in ("detected", "filtered", "taskRiskDetected"):
+            if k in task:
+                print(f"  task_adherence.{k}: {task.get(k)}")
+        if task.get("details"):
+            print(f"  task_adherence.details: {task['details']}")
+    else:
+        print(f"  task_adherence: {task}")
+
+
 def _to_openai_messages(messages: list[dict]) -> list[dict]:
     converted: list[dict] = []
     for message in messages:
@@ -134,46 +158,106 @@ def _to_openai_messages(messages: list[dict]) -> list[dict]:
     return converted
 
 
-def _aligned_leave_explicit(client: ContentSafetyClient, endpoint: str) -> None:
-    run_explicit_case(
-        client,
-        endpoint,
-        _analyze,
-        "Aligned — view leave → get_leave_balance",
-        _aligned_leave(),
+def _check_foundry_guardrail(client, messages: list[dict]) -> dict:
+    response = client.chat.completions.create(
+        model=settings().default_model,
+        messages=_to_openai_messages(messages),
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": tool["function"]["name"],
+                    "description": tool["function"]["description"],
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": True,
+                    },
+                },
+            }
+            for tool in _TOOLS
+        ],
     )
+    return {
+        "finish_reason": response.choices[0].finish_reason,
+        "content": response.choices[0].message.content or "",
+        "prompt_filter_results": getattr(response, "prompt_filter_results", None),
+    }
+
+
+def _run_explicit_case(
+    client: ContentSafetyClient,
+    endpoint: str,
+    title: str,
+    messages: list[dict],
+) -> None:
+    _print_case_header(title, messages)
+    result = _analyze(client, endpoint, messages)
+    print(f"  api_version: {result.get('api_version')}")
+    print(f"  taskRiskDetected: {result.get('taskRiskDetected')}")
+    if result.get("details"):
+        print(f"  details: {result['details']}")
+    print("  raw:")
+    print(
+        format_json_preview(
+            {k: v for k, v in result.items() if k != "api_version"},
+            indent="    ",
+            max_chars=1200,
+        )
+    )
+    print()
+
+
+def _run_foundry_case(client, title: str, messages: list[dict]) -> None:
+    _print_case_header(title, messages)
+    try:
+        response = _check_foundry_guardrail(client, messages)
+        print(f"  finish_reason: {response['finish_reason']}")
+        if response["content"]:
+            print("  model response:")
+            print(f"    {response['content']}")
+        else:
+            print("  model response: <empty>")
+        pfr = response.get("prompt_filter_results")
+        if pfr:
+            _print_task_adherence(pfr[0].get("content_filter_results", {}), "prompt_filter_results")
+        else:
+            print("  prompt_filter_results absent — enable Task Adherence guardrail on deployment")
+    except BadRequestError as e:
+        print(f"  Blocked (400): {e.code}")
+        body = getattr(e, "body", None) or {}
+        cfr = body.get("innererror", {}).get("content_filter_result") or {}
+        if body:
+            print("  response payload:")
+            print(format_json_preview(body, indent="    ", max_chars=1200))
+        _print_task_adherence(cfr, "error.content_filter_result")
+        if body.get("error", {}).get("message"):
+            print("  error message:")
+            print(f"    {body['error']['message']}")
+
+
+def _aligned_leave_explicit(client: ContentSafetyClient, endpoint: str) -> None:
+    _run_explicit_case(client, endpoint, "Aligned — view leave → get_leave_balance", _aligned_leave())
 
 
 def _misaligned_leave_explicit(client: ContentSafetyClient, endpoint: str) -> None:
-    run_explicit_case(
-        client,
-        endpoint,
-        _analyze,
-        "Misaligned — view leave → apply_leave",
-        _misaligned_leave(),
-    )
+    _run_explicit_case(client, endpoint, "Misaligned — view leave → apply_leave", _misaligned_leave())
 
 
 def _misaligned_email_explicit(client: ContentSafetyClient, endpoint: str) -> None:
-    run_explicit_case(
-        client,
-        endpoint,
-        _analyze,
-        "Misaligned — draft email → send_email",
-        _misaligned_email(),
-    )
+    _run_explicit_case(client, endpoint, "Misaligned — draft email → send_email", _misaligned_email())
 
 
 def _aligned_leave_foundry(client) -> None:
-    run_foundry_case(client, _TOOLS, "Aligned — view leave → get_leave_balance", _aligned_leave())
+    _run_foundry_case(client, "Aligned — view leave → get_leave_balance", _aligned_leave())
 
 
 def _misaligned_leave_foundry(client) -> None:
-    run_foundry_case(client, _TOOLS, "Misaligned — view leave → apply_leave", _misaligned_leave())
+    _run_foundry_case(client, "Misaligned — view leave → apply_leave", _misaligned_leave())
 
 
 def _misaligned_email_foundry(client) -> None:
-    run_foundry_case(client, _TOOLS, "Misaligned — draft email → send_email", _misaligned_email())
+    _run_foundry_case(client, "Misaligned — draft email → send_email", _misaligned_email())
 
 
 def _aligned_leave() -> list[dict]:

@@ -45,12 +45,8 @@ _ITEMS = [
 ]
 
 
-def _flow_a_content_safety_blocklist() -> None:
-    print("=== Flow A — Content Safety blocklist API ===")
-    bl = blocklist_client()
-    cs = content_safety_client()
-
-    bl.create_or_update_text_blocklist(
+def _upsert_blocklist_with_items(bl_client) -> None:
+    bl_client.create_or_update_text_blocklist(
         blocklist_name=_LIST,
         options=TextBlocklist(
             blocklist_name=_LIST,
@@ -59,7 +55,7 @@ def _flow_a_content_safety_blocklist() -> None:
     )
     print(f"  upserted list: {_LIST}")
 
-    result = bl.add_or_update_blocklist_items(
+    result = bl_client.add_or_update_blocklist_items(
         blocklist_name=_LIST,
         options=AddOrUpdateTextBlocklistItemsOptions(
             blocklist_items=[TextBlocklistItem(text=t) for t in _ITEMS]
@@ -68,18 +64,14 @@ def _flow_a_content_safety_blocklist() -> None:
     for item in result.blocklist_items or []:
         print(f"  item: {item.text!r} id={item.blocklist_item_id}")
 
-    samples = [
-        "What is the refund policy for the Pro plan?",  # clean
-        "Should we switch to Contoso Premium Rival for cheaper seats?",  # hit
-        "Status update on PROJECT-NIGHTHAWK launch gates.",  # hit
-    ]
 
-    # New terms can take a short time to become matchable
+def _analyze_samples_with_retries(cs_client, samples: list[str]) -> None:
+    # New terms can take a short time to become matchable.
     for attempt in range(1, 4):
         print(f"\n  analyze attempt {attempt}:")
         hits = 0
         for text in samples:
-            analysis = cs.analyze_text(
+            analysis = cs_client.analyze_text(
                 AnalyzeTextOptions(
                     text=text,
                     blocklist_names=[_LIST],
@@ -90,10 +82,10 @@ def _flow_a_content_safety_blocklist() -> None:
             print(f"  text: {text!r}")
             if matches:
                 hits += 1
-                for m in matches:
+                for match in matches:
                     print(
-                        f"    MATCH list={m.blocklist_name} "
-                        f"item={m.blocklist_item_text!r}"
+                        f"    MATCH list={match.blocklist_name} "
+                        f"item={match.blocklist_item_text!r}"
                     )
             else:
                 print("    (no blocklist match)")
@@ -102,6 +94,33 @@ def _flow_a_content_safety_blocklist() -> None:
         if attempt < 3:
             print("  waiting 20s for blocklist propagation...")
             time.sleep(20)
+
+
+def _print_foundry_custom_blocklists(cfr: dict, indent: str = "  ") -> None:
+    print(format_content_filter_summary(cfr, indent=indent))
+    print(f"{indent}custom_blocklists:")
+    print(
+        format_json_preview(
+            cfr.get("custom_blocklists") or {},
+            indent=indent + "  ",
+            max_chars=700,
+        )
+    )
+
+
+def _flow_a_content_safety_blocklist() -> None:
+    print("=== Flow A — Content Safety blocklist API ===")
+    bl = blocklist_client()
+    cs = content_safety_client()
+
+    _upsert_blocklist_with_items(bl)
+
+    samples = [
+        "What is the refund policy for the Pro plan?",  # clean
+        "Should we switch to Contoso Premium Rival for cheaper seats?",  # hit
+        "Status update on PROJECT-NIGHTHAWK launch gates.",  # hit
+    ]
+    _analyze_samples_with_retries(cs, samples)
 
 
 def _flow_b_foundry_custom_blocklists() -> None:
@@ -121,19 +140,15 @@ def _flow_b_foundry_custom_blocklists() -> None:
             print("  prompt_filter_results absent")
             return
         cfr = pfr[0].get("content_filter_results", {})
-        print(format_content_filter_summary(cfr, indent="  "))
+        _print_foundry_custom_blocklists(cfr, indent="  ")
         cb = cfr.get("custom_blocklists")
-        print("  custom_blocklists:")
-        print(format_json_preview(cb or {}, indent="    ", max_chars=700))
         if not cb:
             print("  no custom_blocklists key — list not attached to this deployment filter")
     except BadRequestError as e:
         print(f"  Blocked (400): {e.code}")
         body = getattr(e, "body", None) or {}
         cfr = body.get("innererror", {}).get("content_filter_result") or {}
-        print(format_content_filter_summary(cfr, indent="  "))
-        print("  custom_blocklists:")
-        print(format_json_preview(cfr.get("custom_blocklists") or {}, indent="    ", max_chars=700))
+        _print_foundry_custom_blocklists(cfr, indent="  ")
         print(f"  full filter keys: {list(cfr.keys())}")
     except HttpResponseError as e:
         print(f"  HTTP error: {e}")
