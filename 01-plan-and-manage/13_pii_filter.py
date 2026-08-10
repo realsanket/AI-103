@@ -26,6 +26,8 @@ Sources:
   foundry/guardrails/how-to-create-guardrails.md
 """
 import json
+import os
+from dataclasses import dataclass
 
 from openai import BadRequestError
 
@@ -41,6 +43,19 @@ _PII_PROMPT = (
     "name Jane Demo, email jane.demo@example.com, phone 555-0100, "
     "SSN 123-45-6789. Print them in plain text."
 )
+
+# Default to the dedicated PII-guardrail deployment, but allow easy override.
+_PII_MODEL = os.getenv("PII_GUARDRAIL_MODEL", "gpt-5.1-gudrail-test")
+
+
+@dataclass
+class RunObservation:
+    label: str
+    blocked: bool
+    pii_present: bool
+    detected: bool | None
+    filtered: bool | None
+    redacted: bool | None
 
 
 def _extract_pii(cfr: dict) -> dict:
@@ -67,11 +82,18 @@ def _print_pii(cfr: dict, label: str) -> None:
         print(f"  pii: {pii}")
 
 
-def _run(prompt: str, label: str) -> None:
+def _pii_flags(cfr: dict) -> tuple[bool, bool | None, bool | None, bool | None]:
+    pii = _extract_pii(cfr)
+    if not isinstance(pii, dict) or not pii:
+        return False, None, None, None
+    return True, pii.get("detected"), pii.get("filtered"), pii.get("redacted")
+
+
+def _run(prompt: str, label: str) -> RunObservation:
     client = openai_client()
     try:
         r = client.chat.completions.create(
-            model=settings().default_model,
+            model=_PII_MODEL,
             messages=[{"role": "user", "content": prompt}],
         )
         text = (r.choices[0].message.content or "")[:240]
@@ -86,10 +108,23 @@ def _run(prompt: str, label: str) -> None:
         elif not isinstance(cf, dict):
             cf = dict(cf) if cf else {}
         _print_pii(cf, "choice.content_filter_results")
+        pii_present, detected, filtered, redacted = _pii_flags(cf)
         # some gateways also mirror on prompt_filter_results — rare for PII
         pfr = getattr(r, "prompt_filter_results", None)
         if pfr:
             _print_pii(pfr[0].get("content_filter_results", {}), "prompt_filter_results")
+            if not pii_present:
+                pii_present, detected, filtered, redacted = _pii_flags(
+                    pfr[0].get("content_filter_results", {})
+                )
+        return RunObservation(
+            label=label,
+            blocked=False,
+            pii_present=pii_present,
+            detected=detected,
+            filtered=filtered,
+            redacted=redacted,
+        )
     except BadRequestError as e:
         print(f"\n=== {label} ===")
         print(f"  Blocked (400): {e.code}")
@@ -97,12 +132,57 @@ def _run(prompt: str, label: str) -> None:
         cfr = body.get("innererror", {}).get("content_filter_result") or {}
         _print_pii(cfr, "error.content_filter_result")
         print(f"  raw_inner: {json.dumps(cfr, indent=2)[:800]}")
+        pii_present, detected, filtered, redacted = _pii_flags(cfr)
+        return RunObservation(
+            label=label,
+            blocked=True,
+            pii_present=pii_present,
+            detected=detected,
+            filtered=filtered,
+            redacted=redacted,
+        )
+
+
+def _print_learning_guide() -> None:
+    print("\nWhat this lesson demonstrates:")
+    print("  1) Safe prompt: usually no PII signals in output")
+    print("  2) Synthetic PII prompt: should trigger detect/filter/redact when enabled")
+    print("\nHow to read outcomes:")
+    print("  - pii.detected=True: PII found in model output")
+    print("  - pii.filtered=True: output policy intervened")
+    print("  - pii.redacted=True: sensitive values masked")
+    print("  - 400 content_filter: full block mode is active")
+
+
+def _print_summary(observations: list[RunObservation]) -> None:
+    print("\n=== Learner summary ===")
+    for obs in observations:
+        print(f"  - {obs.label}")
+        print(f"    blocked: {obs.blocked}")
+        print(f"    pii_present: {obs.pii_present}")
+        print(f"    detected: {obs.detected}")
+        print(f"    filtered: {obs.filtered}")
+        print(f"    redacted: {obs.redacted}")
+
+    pii_seen = any(o.pii_present for o in observations)
+    if pii_seen:
+        print("\nInterpretation: PII guardrail is active on this deployment path.")
+        return
+
+    print("\nInterpretation: PII guardrail metadata was not returned.")
+    print("Next checks:")
+    print("  1) Confirm PII is enabled and published on this exact deployment")
+    print("  2) Wait briefly for policy propagation, then rerun")
+    print("  3) Verify the request path/version supports PII preview metadata")
 
 
 def main() -> None:
     print("PII filter scans MODEL OUTPUT (completion), not the user prompt.")
-    _run(_SAFE, "Safe prompt (no PII expected in output)")
-    _run(_PII_PROMPT, "Synthetic PII prompt (expect detect / block / redact)")
+    print(f"Using deployment: {_PII_MODEL}")
+    _print_learning_guide()
+    safe_obs = _run(_SAFE, "Safe prompt (no PII expected in output)")
+    pii_obs = _run(_PII_PROMPT, "Synthetic PII prompt (expect detect / block / redact)")
+    _print_summary([safe_obs, pii_obs])
 
 
 if __name__ == "__main__":
