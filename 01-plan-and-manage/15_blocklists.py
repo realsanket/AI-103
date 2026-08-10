@@ -22,6 +22,7 @@ Sources:
   ai-services/content-safety/quickstart-blocklist.md
 """
 import time
+import os
 
 from azure.core.exceptions import HttpResponseError
 from azure.ai.contentsafety.models import (
@@ -42,6 +43,8 @@ _ITEMS = [
     "PROJECT-NIGHTHAWK",  # internal codename
     "bypass-northwind-billing",  # abuse phrase
 ]
+
+_GUARDRAIL_MODEL = os.getenv("GUARDRAIL_MODEL") or settings().default_model
 
 
 def _upsert_blocklist_with_items(bl_client) -> None:
@@ -128,10 +131,11 @@ def _flow_b_foundry_custom_blocklists() -> None:
     print("  (portal Guardrails or ARM Microsoft.CognitiveServices/.../raiBlocklists).")
     client = openai_client()
     prompt = "Please explain how PROJECT-NIGHTHAWK affects the Pro plan pricing."
+    print(f"  deployment: {_GUARDRAIL_MODEL}")
     print(f"  input: {preview_text(prompt)}")
     try:
         r = client.chat.completions.create(
-            model=settings().default_model,
+            model=_GUARDRAIL_MODEL,
             messages=[{"role": "user", "content": prompt}],
         )
         pfr = getattr(r, "prompt_filter_results", None)
