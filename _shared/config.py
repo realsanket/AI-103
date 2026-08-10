@@ -65,6 +65,51 @@ class Settings:
         )
 
 
+def to_plain_dict(value) -> dict:
+    """Normalize SDK model objects/mappings into plain dicts for printing."""
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if hasattr(value, "model_dump"):
+        return value.model_dump()
+    if hasattr(value, "to_dict"):
+        return value.to_dict()
+    try:
+        return dict(value)
+    except Exception:
+        return {}
+
+
+def format_content_filter_summary(result: dict, indent: str = "  ") -> str:
+    """Return a readable multi-line summary for content-filter details."""
+    if not result:
+        return f"{indent}No content filter details returned."
+
+    ordered = ["violence", "hate", "sexual", "self_harm", "jailbreak"]
+    keys = ordered + sorted(k for k in result.keys() if k not in ordered)
+    lines = [f"{indent}Content filter summary:"]
+
+    for key in keys:
+        details = result.get(key)
+        if not details:
+            continue
+        if not isinstance(details, dict):
+            lines.append(f"{indent}  - {key:<10}: {details}")
+            continue
+
+        severity = details.get("severity", "n/a")
+        filtered = details.get("filtered", "n/a")
+        detected = details.get("detected", "n/a")
+        line = (
+            f"{indent}  - {key:<10} severity={severity:<6} "
+            f"filtered={str(filtered):<5} detected={str(detected):<5}"
+        )
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
 def _opt(key: str, default: str = "") -> str:
     v = os.environ.get(key, default)
     return "" if v.startswith("<") else v
