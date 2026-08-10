@@ -45,14 +45,14 @@ _PII_PROMPT = (
 )
 
 # Default to the dedicated PII-guardrail deployment, but allow easy override.
-_PII_MODEL = os.getenv("PII_GUARDRAIL_MODEL", "gpt-5.1-gudrail-test")
+_PII_MODEL = os.getenv("PII_GUARDRAIL_MODEL") or settings().default_model
 
 
 @dataclass
 class RunObservation:
     label: str
     blocked: bool
-    pii_present: bool
+    metadata_present: bool
     detected: bool | None
     filtered: bool | None
     redacted: bool | None
@@ -104,17 +104,22 @@ def _pii_flags(cfr: dict) -> tuple[bool, bool | None, bool | None, bool | None]:
 
 def _run(prompt: str, label: str) -> RunObservation:
     client = openai_client()
+    print(f"\n=== {label} ===")
+    print("  Input text sent:")
+    print(f"    {preview_text(prompt)}")
     try:
-        print(f"\n=== {label} ===")
-        print("  Input text sent:")
-        print(f"    {preview_text(prompt)}")
         r = client.chat.completions.create(
             model=_PII_MODEL,
             messages=[{"role": "user", "content": prompt}],
         )
-        text = (r.choices[0].message.content or "")[:240]
+        text = r.choices[0].message.content or ""
         print(f"  finish_reason: {r.choices[0].finish_reason}")
-        print(f"  reply_preview: {text!r}")
+        print("  model response:")
+        if text:
+            print(f"    {text}")
+        else:
+            print("    <empty>")
+        print(f"  reply_preview: {text[:240]!r}")
         cf = getattr(r.choices[0], "content_filter_results", None) or {}
         if hasattr(cf, "model_dump"):
             cf = cf.model_dump()
@@ -135,19 +140,23 @@ def _run(prompt: str, label: str) -> RunObservation:
         return RunObservation(
             label=label,
             blocked=False,
-            pii_present=pii_present,
+            metadata_present=pii_present,
             detected=detected,
             filtered=filtered,
             redacted=redacted,
         )
     except BadRequestError as e:
-        print(f"\n=== {label} ===")
-        print("  Input text sent:")
-        print(f"    {preview_text(prompt)}")
         print(f"  Blocked (400): {e.code}")
         body = getattr(e, "body", None) or {}
+        if body:
+            print("  response payload:")
+            print(format_json_preview(body, indent="    ", max_chars=1200))
         cfr = body.get("innererror", {}).get("content_filter_result") or {}
         _print_pii(cfr, "error.content_filter_result")
+        error_message = body.get("error", {}).get("message")
+        if error_message:
+            print("  error message:")
+            print(f"    {error_message}")
         pii_blob = _extract_pii(cfr)
         if pii_blob:
             print("  raw_pii_preview:")
@@ -156,7 +165,7 @@ def _run(prompt: str, label: str) -> RunObservation:
         return RunObservation(
             label=label,
             blocked=True,
-            pii_present=pii_present,
+            metadata_present=pii_present,
             detected=detected,
             filtered=filtered,
             redacted=redacted,
@@ -179,21 +188,29 @@ def _print_summary(observations: list[RunObservation]) -> None:
     for obs in observations:
         print(f"  - {obs.label}")
         print(f"    blocked: {obs.blocked}")
-        print(f"    pii_present: {obs.pii_present}")
+        print(f"    metadata_present: {obs.metadata_present}")
         print(f"    detected: {obs.detected}")
         print(f"    filtered: {obs.filtered}")
         print(f"    redacted: {obs.redacted}")
 
-    pii_seen = any(o.pii_present for o in observations)
-    if pii_seen:
-        print("\nInterpretation: PII guardrail is active on this deployment path.")
-        return
+    pii_detected = any(o.detected for o in observations)
+    pii_blocked = any(o.blocked for o in observations)
+    metadata_seen = any(o.metadata_present for o in observations)
 
-    print("\nInterpretation: PII guardrail metadata was not returned.")
-    print("Next checks:")
-    print("  1) Confirm PII is enabled and published on this exact deployment")
-    print("  2) Wait briefly for policy propagation, then rerun")
-    print("  3) Verify the request path/version supports PII preview metadata")
+    print("\nInterpretation:")
+    if pii_detected or pii_blocked:
+        print("  PII guardrail is active on this deployment path.")
+        print("  The safe prompt returned metadata, but no PII was detected.")
+        print("  The synthetic PII prompt triggered detection and a block.")
+    elif metadata_seen:
+        print("  PII metadata was returned, but no detection occurred in this run.")
+        print("  Recheck the deployment policy mode and the test prompt content.")
+    else:
+        print("  PII guardrail metadata was not returned.")
+        print("  Next checks:")
+        print("    1) Confirm PII is enabled and published on this exact deployment")
+        print("    2) Wait briefly for policy propagation, then rerun")
+        print("    3) Verify the request path/version supports PII preview metadata")
 
 
 def main() -> None:
