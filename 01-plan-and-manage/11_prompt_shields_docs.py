@@ -22,6 +22,7 @@ This lesson covers the DOCUMENT channel (attacker embeds in data the model reads
 Lesson 10 covers the USER PROMPT channel (the user is the attacker).
 """
 from pathlib import Path
+import json
 
 from azure.ai.contentsafety import ContentSafetyClient
 from azure.identity import DefaultAzureCredential
@@ -59,6 +60,29 @@ def _print_shield_keys(cfr: dict) -> None:
         print(f"  jailbreak.filtered: {jailbreak.get('filtered', 'n/a')}")
 
 
+def _scenario_header(name: str) -> None:
+    print(f"\n  {name}:")
+
+
+def _preview(text: str, max_len: int = 220) -> str:
+    cleaned = " ".join(text.split())
+    return cleaned if len(cleaned) <= max_len else cleaned[: max_len - 3] + "..."
+
+
+def _print_inputs(user_prompt: str, documents: list[str]) -> None:
+    print("  Input text sent:")
+    print(f"    user_prompt: {_preview(user_prompt)}")
+    for i, doc in enumerate(documents):
+        print(f"    document[{i}]: {_preview(doc)}")
+
+
+def _print_flow_a_result(result: dict) -> None:
+    user_attack = bool(result.get("userPromptAnalysis", {}).get("attackDetected", False))
+    print(f"  userPrompt attackDetected: {user_attack}")
+    for i, doc in enumerate(result.get("documentsAnalysis", [])):
+        print(f"  doc[{i}] attackDetected: {bool(doc.get('attackDetected', False))}")
+
+
 def _shield_via_foundry_guardrail(user_prompt: str, document: str) -> None:
     client = openai_client()
     content = f"{user_prompt}\n\n--- Document ---\n{document}"
@@ -85,25 +109,26 @@ def main() -> None:
     client = ContentSafetyClient(endpoint=endpoint, credential=DefaultAzureCredential())
 
     print("=== Flow A — Content Safety API direct ===")
-    print("\n  Clean documents:")
+    _scenario_header("Clean documents")
+    _print_inputs(_USER_PROMPT, [_CLEAN_DOC])
     result = shield_documents(client, endpoint, _USER_PROMPT, [_CLEAN_DOC])
-    for i, doc in enumerate(result.get("documentsAnalysis", [])):
-        print(f"  doc[{i}] attackDetected: {doc['attackDetected']}")
+    _print_flow_a_result(result)
 
-    print("\n  Mixed documents (doc[0] injected, doc[1] clean):")
+    _scenario_header("Mixed documents (doc[0] injected, doc[1] clean)")
+    _print_inputs(_USER_PROMPT, _MIXED_DOCS)
     result = shield_documents(client, endpoint, _USER_PROMPT, _MIXED_DOCS)
-    user_attack = result["userPromptAnalysis"]["attackDetected"]
-    print(f"  userPrompt attackDetected: {user_attack}")  # False — user is innocent
-    for i, doc in enumerate(result.get("documentsAnalysis", [])):
-        print(f"  doc[{i}] attackDetected: {doc['attackDetected']}")
-    print(f"  raw: {result}")
+    _print_flow_a_result(result)
+    print("  Raw response:")
+    print("    " + json.dumps(result, indent=2).replace("\n", "\n    "))
 
     print("\n=== Flow B — deployment guardrail integration ===")
     print("  (Demonstrating why pasting docs into messages hits the user-prompt shield instead)")
-    print("\n  Clean document:")
+    _scenario_header("Clean document")
+    _print_inputs(_USER_PROMPT, [_CLEAN_DOC])
     _shield_via_foundry_guardrail(_USER_PROMPT, _CLEAN_DOC)
 
-    print("\n  Injected document:")
+    _scenario_header("Injected document")
+    _print_inputs(_USER_PROMPT, [_INJECTED_DOC])
     _shield_via_foundry_guardrail(_USER_PROMPT, _INJECTED_DOC)
 
 
