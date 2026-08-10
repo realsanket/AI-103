@@ -56,13 +56,18 @@ def main() -> None:
     openai = project.get_openai_client()
     model = settings().default_model
 
+    print("LLM self-critique loop: draft answer -> critique -> optional regeneration")
+    print(f"Using deployment: {model}")
+    print("\nCustomer question:")
+    print(_QUESTION)
+
     # Step 1 — draft via ephemeral agent (instructions come from this file)
     draft = openai.responses.create(
         model=model,
         instructions=_AGENT_INSTRUCTIONS,
         input=_QUESTION,
     )
-    print("=== Draft ===")
+    print("\n=== Step 1: Draft answer ===")
     print(draft.output_text)
 
     # Step 2 — critique the draft against the checklist
@@ -75,8 +80,12 @@ def main() -> None:
         ),
     )
     verdict = critique.output_text.strip()
-    print("\n=== Verdict ===")
+    print("\n=== Step 2: Critique verdict ===")
     print(verdict)
+    if "COMPLETE" in verdict.upper():
+        print("\nInterpretation:")
+        print("The evaluator judged the first draft complete, so no second pass was needed.")
+        print("This is the happy path: the draft already covered the checklist items.")
 
     # Step 3 — regenerate if MISSING (feed the checklist back to the agent)
     if "MISSING" in verdict.upper():
@@ -90,8 +99,10 @@ def main() -> None:
                 f"Customer question:\n{_QUESTION}"
             ),
         )
-        print("\n=== Regenerated ===")
+        print("\n=== Step 3: Regenerated answer ===")
         print(improved.output_text)
+        print("\nInterpretation:")
+        print("The first draft missed checklist items, so the app regenerated a more complete answer.")
 
 
 if __name__ == "__main__":
