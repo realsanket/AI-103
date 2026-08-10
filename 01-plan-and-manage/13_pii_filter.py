@@ -44,7 +44,9 @@ _PII_PROMPT = (
     "SSN 123-45-6789. Print them in plain text."
 )
 
-# Default to the dedicated PII-guardrail deployment, but allow easy override.
+# Default to the real guardrail-enabled deployment, but allow easy override.
+# This lesson expects the selected deployment to have PII and task-adherence
+# guardrails enabled in Foundry.
 _PII_MODEL = os.getenv("PII_GUARDRAIL_MODEL") or settings().default_model
 
 
@@ -215,7 +217,7 @@ def _print_summary(observations: list[RunObservation]) -> None:
 
 def main() -> None:
     print("PII filter scans MODEL OUTPUT (completion), not the user prompt.")
-    print(f"Using deployment: {_PII_MODEL}")
+    print(f"Using guardrail-enabled deployment: {_PII_MODEL}")
     _print_learning_guide()
     safe_obs = _run(_SAFE, "Safe prompt (no PII expected in output)")
     pii_obs = _run(_PII_PROMPT, "Synthetic PII prompt (expect detect / block / redact)")

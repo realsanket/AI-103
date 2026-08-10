@@ -14,19 +14,36 @@ Aligned  = planned tool matches user intent (read vs read).
 Misaligned = tool would change/delete/send when user only asked to view/draft.
 
 Also available as Foundry guardrail annotation key task_adherence
-(detected/filtered) on agent workflows — this lesson uses the explicit API.
+(detected/filtered) on agent workflows. The Foundry path requires the
+deployment to have Task Adherence guardrail enabled; this lesson uses the
+explicit API so you can test the behavior directly without depending on the
+deployment-side annotation path.
+
+Prereq notes:
+    - Use a deployment/resource that supports the preview API version.
+    - For the Foundry-guardrail comparison, Task Adherence must be enabled on
+        the deployment in Foundry portal before the annotation will appear.
 
 Sources:
   foundry/guardrails/task-adherence.md
   ai-services/content-safety/concepts/task-adherence.md
 """
 import json
+from pathlib import Path
+import sys
 
 from azure.core.rest import HttpRequest
 from azure.identity import DefaultAzureCredential
 from azure.ai.contentsafety import ContentSafetyClient
 
-from _shared.config import settings, preview_text, format_json_preview
+HELPER_DIR = Path(__file__).with_name("01-helper")
+if str(HELPER_DIR) not in sys.path:
+    sys.path.insert(0, str(HELPER_DIR))
+
+from task_adherence_helpers import run_explicit_case, run_foundry_case  # type: ignore
+
+from _shared.config import settings
+from _shared.openai_client import openai_client
 
 # Prefer current quickstart version; fall back if resource rejects it.
 _API_VERSIONS = ("2025-09-15-preview", "2024-12-15-preview")
@@ -79,6 +96,84 @@ def _analyze(client: ContentSafetyClient, endpoint: str, messages: list[dict]) -
         if resp.status_code not in (404, 400):
             break
     raise RuntimeError(f"Task Adherence call failed: {last_err}")
+
+
+def _to_openai_messages(messages: list[dict]) -> list[dict]:
+    converted: list[dict] = []
+    for message in messages:
+        role = message.get("role")
+        if role == "User":
+            converted.append({"role": "user", "content": message.get("contents", "")})
+        elif role == "Assistant":
+            assistant_message: dict = {
+                "role": "assistant",
+                "content": message.get("contents", ""),
+            }
+            tool_calls = message.get("toolCalls") or []
+            if tool_calls:
+                assistant_message["tool_calls"] = [
+                    {
+                        "id": call.get("id"),
+                        "type": call.get("type", "function"),
+                        "function": {
+                            "name": call.get("function", {}).get("name"),
+                            "arguments": call.get("function", {}).get("arguments", "{}"),
+                        },
+                    }
+                    for call in tool_calls
+                ]
+            converted.append(assistant_message)
+        elif role == "Tool":
+            converted.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": message.get("toolCallId"),
+                    "content": message.get("contents", ""),
+                }
+            )
+    return converted
+
+
+def _aligned_leave_explicit(client: ContentSafetyClient, endpoint: str) -> None:
+    run_explicit_case(
+        client,
+        endpoint,
+        _analyze,
+        "Aligned — view leave → get_leave_balance",
+        _aligned_leave(),
+    )
+
+
+def _misaligned_leave_explicit(client: ContentSafetyClient, endpoint: str) -> None:
+    run_explicit_case(
+        client,
+        endpoint,
+        _analyze,
+        "Misaligned — view leave → apply_leave",
+        _misaligned_leave(),
+    )
+
+
+def _misaligned_email_explicit(client: ContentSafetyClient, endpoint: str) -> None:
+    run_explicit_case(
+        client,
+        endpoint,
+        _analyze,
+        "Misaligned — draft email → send_email",
+        _misaligned_email(),
+    )
+
+
+def _aligned_leave_foundry(client) -> None:
+    run_foundry_case(client, _TOOLS, "Aligned — view leave → get_leave_balance", _aligned_leave())
+
+
+def _misaligned_leave_foundry(client) -> None:
+    run_foundry_case(client, _TOOLS, "Misaligned — view leave → apply_leave", _misaligned_leave())
+
+
+def _misaligned_email_foundry(client) -> None:
+    run_foundry_case(client, _TOOLS, "Misaligned — draft email → send_email", _misaligned_email())
 
 
 def _aligned_leave() -> list[dict]:
@@ -177,37 +272,18 @@ def _misaligned_email() -> list[dict]:
 def main() -> None:
     endpoint = settings().content_safety_endpoint
     client = ContentSafetyClient(endpoint=endpoint, credential=DefaultAzureCredential())
+    foundry_client = openai_client()
 
-    cases = [
-        ("Aligned — view leave → get_leave_balance", _aligned_leave()),
-        ("Misaligned — view leave → apply_leave", _misaligned_leave()),
-        ("Misaligned — draft email → send_email", _misaligned_email()),
-    ]
-    for title, messages in cases:
-        print(f"=== {title} ===")
-        user_prompt = next((m.get("contents", "") for m in messages if m.get("role") == "User"), "")
-        planned_tools = []
-        for msg in messages:
-            for call in msg.get("toolCalls", []):
-                name = call.get("function", {}).get("name")
-                if name:
-                    planned_tools.append(name)
-        print(f"  user_prompt: {preview_text(user_prompt)}")
-        print(f"  planned_tools: {planned_tools or ['none']}")
-        result = _analyze(client, endpoint, messages)
-        print(f"  api_version: {result.get('api_version')}")
-        print(f"  taskRiskDetected: {result.get('taskRiskDetected')}")
-        if result.get("details"):
-            print(f"  details: {result['details']}")
-        print("  raw:")
-        print(
-            format_json_preview(
-                {k: v for k, v in result.items() if k != "api_version"},
-                indent="    ",
-                max_chars=1200,
-            )
-        )
-        print()
+    print("=== Content Safety API (explicit) ===")
+    _aligned_leave_explicit(client, endpoint)
+    _misaligned_leave_explicit(client, endpoint)
+    _misaligned_email_explicit(client, endpoint)
+
+    print("=== Foundry deployment guardrail (Chat Completions) ===")
+    print("  Uses the same cases against the deployment configured by DEFAULT_MODEL")
+    _aligned_leave_foundry(foundry_client)
+    _misaligned_leave_foundry(foundry_client)
+    _misaligned_email_foundry(foundry_client)
 
 
 if __name__ == "__main__":
