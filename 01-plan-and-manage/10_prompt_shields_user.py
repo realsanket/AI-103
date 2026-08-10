@@ -39,6 +39,10 @@ def shield_user_prompt(
     return shield_prompt(client, endpoint, user_prompt, [])
 
 
+def _print_input_text(user_prompt: str) -> None:
+    print("  input: " + user_prompt)
+
+
 def _shield_via_foundry_guardrail(user_prompt: str) -> None:
     """Flow B: Prompt Shields on a Foundry deployment (Chat Completions).
 
@@ -70,18 +74,22 @@ def main() -> None:
 
     print("=== Flow A — Content Safety API direct ===")
     print("\n  Benign:")
+    _print_input_text(_BENIGN)
     result = shield_user_prompt(client, endpoint, _BENIGN)
     print(f"  attackDetected: {result['userPromptAnalysis']['attackDetected']}")
 
     print("\n  Jailbreak:")
+    _print_input_text(_JAILBREAK)
     result = shield_user_prompt(client, endpoint, _JAILBREAK)
     print(f"  attackDetected: {result['userPromptAnalysis']['attackDetected']}")
     print(f"  raw: {result}")
 
     print("\n=== Flow B — Foundry deployment guardrail (Chat Completions) ===")
     print("\n  Benign:")
+    _print_input_text(_BENIGN)
     _shield_via_foundry_guardrail(_BENIGN)
     print("\n  Jailbreak:")
+    _print_input_text(_JAILBREAK)
     _shield_via_foundry_guardrail(_JAILBREAK)
 
 
