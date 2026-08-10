@@ -22,12 +22,11 @@ This lesson covers the DOCUMENT channel (attacker embeds in data the model reads
 Lesson 10 covers the USER PROMPT channel (the user is the attacker).
 """
 from pathlib import Path
-import json
 
 from azure.ai.contentsafety import ContentSafetyClient
 from azure.identity import DefaultAzureCredential
 
-from _shared.config import settings
+from _shared.config import settings, preview_text, format_json_preview
 from openai import BadRequestError
 from _shared.content_safety_client import shield_prompt
 from _shared.openai_client import openai_client
@@ -65,8 +64,7 @@ def _scenario_header(name: str) -> None:
 
 
 def _preview(text: str, max_len: int = 220) -> str:
-    cleaned = " ".join(text.split())
-    return cleaned if len(cleaned) <= max_len else cleaned[: max_len - 3] + "..."
+    return preview_text(text, max_len=max_len)
 
 
 def _print_inputs(user_prompt: str, documents: list[str]) -> None:
@@ -119,7 +117,7 @@ def main() -> None:
     result = shield_documents(client, endpoint, _USER_PROMPT, _MIXED_DOCS)
     _print_flow_a_result(result)
     print("  Raw response:")
-    print("    " + json.dumps(result, indent=2).replace("\n", "\n    "))
+    print(format_json_preview(result, indent="    ", max_chars=1100))
 
     print("\n=== Flow B — deployment guardrail integration ===")
     print("  (Demonstrating why pasting docs into messages hits the user-prompt shield instead)")

@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+import json
 import os
 from dotenv import load_dotenv
 
@@ -108,6 +109,32 @@ def format_content_filter_summary(result: dict, indent: str = "  ") -> str:
         lines.append(line)
 
     return "\n".join(lines)
+
+
+def preview_text(text: str, max_len: int = 180) -> str:
+    """Normalize whitespace and truncate long user-visible text for console output."""
+    cleaned = " ".join(str(text).split())
+    return cleaned if len(cleaned) <= max_len else cleaned[: max_len - 3] + "..."
+
+
+def format_json_preview(value, indent: str = "  ", max_chars: int = 1000) -> str:
+    """Return compact pretty JSON text with indentation and optional truncation."""
+    payload = json.dumps(value, indent=2, ensure_ascii=True)
+    if max_chars > 0 and len(payload) > max_chars:
+        payload = payload[:max_chars] + "..."
+    return "\n".join(f"{indent}{line}" for line in payload.splitlines())
+
+
+def format_hit_categories(
+    sub_categories: list[dict], field: str, limit: int = 10
+) -> str:
+    """List sub-category names where a boolean field is true."""
+    hits = [s.get("sub_category", "unknown") for s in sub_categories if s.get(field)]
+    if not hits:
+        return "none"
+    shown = ", ".join(hits[:limit])
+    more = len(hits) - limit
+    return f"{shown} (+{more} more)" if more > 0 else shown
 
 
 def _opt(key: str, default: str = "") -> str:

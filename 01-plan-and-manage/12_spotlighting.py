@@ -26,7 +26,7 @@ import json
 import requests
 from openai import BadRequestError
 from azure.identity import DefaultAzureCredential
-from _shared.config import settings
+from _shared.config import settings, format_json_preview, preview_text
 from _shared.openai_client import openai_client
 
 
@@ -49,7 +49,7 @@ def _flow_a_explicit_spotlight_api() -> None:
     
     print(f"  Endpoint: {url}")
     print("  Payload:")
-    print(json.dumps(body, indent=2))
+    print(format_json_preview(body, indent="    ", max_chars=900))
     
     # We attempt the call. If the environment isn't explicitly configured for the 
     # new independent spotlight API, it may throw a 404, but this illustrates the required contract.
@@ -58,7 +58,8 @@ def _flow_a_explicit_spotlight_api() -> None:
         response = requests.post(url, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}, json=body)
         print(f"  Status: {response.status_code}")
         if response.status_code == 200:
-            print(f"  Response: {json.dumps(response.json(), indent=2)}")
+            print("  Response:")
+            print(format_json_preview(response.json(), indent="    ", max_chars=900))
         else:
             print(f"  Response: {response.text[:200]}")
     except Exception as e:
@@ -68,12 +69,14 @@ def _flow_a_explicit_spotlight_api() -> None:
 def _flow_b_chat_completions_inline() -> None:
     print("\n=== Flow B — Chat Completions inline Spotlighting ===")
     print("  Passing spotlighting overrides via extra_body on standard completions")
+    prompt = "Summarize the key findings in the attached report."
+    print(f"  Input text sent: {preview_text(prompt)}")
     client = openai_client()
     
     try:
         r = client.chat.completions.create(
             model=settings().default_model,
-            messages=[{"role": "user", "content": "Summarize the key findings in the attached report."}],
+            messages=[{"role": "user", "content": prompt}],
             extra_body={
                 "prompt_shield": {
                     "documents": {
@@ -87,7 +90,12 @@ def _flow_b_chat_completions_inline() -> None:
         print("  Status: Success (Spotlighting parameter accepted by endpoint)")
         pfr = getattr(r, "prompt_filter_results", None)
         if pfr:
-            print("  prompt_filter_results:", pfr[0].get("content_filter_results"))
+            print("  prompt_filter_results:")
+            print(
+                format_json_preview(
+                    pfr[0].get("content_filter_results", {}), indent="    ", max_chars=700
+                )
+            )
             
     except BadRequestError as e:
         # Standard completions endpoints often reject this if not tied to a specific data_source layout

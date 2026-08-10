@@ -26,7 +26,7 @@ from azure.core.rest import HttpRequest
 from azure.identity import DefaultAzureCredential
 from azure.ai.contentsafety import ContentSafetyClient
 
-from _shared.config import settings
+from _shared.config import settings, preview_text, format_json_preview
 
 # Prefer current quickstart version; fall back if resource rejects it.
 _API_VERSIONS = ("2025-09-15-preview", "2024-12-15-preview")
@@ -185,13 +185,27 @@ def main() -> None:
     ]
     for title, messages in cases:
         print(f"=== {title} ===")
+        user_prompt = next((m.get("contents", "") for m in messages if m.get("role") == "User"), "")
+        planned_tools = []
+        for msg in messages:
+            for call in msg.get("toolCalls", []):
+                name = call.get("function", {}).get("name")
+                if name:
+                    planned_tools.append(name)
+        print(f"  user_prompt: {preview_text(user_prompt)}")
+        print(f"  planned_tools: {planned_tools or ['none']}")
         result = _analyze(client, endpoint, messages)
         print(f"  api_version: {result.get('api_version')}")
         print(f"  taskRiskDetected: {result.get('taskRiskDetected')}")
         if result.get("details"):
             print(f"  details: {result['details']}")
+        print("  raw:")
         print(
-            f"  raw: {json.dumps({k: v for k, v in result.items() if k != 'api_version'}, indent=2)}"
+            format_json_preview(
+                {k: v for k, v in result.items() if k != "api_version"},
+                indent="    ",
+                max_chars=1200,
+            )
         )
         print()
 

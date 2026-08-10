@@ -31,7 +31,7 @@ from dataclasses import dataclass
 
 from openai import BadRequestError
 
-from _shared.config import settings
+from _shared.config import settings, preview_text, format_json_preview, format_hit_categories
 from _shared.openai_client import openai_client
 
 # Synthetic examples only — never real personal data in labs.
@@ -76,8 +76,21 @@ def _print_pii(cfr: dict, label: str) -> None:
                 print(f"  pii.{k}: {pii.get(k)}")
         if pii.get("redacted_text"):
             print(f"  pii.redacted_text: {pii['redacted_text'][:200]!r}")
-        if pii.get("sub_categories"):
-            print(f"  pii.sub_categories: {pii['sub_categories']}")
+        sub_categories = pii.get("sub_categories")
+        if isinstance(sub_categories, list) and sub_categories:
+            print(f"  pii.sub_categories.total: {len(sub_categories)}")
+            print(
+                f"  pii.sub_categories.detected: "
+                f"{format_hit_categories(sub_categories, 'detected')}"
+            )
+            print(
+                f"  pii.sub_categories.filtered: "
+                f"{format_hit_categories(sub_categories, 'filtered')}"
+            )
+            print(
+                f"  pii.sub_categories.redacted: "
+                f"{format_hit_categories(sub_categories, 'redacted')}"
+            )
     else:
         print(f"  pii: {pii}")
 
@@ -92,12 +105,14 @@ def _pii_flags(cfr: dict) -> tuple[bool, bool | None, bool | None, bool | None]:
 def _run(prompt: str, label: str) -> RunObservation:
     client = openai_client()
     try:
+        print(f"\n=== {label} ===")
+        print("  Input text sent:")
+        print(f"    {preview_text(prompt)}")
         r = client.chat.completions.create(
             model=_PII_MODEL,
             messages=[{"role": "user", "content": prompt}],
         )
         text = (r.choices[0].message.content or "")[:240]
-        print(f"\n=== {label} ===")
         print(f"  finish_reason: {r.choices[0].finish_reason}")
         print(f"  reply_preview: {text!r}")
         cf = getattr(r.choices[0], "content_filter_results", None) or {}
@@ -127,11 +142,16 @@ def _run(prompt: str, label: str) -> RunObservation:
         )
     except BadRequestError as e:
         print(f"\n=== {label} ===")
+        print("  Input text sent:")
+        print(f"    {preview_text(prompt)}")
         print(f"  Blocked (400): {e.code}")
         body = getattr(e, "body", None) or {}
         cfr = body.get("innererror", {}).get("content_filter_result") or {}
         _print_pii(cfr, "error.content_filter_result")
-        print(f"  raw_inner: {json.dumps(cfr, indent=2)[:800]}")
+        pii_blob = _extract_pii(cfr)
+        if pii_blob:
+            print("  raw_pii_preview:")
+            print(format_json_preview(pii_blob, indent="    ", max_chars=700))
         pii_present, detected, filtered, redacted = _pii_flags(cfr)
         return RunObservation(
             label=label,

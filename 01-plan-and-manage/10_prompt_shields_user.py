@@ -19,7 +19,7 @@ from openai import BadRequestError
 from azure.ai.contentsafety import ContentSafetyClient
 from azure.identity import DefaultAzureCredential
 
-from _shared.config import settings
+from _shared.config import settings, preview_text, format_json_preview
 from _shared.content_safety_client import shield_prompt
 from _shared.openai_client import openai_client
 
@@ -40,7 +40,7 @@ def shield_user_prompt(
 
 
 def _print_input_text(user_prompt: str) -> None:
-    print("  input: " + user_prompt)
+    print("  input: " + preview_text(user_prompt))
 
 
 def _shield_via_foundry_guardrail(user_prompt: str) -> None:
@@ -82,7 +82,8 @@ def main() -> None:
     _print_input_text(_JAILBREAK)
     result = shield_user_prompt(client, endpoint, _JAILBREAK)
     print(f"  attackDetected: {result['userPromptAnalysis']['attackDetected']}")
-    print(f"  raw: {result}")
+    print("  raw:")
+    print(format_json_preview(result, indent="    ", max_chars=900))
 
     print("\n=== Flow B — Foundry deployment guardrail (Chat Completions) ===")
     print("\n  Benign:")

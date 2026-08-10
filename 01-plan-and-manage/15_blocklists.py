@@ -33,7 +33,7 @@ from azure.ai.contentsafety.models import (
 )
 from openai import BadRequestError
 
-from _shared.config import settings
+from _shared.config import settings, format_content_filter_summary, format_json_preview, preview_text
 from _shared.content_safety_client import blocklist_client, content_safety_client
 from _shared.openai_client import openai_client
 
@@ -110,6 +110,7 @@ def _flow_b_foundry_custom_blocklists() -> None:
     print("  (portal Guardrails or ARM Microsoft.CognitiveServices/.../raiBlocklists).")
     client = openai_client()
     prompt = "Please explain how PROJECT-NIGHTHAWK affects the Pro plan pricing."
+    print(f"  input: {preview_text(prompt)}")
     try:
         r = client.chat.completions.create(
             model=settings().default_model,
@@ -120,15 +121,19 @@ def _flow_b_foundry_custom_blocklists() -> None:
             print("  prompt_filter_results absent")
             return
         cfr = pfr[0].get("content_filter_results", {})
+        print(format_content_filter_summary(cfr, indent="  "))
         cb = cfr.get("custom_blocklists")
-        print(f"  custom_blocklists: {cb}")
+        print("  custom_blocklists:")
+        print(format_json_preview(cb or {}, indent="    ", max_chars=700))
         if not cb:
             print("  no custom_blocklists key — list not attached to this deployment filter")
     except BadRequestError as e:
         print(f"  Blocked (400): {e.code}")
         body = getattr(e, "body", None) or {}
         cfr = body.get("innererror", {}).get("content_filter_result") or {}
-        print(f"  custom_blocklists: {cfr.get('custom_blocklists')}")
+        print(format_content_filter_summary(cfr, indent="  "))
+        print("  custom_blocklists:")
+        print(format_json_preview(cfr.get("custom_blocklists") or {}, indent="    ", max_chars=700))
         print(f"  full filter keys: {list(cfr.keys())}")
     except HttpResponseError as e:
         print(f"  HTTP error: {e}")
