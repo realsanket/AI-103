@@ -1,4 +1,33 @@
-"""Document Intelligence v4.0 Layout Markdown and tables lesson."""
+# Run: uv run python 09-current-ai-services-other/02_layout_markdown_tables.py [--apply --source-url <https> --show-markdown]
+"""Extract layout + tables as Markdown using Document Intelligence v4.0 prebuilt-layout.
+
+`prebuilt-layout` adds document structure to OCR: tables, selection marks,
+paragraph roles, figures, sections. Requesting Markdown output preserves
+that structure — complex tables render as HTML inside Markdown so merged
+cells and captions remain represented. Default preflight validates env +
+source presence with no cloud call.
+
+`--apply` submits ONE billable analysis via v4.0 GA and prints counts for
+pages, tables, figures, sections. Markdown content is SUPPRESSED unless
+`--show-markdown` is also supplied. Use this over lesson 01 when you need
+structure (tables, sections) not just text.
+
+Code path:
+  preflight(): validate endpoint + DI_LAYOUT_SOURCE_URL. `--apply`:
+  analyze("prebuilt-layout", url, markdown=True) → v4.0 client with
+  `output_content_format="markdown"` param → result. Print
+  pages/tables/figures/sections counts; markdown only if --show-markdown.
+
+What to watch. Preflight: env var status. `--apply`: `pages: N`,
+`tables: M`, `figures: K`, `sections: L`. Markdown body only with
+`--show-markdown` (truncated at 4000 chars).
+
+Prerequisites / env vars:
+  DOCUMENT_INTELLIGENCE_ENDPOINT — custom-subdomain HTTPS URL
+  DI_LAYOUT_SOURCE_URL           — HTTPS document URL (or --source-url)
+  --apply                        — submit one billable analysis
+  --show-markdown                — print first 4000 chars of Markdown
+"""
 import argparse
 
 from document_intelligence_common import analyze, configured, preflight

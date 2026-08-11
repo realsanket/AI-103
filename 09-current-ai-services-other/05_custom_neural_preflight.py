@@ -1,4 +1,42 @@
-"""Preflight and explicit build for a Document Intelligence custom neural model."""
+# Run: uv run python 09-current-ai-services-other/05_custom_neural_preflight.py [--apply]
+"""Preflight and (opt-in) build a Document Intelligence v4.0 custom neural model.
+
+Custom neural targets structured + semi-structured documents with labeled
+examples. Requires ≥5 labeled samples; training data must represent real
+template/language/value/table variation. v4.0 supports signature detection,
+table cell confidence, and overlapping fields.
+
+Default preflight validates model ID pattern (1-64 chars, [A-Za-z0-9._~-]),
+container HTTPS URL, and training-hour range (0.5-10). No cloud call.
+`--apply` starts a persistent + billable model build via
+DocumentIntelligenceAdministrationClient and WAITS for the poller to
+complete. v4.0 includes 10 free training hours; excess bills, 30-min minimum
+per job.
+
+Custom neural training has limited regional availability. Confirm
+training-region support before creating the resource. You can copy a
+trained model to another region for analysis where supported.
+
+Code path:
+  preflight(): validate MODEL_ID regex, DI_TRAINING_CONTAINER_URL shape,
+  DI_CUSTOM_NEURAL_MAX_TRAINING_HOURS range. `--apply`:
+  build_request() → BuildDocumentModelRequest(build_mode="neural",
+  azure_blob_source=AzureBlobContentSource(container_url, prefix),
+  max_training_hours) → admin_client.begin_build_document_model(request)
+  .result(). Print resulting model_id.
+
+What to watch. Preflight: `Local validation: ready for --apply.` if OK,
+otherwise clear error. `--apply`: `Model built: <model_id>` on success
+(minutes to hours depending on hours + dataset size).
+
+Prerequisites / env vars:
+  DOCUMENT_INTELLIGENCE_ENDPOINT       — custom-subdomain HTTPS URL
+  DI_CUSTOM_NEURAL_MODEL_ID            — 1-64 chars [A-Za-z0-9._~-]
+  DI_TRAINING_CONTAINER_URL            — HTTPS Blob container URL (SAS)
+  DI_CUSTOM_NEURAL_PREFIX              — optional Blob folder prefix
+  DI_CUSTOM_NEURAL_MAX_TRAINING_HOURS  — 0.5 to 10 (default 0.5)
+  --apply                              — start persistent + billable build
+"""
 from __future__ import annotations
 
 import argparse

@@ -1,4 +1,32 @@
-"""Local current-GA Document Intelligence versus Content Understanding chooser."""
+# Run: uv run python 09-current-ai-services-other/06_di_vs_cu_decision.py --scenario <ocr-layout|standard-form|unstructured|custom-labeled> [--needs-reasoning] [--multiple-files] [--air-gapped]
+"""Local decision-tree chooser: Document Intelligence vs Content Understanding.
+
+Zero cloud calls. Given a scenario + capability flags, prints current
+default tool + rationale. Encodes current Foundry guidance:
+- `air-gapped` → DI containers (only on-prem option)
+- `unstructured` / `needs-reasoning` / `multiple-files` → CU analyzers
+- `ocr-layout` → CU prebuilt-read/prebuilt-layout
+- `custom-labeled` → DI custom neural
+- `standard-form` (default) → DI prebuilt models
+
+Result is a starting default — validate with representative documents +
+production requirements before commitment. This encodes guidance, not a
+performance or cost guarantee.
+
+Code path:
+  choose_tool(scenario, needs_reasoning, multiple_files, air_gapped) →
+  early return for air-gapped; then LLM triggers; then scenario switch.
+  Prints tool + why.
+
+What to watch. `Choose: <tool>` + `Why: <reason>`. Repeat with different
+flag combinations to see routing logic.
+
+Prerequisites / env vars:
+  --scenario           — ocr-layout | standard-form | unstructured | custom-labeled (required)
+  --needs-reasoning    — LLM-inferred output required
+  --multiple-files     — multi-file cross-referencing required
+  --air-gapped         — on-premises / disconnected deployment
+"""
 from __future__ import annotations
 
 import argparse
