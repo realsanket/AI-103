@@ -1,4 +1,4 @@
-# Run: uv run python 02-generative-ai-and-agents/21_langchain_tracing.py
+# Run: uv run python 02-generative-ai-and-agents/23_langchain_tracing.py
 
 """LangChain agent with OpenTelemetry traces exported to Azure Monitor.
 

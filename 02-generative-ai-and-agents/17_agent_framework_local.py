@@ -1,10 +1,22 @@
-# Run: uv run python 02-generative-ai-and-agents/17_hosted_agent_framework.py
+# Run: uv run python 02-generative-ai-and-agents/17_agent_framework_local.py
 
 """Local Microsoft Agent Framework agent backed by a Foundry model.
 
-This lesson runs on your machine; it is not a hosted-agent deployment. It uses
-`Agent` and `FoundryChatClient` to call a Foundry model. A hosted agent needs
-its own documented packaging, deployment, and invocation path.
+Microsoft Agent Framework is a Python library for building agents that call
+Foundry models. This lesson runs entirely on your machine — it is not deployed,
+packaged, or hosted anywhere. The framework handles the async run loop; your
+application supplies instructions and tools.
+
+Agent Framework vs prompt agent vs hosted agent:
+  This file   — local Python process, no cloud agent definition.
+  Lesson 08   — prompt agent: stored versioned Foundry definition, project API.
+  Lessons 28–30 — hosted agent: packaged runtime with deployment lifecycle.
+
+Agent Framework natively integrates with Foundry tracing: when Application
+Insights is connected to the project, traces appear in the Foundry portal
+automatically — no additional instrumentation code is needed. Lesson 23
+covers explicit tracing for LangChain/LangGraph, which do not have this
+automatic integration.
 """
 import asyncio
 

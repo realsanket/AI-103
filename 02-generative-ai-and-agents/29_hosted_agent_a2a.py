@@ -1,4 +1,4 @@
-# Run: uv run python 02-generative-ai-and-agents/27_hosted_agent_a2a.py
+# Run: uv run python 02-generative-ai-and-agents/29_hosted_agent_a2a.py
 
 """Lesson 27 — distinguish Responses hosting from A2A before integration.
 

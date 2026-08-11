@@ -1,4 +1,4 @@
-# Run: uv run python 02-generative-ai-and-agents/22_langgraph_agent.py
+# Run: uv run python 02-generative-ai-and-agents/20_langgraph_agent.py
 
 """LangGraph stateful agent — Northwind policy Q&A backed by FAISS + PDFs.
 

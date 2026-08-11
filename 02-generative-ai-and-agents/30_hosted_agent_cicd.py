@@ -1,4 +1,4 @@
-# Run: uv run python 02-generative-ai-and-agents/28_hosted_agent_cicd.py
+# Run: uv run python 02-generative-ai-and-agents/30_hosted_agent_cicd.py
 
 """Lesson 28 — inspect hosted-agent CI/CD and explicit deployment guard.
 

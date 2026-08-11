@@ -1,4 +1,4 @@
-# Run: uv run python 02-generative-ai-and-agents/29_cloud_evaluation.py --dataset cases.jsonl
+# Run: uv run python 02-generative-ai-and-agents/22_cloud_evaluation.py --dataset cases.jsonl
 """Preflight, then optionally create a durable cloud evaluation run.
 
 Unlike L19, this uploads JSONL and persists an evaluation definition and run.

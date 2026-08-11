@@ -1,4 +1,4 @@
-# Run: uv run python 02-generative-ai-and-agents/26_hosted_agent_responses.py
+# Run: uv run python 02-generative-ai-and-agents/28_hosted_agent_responses.py
 
 """Lesson 26 — preflight a Foundry Responses hosted-agent source deployment.
 
