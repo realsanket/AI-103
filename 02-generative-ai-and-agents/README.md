@@ -2,45 +2,25 @@
 
 # Domain 2: Implement generative AI and agentic solutions
 
-> Detailed study guide plus runnable labs for Azure OpenAI-compatible Responses, Foundry prompt and hosted agents, tools, memory, workflow migration, evaluation, observability, production RAG, and LangChain/LangGraph integration.
+> Runnable labs for Azure OpenAI Responses, Foundry prompt and hosted agents, tools, memory, workflow migration, evaluation, observability, and LangChain/LangGraph integration. Run every numbered lesson from repository root: `uv run python 02-generative-ai-and-agents/<lesson>.py`
 >
-> Run every numbered lesson from repository root:
->
-> ```bash uv run python 02-generative-ai-and-agents/<lesson>.py ```
->
-> Code proves one narrow path. It is not a production deployment, authorization design, data-retention policy, or evaluation result.
+> Code proves one narrow path per lesson. It is not a production deployment, authorization design, data-retention policy, or representative evaluation result.
 
-## Learning outcomes
+## What this domain teaches
 
-After this domain, you should be able to:
+```text
+Direct Responses call
+    → Built-in managed tools (web search, code interpreter, file search, structured output)
+    → Prompt agents with function tools, OpenAPI, conversation, memory, workflow
+    → Local frameworks (Agent Framework, multi-agent routing, LangChain, LangGraph)
+    → Evaluation and observability (local evaluators, cloud evaluation, tracing, preflight)
+    → Governed external tools (MCP, Toolbox, Azure AI Search)
+    → Hosted agent delivery (Responses runtime, A2A boundary, OIDC CI/CD)
+```
 
-- choose direct Responses, a project client, a prompt agent, or a hosted agent;
-- keep endpoint, SDK, Entra role, and deployment-name boundaries straight;
-- distinguish model-selected tool calls from application-authorized actions;
-- design retrieval, memory, conversation state, and graph state deliberately;
-- recognize preview surfaces and plan migration before depending on them;
-- evaluate traces rather than treating a single good answer as evidence;
-- trace, deploy, secure, operate, and clean up an agentic workload.
+An LLM call predicts useful next content. An agentic application adds state, tools, policy, and an execution loop. Those layers have separate failure modes and owners. Domain 2 walks you through all seven layers so you can compare them side by side, understand their boundaries, and choose the right runtime for each need.
 
-## Lesson map
-
-Run the lessons in order unless a row says otherwise. Lessons marked **read-only** make no Azure request with their default command. `--apply` always means that the command can create, invoke, upload, or delete cloud assets; read its lesson before using that switch.
-
-| Stage | Lessons | Outcome | Default side effect |
-|---|---|---|---|
-| Direct model baseline | 01–03 | Call a deployment, tune sampling, and use a reasoning deployment. | Model tokens. |
-| Managed Responses tools | 04–07 | Use web search, code interpreter, file search, and strict JSON. | 04–05 and 07 use model/tools; 06 creates then cleans its files and vector store. |
-| Prompt agents and state | 08–16 | Create versions, execute tools safely, use conversations/memory, and inspect workflow migration. | Agent versions and model/tool requests; memory/workflow preview state where used. |
-| Local frameworks and orchestration | 17–20 | Compare Agent Framework, multi-agent routing, LangChain tools, and LangGraph RAG — all local, none deployed. | Model calls; 17 uses project endpoint; 19–20 use direct Azure OpenAI endpoint. |
-| Evaluation and observability | 21–24 | Run local evaluators, create a cloud evaluation run, add LangChain tracing, and check production readiness. | 21 uses model/evaluator tokens; 22 is **read-only** until `--apply`; 23 exports optional spans; 24 is **read-only**. |
-| Governed external tools | 25–27 | Connect MCP, publish a Toolbox, and use Azure AI Search safely. | **Read-only** until `--apply`; 25/27 create temporary agent versions, 26 persists a Toolbox version. |
-| Hosted agent delivery | 28–30 | Validate a Responses hosted-agent contract, keep A2A separate, and inspect OIDC delivery. | 28–30 are local/read-only; contained deployment uses explicit `--apply`. |
-
-There are **30 numbered lessons**. The contained [`hosted_agent_responses/`](hosted_agent_responses/README.md) project is part of lessons 28–30, not a 31st lesson.
-
-## Mental model
-
-An LLM call predicts useful next content. An agentic application adds state, tools, policy, and an execution loop. Those layers have separate failure modes and owners.
+## Agentic runtime mental model
 
 ```text
 User or event
@@ -60,44 +40,76 @@ Model / agent definition ---- tool selection ---- retrieval or external API
 Output validation, grounding/citation checks, human approval, telemetry
 ```
 
-A model can request a tool. A model cannot safely be trusted to authorize a tool. The application validates arguments, checks caller authority, performs the least-privileged action, returns a bounded result, and records the decision.
+A model can *request* a tool. A model cannot safely be *trusted to authorize* a tool. The application validates arguments, checks caller authority, performs the least-privileged action, returns a bounded result, and records the decision.
+
+### Runtime selection
+
+```text
+Need one generated response and application owns all state/tools?
+  Yes → Direct Responses API (lessons 01–07)
+  No  → Need stored Foundry agent definition/version and Foundry tools?
+           Yes → Prompt Agent through project endpoint (lessons 08–16)
+           No  → Need local Python orchestration / framework portability?
+                    Yes → Agent Framework, LangChain, or LangGraph locally (lessons 17–20)
+                    No  → Need managed long-running deployed runtime?
+                             Yes → Package and deploy a hosted agent (lessons 28–30)
+                             No  → Start with direct Responses API
+```
+
+---
 
 ## Service and endpoint map
 
-### Resource, project, deployment, endpoint
-
 | Term | Meaning | Do not confuse it with |
 |---|---|---|
-| **Foundry resource** | Azure resource holding account-level configuration, model deployments, access, and quota context. | A project or a callable model. |
-| **Foundry project** | Workspace under a Foundry resource for project APIs, agents, connections, and collaboration. | Direct Azure OpenAI endpoint. |
-| **Model family** | Capability/version label, such as `gpt-4.1-mini`. | A deployment name. |
+| **Foundry resource** | Azure resource holding account-level config, deployments, access, quota. | A project or a callable model. |
+| **Foundry project** | Workspace under a Foundry resource for project APIs, agents, connections. | Direct Azure OpenAI endpoint. |
+| **Model family** | Capability/version label such as `gpt-4.1-mini`. | A deployment name. |
 | **Deployment** | Named configured instance of a model. | A model family label or endpoint. |
-| **Direct client** | OpenAI SDK client that calls Azure OpenAI-compatible APIs. | `AIProjectClient`. |
+| **Direct client** | OpenAI SDK client calling Azure OpenAI-compatible APIs. | `AIProjectClient`. |
 | **Project client** | `AIProjectClient` for project and prompt-agent APIs. | Direct OpenAI SDK client. |
-| **Hosted agent** | Deployed managed runtime with packaging, identity, ingress, deployment, and lifecycle. | Local `AgentFramework` process. |
+| **Hosted agent** | Deployed managed runtime with packaging, identity, ingress, and lifecycle. | Local `AgentFramework` process. |
 
-| Surface | Setting | URL shape | This repository uses it for | Starting access concern |
-|---|---|---|---|---|
-| Direct Azure OpenAI-compatible data plane | `AZURE_OPENAI_ENDPOINT` | `https://<resource>.openai.azure.com` | Lessons 01–07, 19–21, 23 direct clients. | Direct Azure OpenAI data action on matching resource. |
-| Foundry project API | `PROJECT_ENDPOINT` | `https://<resource>.services.ai.azure.com/api/projects/<project>` | Lessons 08–18, 24 agent/project APIs. | Foundry project access on matching project/resource. |
-| Foundry account helper | `FOUNDRY_ENDPOINT` | `https://<resource>.services.ai.azure.com` | Shared configuration; not substituted into direct OpenAI client. | Depends on operation. |
-| Application Insights | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Connection string, not an inference endpoint. | Optional lesson 23 export; lesson 24 checks for it. | Telemetry write/access and data governance. |
+| Surface | Setting | URL shape | Used for |
+|---|---|---|---|
+| Direct Azure OpenAI data plane | `AZURE_OPENAI_ENDPOINT` | `https://<resource>.openai.azure.com` | Lessons 01–07, 19–21, 23 |
+| Foundry project API | `PROJECT_ENDPOINT` | `https://<resource>.services.ai.azure.com/api/projects/<project>` | Lessons 08–18, 24 |
+| Application Insights | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Connection string | Optional lesson 23 export; lesson 24 checks it |
 
-`_shared/openai_client.py` deliberately constructs `<AZURE_OPENAI_ENDPOINT>/openai/v1`. `_shared/foundry_client.py` deliberately constructs `AIProjectClient` with `PROJECT_ENDPOINT`. Do not replace either URL with the other because both contain the same resource name. Endpoint selection determines SDK route, API contract, and RBAC expectation.
+`_shared/openai_client.py` constructs `<AZURE_OPENAI_ENDPOINT>/openai/v1`. `_shared/foundry_client.py` constructs `AIProjectClient` with `PROJECT_ENDPOINT`. Do not replace either URL with the other — both can contain the same resource name but have different SDK routes, API contracts, and RBAC expectations.
 
-### Authentication model
+---
 
-All numbered Python lessons use `DefaultAzureCredential`. On a workstation, `az login` commonly supplies Azure CLI credentials. In Azure, use a managed identity or workload identity. A successful credential chain only proves some credential obtained a token. It does not prove it has right role at right scope for called endpoint.
+## Glossary
 
-```bash
-az login
-uv sync
-cp .env.example .env
-```
+| Term | Study definition |
+|---|---|
+| **Responses API** | Unified response-generation API that can emit messages and tool calls. |
+| **Prompt agent** | Foundry stored, versioned definition containing model, instructions, and tools. |
+| **Agent reference** | Request body reference selecting agent name and optional version. |
+| **Conversation** | Server-managed turn history identified by `conversation.id`. |
+| **Function tool** | Schema advertised to model; application executes the requested call. |
+| **Built-in tool** | Tool executed by service: web search, code interpreter, or file search. |
+| **OpenAPI tool** | Service-created callable operations from an OpenAPI contract and reachable backend. |
+| **MCP** | Model Context Protocol: protocol for discovering/invoking tools through an MCP server. |
+| **Toolbox** | Foundry-managed versioned collection of tools and connections; not generic MCP. |
+| **A2A** | Agent-to-agent protocol for communicating with an external agent; not a function call. |
+| **RAG** | Retrieval-augmented generation: retrieve evidence, then generate grounded answer. |
+| **Vector store** | Indexed chunks plus embeddings for similarity retrieval. |
+| **Embedding** | Numeric representation used for semantic comparison, not a chat response. |
+| **Memory** | Managed preview long-term memory extraction/retrieval, scoped by identity/context. |
+| **Workflow** | Preview visual/YAML orchestration asset; retires December 1, 2026. |
+| **Graph state** | Explicit application-controlled state passed between LangGraph nodes. |
+| **Trace** | Structured execution record containing spans, timing, attributes, and possibly content. |
+| **Evaluation** | Repeatable scoring over defined inputs/outputs/traces; not a single model answer. |
+| **Grounding** | Answer claims supported by retrieved/tool evidence. |
+| **Human approval** | Explicit authorization checkpoint before consequential side effect. |
 
-Use deployment **names** in `DEFAULT_MODEL`, `REASONING_MODEL`, and `EMBEDDING_MODEL`. Do not put a model-family name there unless deployment has same name. Do not commit `.env`, access tokens, API keys, connection strings, customer content, or production tool outputs.
+---
 
-### Minimum environment contract
+## Setup
+
+### Environment variables
 
 ```dotenv
 FOUNDRY_ENDPOINT=https://<resource>.services.ai.azure.com
@@ -121,1060 +133,1129 @@ AZURE_AI_PROJECT_ENDPOINT=https://<resource>.services.ai.azure.com/api/projects/
 AZURE_AI_MODEL_DEPLOYMENT_NAME=<evaluation-target-or-judge-deployment>
 ```
 
-`ORDERS_FN_ENDPOINT` has no `/api` suffix. Lesson 12 appends `/api` while replacing OpenAPI `servers`. `APPLICATIONINSIGHTS_CONNECTION_STRING` is optional. Lesson 23 still runs without it but emits no Azure Monitor tracer spans. Lessons 25–27 read project connection identifiers rather than connection secrets. Lesson 22 uses `AZURE_AI_PROJECT_ENDPOINT` deliberately so an evaluation target can differ from the general lesson project; set it to the same `PROJECT_ENDPOINT` only when that is intentional.
+`ORDERS_FN_ENDPOINT` has no `/api` suffix — lesson 12 appends it. `APPLICATIONINSIGHTS_CONNECTION_STRING` is optional; lesson 23 still runs without it but exports no spans. `AZURE_AI_PROJECT_ENDPOINT` in lesson 22 may differ from `PROJECT_ENDPOINT` when evaluating a separate project; set to the same value only when intentional.
 
-### Create and configure resources
+All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use managed identity in Azure. A successful credential chain proves some credential obtained a token — it does not prove the correct RBAC role at the correct scope for the endpoint being called.
 
-Use portal, CLI, or infrastructure as code (IaC) for different work:
+### Safe run order
 
-| Method | Best use | Strength | Boundary |
-|---|---|---|---|
-| Foundry portal | Explore supported model/region combinations and inspect runs. | Fast discovery and visual diagnostics. | Record every production setting elsewhere; manual clicks drift. |
-| Azure CLI / `azd` | Local setup, scripted deployment, hosted-agent inner loop, and CI invocation. | Repeatable command history and OIDC-friendly automation. | Validate subscription, active project, and command preview before mutation. |
-| Bicep/Terraform/IaC pipeline | Resource groups, networking, private endpoints, RBAC, tags, and production promotion. | Reviewable, idempotent infrastructure and policy. | Model/tool/runtime data-plane setup still needs supported API or deployment automation. |
-
-Create a nonproduction Foundry resource and project in a supported region, then deploy chat, reasoning, and embedding models by deployment **name**. Check quota and model availability before committing a region or capacity. Use a separate Azure AI Search service/index and Function App when lessons need them. The lessons do not provision those durable dependencies for you.
-
-Use Microsoft Entra ID and managed or workload identities in deployed workloads. Store exceptional API keys, connection secrets, and third-party credentials in a project connection or Key Vault-backed connection, never in `.env`, source, tool descriptions, or trace attributes. A Foundry connection resolves a secret at runtime; it is not permission to use its target. Grant the runtime identity only the data actions required by its endpoint and tool.
-
-For private networking, create private endpoints and private DNS for each resource independently: Foundry/Azure OpenAI, Azure AI Search, Storage, Key Vault, Container Registry, Application Insights ingestion/query paths, and private tool backends. Then test DNS plus ingress and egress **from the real runner or hosted-agent network**, not only from a developer laptop. A private endpoint does not grant RBAC, and RBAC does not create network reachability.
-
-## Safe order and prerequisite decision tree
-
-### Resource prerequisites
-
-1. Complete root repository setup with `uv sync`.
-2. Create/select nonproduction Foundry resource and project.
-3. Deploy compatible chat model and record deployment name.
-4. Deploy reasoning model before lesson 03.
-5. Deploy embedding model before lesson 14 or 22.
-6. Sign in with `az login` and verify endpoint-specific RBAC.
-7. Fill `.env` with endpoint shapes above.
-8. Start with low-cost development inputs and non-sensitive sample data.
-
-### Run order
-
-| Stage | Run | Why |
+| Stage | Run | Gate |
 |---|---|---|
-| Direct baseline | 01, 02, 03 | Validate direct client, behavior control, reasoning deployment. |
-| Managed tools | 04, 05, 06, 07 | Learn service-executed tools and structured contract. |
-| Prompt-agent basics | 08 then 09, then 10–13 | Create definition before name-only invocation; learn state and external tools. |
-| Durable/preview state | 14, then 15 and 16 | Memory needs embedding model; workflow lesson 16 needs lesson 15 intake agent. |
-| Local frameworks | 17, 18, 19, 20 | Explore all local framework options before moving to evaluation; none deploy anything. |
-| Evaluation and observability | 21, 22, 23, 24 | Understand what to measure (21–22) before instrumenting it (23–24); 22 needs `--apply` for cloud run. |
-| External tool boundaries | 25, 26, 27 | Run no-cloud preflights, then connect only reviewed MCP, Toolbox, and Search dependencies. |
-| Hosted deployment | 28, 29, 30 | Validate Responses runtime contract, A2A boundary, and OIDC CI/CD before deployment. |
+| Direct baseline | 01, 02, 03 | 03 needs `REASONING_MODEL` deployment |
+| Managed tools | 04, 05, 06, 07 | 06 creates files/vector store — confirm cleanup plan |
+| Prompt-agent basics | 08 then 09, then 10–13 | 08 must run before 09 can resolve agent by name |
+| Durable/preview state | 14, then 15 and 16 | 14 needs embedding model; 16 needs 15 intake agent |
+| Local frameworks | 17, 18, 19, 20 | 20 needs embedding model for FAISS index |
+| Evaluation and observability | 21, 22, 23, 24 | 22 needs `--apply` for cloud run; 23 needs App Insights string |
+| External tool boundaries | 25, 26, 27 | Preflights safe; `--apply` creates/deletes cloud state |
+| Hosted deployment | 28, 29, 30 | Local-only; contained deployment uses explicit `--apply` |
 
-### Choose a runtime
+### Costs and side effects
 
-```text
-Need one generated response and application owns all state/tools?
-  Yes -> Direct Responses API.
-  No  -> Need stored Foundry agent definition/version and Foundry tools?
-           Yes -> Prompt Agent through project endpoint.
-           No  -> Need local Python orchestration / framework portability?
-                    Yes -> Agent Framework, LangChain, or LangGraph locally.
-                    No  -> Need managed long-running deployed runtime?
-                             Yes -> package and deploy a hosted agent.
-                             No  -> start with direct Responses API.
-```
-
-Use a prompt agent when Foundry owns a stored, versioned definition and service-managed tools. Use a hosted agent when Foundry must run your packaged application and expose a managed endpoint. Use direct Responses when your application owns tool execution and state. Do not select a runtime because its name contains "agent"; select it for the state, protocol, identity, network, and lifecycle boundary that you need.
-
-Local framework code is not a hosted deployment. A registered prompt agent is not automatically a hosted runtime. A visual workflow is not a substitute for production deployment lifecycle.
-
-## Glossary
-
-| Term | Study definition |
+| Lesson | What it writes / costs |
 |---|---|
-| **Responses API** | Unified response-generation API that can emit messages and tool calls. |
-| **Prompt agent** | Foundry stored, versioned definition containing model, instructions, and tools. |
-| **Agent reference** | Request body reference selecting agent name and optional version. |
-| **Conversation** | Server-managed turn history identified by `conversation.id`. |
-| **Function tool** | Schema advertised to model; application executes requested call. |
-| **Built-in tool** | Tool executed by service, such as web search, code interpreter, or file search. |
-| **OpenAPI tool** | Service-created callable operations from an OpenAPI contract and reachable backend. |
-| **MCP** | Model Context Protocol: protocol for discovering/invoking tools through an MCP server. |
-| **Toolbox** | Foundry-managed reusable collection/catalogue of tools and connections; not MCP protocol. |
-| **A2A** | Agent-to-agent protocol/integration for communicating with an external agent; not a generic function call. |
-| **RAG** | Retrieval-augmented generation: retrieve evidence, then generate grounded answer. |
-| **Vector store** | Indexed chunks plus embeddings for similarity retrieval. |
-| **Embedding** | Numeric representation used for semantic comparison, not a chat response. |
-| **Memory** | Managed preview long-term memory extraction/retrieval, scoped by identity/context. |
-| **Workflow** | Preview visual/YAML orchestration asset; retirement is scheduled December 1, 2026. |
-| **Graph state** | Explicit application-controlled state passed between LangGraph nodes. |
-| **Trace** | Structured execution record containing spans, timing, attributes, and possibly content. |
-| **Evaluation** | Repeatable scoring over defined inputs/outputs/traces; not a single model answer. |
-| **Grounding** | Answer claims supported by retrieved/tool evidence. |
-| **Human approval** | Explicit authorization checkpoint before consequential side effect. |
+| 01–05, 07 | Model tokens; 05 uses code-interpreter sandbox |
+| 06 | Files and vector store (persists until deleted); embedding and retrieval tokens |
+| 08, 10–16 | Agent versions (persist); model tokens |
+| 09, 11, 18 | Agent invocation + function-tool round trips; model tokens |
+| 12 | Agent invocation + OpenAPI backend calls; model tokens |
+| 14 | Memory store + preview memory state; embedding tokens |
+| 17 | Model tokens via PROJECT_ENDPOINT |
+| 19–20 | Model + embedding tokens via AZURE_OPENAI_ENDPOINT |
+| 21 | Evaluator model tokens (local SDK, no cloud state) |
+| 22 (`--apply`) | Uploaded evaluation file (30-day expiry), evaluation run, model/evaluator tokens |
+| 23 | Model tokens; App Insights spans if connection string set |
+| 24 | Local only; `--check-connection` calls project telemetry API |
+| 25 (`--apply`) | Temporary agent version (deleted in `finally`) |
+| 26 (`--apply`) | Toolbox version (persists; needs explicit `--delete-version`) |
+| 27 (`--apply`) | Temporary agent version (deleted in `finally`) |
+| 28–30 | Local/read-only; contained `deploy.py --apply` deploys to Azure |
 
-## Tool catalog and contracts
+---
 
-### Tool-selection decision table
+## Decision tables
 
-| Need | Start with | Lifecycle owner | Key limit |
-|---|---|---|---|
-| Fresh public information | Web search | Managed service | Cite results; obey data/citation policy. |
-| Calculation/data analysis | Code interpreter | Managed sandbox | Treat generated code/output as untrusted result. |
-| Small uploaded corpus | File search | Managed vector store | Upload/index lifecycle and retrieval quality still matter. |
-| Existing Python/application action | Function tool | Application | Model requests; app authorizes and executes. |
-| Existing HTTP API | OpenAPI tool | Agent service plus backend | Backend must be deployed/reachable and authentication aligned. |
-| Reusable protocol tool server | Remote MCP | MCP server/operator | Remote endpoint, auth, tool trust, and network policy matter. |
-| Reusable governed Foundry tools | Toolbox/tool catalog | Foundry/project operator | Product surface distinct from MCP and app functions. |
-| Delegate to another agent | A2A or explicit agent-as-tool pattern | Agent/operator | Identity, task boundary, and delegated authority need design. |
-| Deterministic local routing | Application code/LangGraph edge | Application | Do not pretend probabilistic model routing is deterministic. |
+### Tool selection
 
-### Function-calling lifecycle
+| Need | Use | Key limit |
+|---|---|---|
+| Fresh public information | Web search (built-in) | Results are untrusted; cite and verify |
+| Calculation / data analysis | Code interpreter (built-in) | Sandbox output is not production compute |
+| Small uploaded corpus | File search (built-in) | Upload lifecycle and retrieval quality still matter |
+| Existing Python action | Function tool | Model requests; app authorizes and executes |
+| Existing HTTP API | OpenAPI tool | Backend must be deployed and reachable; auth must align |
+| Reusable protocol tool server | Remote MCP | Auth, allowlist, network policy, and data boundary matter |
+| Governed reusable Foundry tools | Toolbox | Versioned catalog; not arbitrary MCP |
+| Delegate to another agent | A2A or agent-as-tool | Identity, task boundary, and delegated authority need design |
+| Deterministic local routing | Application code / LangGraph edge | Do not treat probabilistic routing as deterministic |
 
-```text
-1. Define narrow JSON Schema: tool name, description, allowed fields, types.
-2. Model emits zero, one, or many `function_call` items with `call_id`.
-3. Application looks up only allowlisted tool name.
-4. Application parses JSON and rejects malformed/non-object arguments.
-5. Application rejects unexpected keys, missing required keys, and wrong types.
-6. Application checks caller identity, tenant scope, authorization, and business rules.
-7. Application executes bounded least-privileged operation or returns safe error.
-8. Application sends `function_call_output` with original `call_id`.
-9. Model receives result and may request another tool or produce final message.
-10. Application stops at bounded round count and logs decisions safely.
-```
-
-Lessons 09, 11, and 18 implement this pattern. They preserve the exact `call_id`. They process every emitted function call in each response. They return structured errors rather than crash on bad arguments. They cap iterations at `MAX_TOOL_ROUNDS = 8`.
-
-`strict=True` constrains tool arguments to supplied schema. It does not authorize action. It does not authenticate user. It does not validate semantic/business constraints. It does not make returned tool data true.
-
-### Tool-security checklist
-
-- Allowlist tool names; never dynamically import/execute model-selected names.
-- Parse JSON; require object shape; reject unknown fields by default.
-- Validate ranges, formats, ownership, tenant, and resource identifiers.
-- Re-authorize against authenticated caller, not model-provided identity fields.
-- Separate read from write/delete/pay/send tools.
-- Require explicit confirmation/human approval before consequential actions.
-- Use short-lived scoped credentials; never expose secrets in tool schema/result.
-- Bound time, retries, result size, pagination, and tool rounds.
-- Treat retrieved web/document/API text as untrusted indirect prompt input.
-- Return minimal error detail; log correlation IDs without secrets or sensitive payloads.
-- Test prompt injection and confused-deputy scenarios before enabling privileged tools.
-- Review tool traces and permissions after every schema or backend change.
-
-### OpenAPI reachability and authentication
-
-Lesson 12 starts from `azure_functions_orders/northwind_spec.json`. It replaces its intentionally invalid server with `$ORDERS_FN_ENDPOINT/api` at runtime. The local Azure Function is useful only for local contract testing:
-
-```bash
-cd 02-generative-ai-and-agents/azure_functions_orders
-cp local.settings.json.example local.settings.json
-func start
-curl http://localhost:7071/api/orders
-curl http://localhost:7071/api/orders/1002
-```
-
-Foundry Agent Service cannot reach laptop `localhost`, `127.0.0.1`, or `::1`. Deploy backend, expose route to Agent Service, then set endpoint without `/api`:
-
-```bash
-func azure functionapp publish <your-function-app-name>
-# .env
-ORDERS_FN_ENDPOINT=https://<your-function-app>.azurewebsites.net
-```
-
-Lesson 12 uses `OpenApiAnonymousAuthDetails()` only for static demo orders. Its deployed backend remains anonymous unless you change Function configuration. Production path: protect API with API key or Microsoft Entra authentication, select matching OpenAPI tool auth details, grant minimum backend access, and verify agent service network egress/ingress and DNS before registering tool. Do not claim production auth exists because sample OpenAPI schema contains operations.
-
-### MCP, Toolbox, and A2A distinctions
-
-`northwind_mcp/` is independent of numbered lessons. It exposes Azure Functions MCP triggers at `/runtime/webhooks/mcp`. It is not automatically attached by lesson 12 and is not the OpenAPI backend. Use local MCP endpoint only with local MCP client:
-
-```bash
-cd 02-generative-ai-and-agents/northwind_mcp
-cp local.settings.json.example local.settings.json
-pip install -r requirements.txt
-func start
-```
-
-A remote Foundry connection needs deployed reachable endpoint: `https://<app>.azurewebsites.net/runtime/webhooks/mcp`. Configure Function keys or Entra authentication before non-demo use and align connection authentication with server expectation.
-
-MCP standardizes tool-server interaction. Toolbox organizes managed reusable tools in Foundry. A2A sends work to another agent and introduces delegated-agent identity/task boundaries. Function calling is an application-controlled request/response loop. They can coexist but are not interchangeable labels.
-
-## State and RAG paths
-
-### State decision tree
+### State selection
 
 ```text
 Need previous turns only inside one interaction?
-  Yes -> conversation ID; test isolation and retention.
-  No  -> Need durable user preference/fact recall across conversations?
-           Yes -> preview Foundry Memory with explicit user scope and consent.
-           No  -> Need deterministic workflow data/state transitions?
-                    Yes -> application/graph state or database.
-                    No  -> stateless Responses call.
+  Yes → conversation ID (lesson 13)
+  No  → Need durable user preference/fact recall across conversations?
+           Yes → preview Foundry Memory with explicit user scope (lesson 14)
+           No  → Need deterministic workflow data/state transitions?
+                    Yes → application/graph state or database (lesson 20)
+                    No  → stateless Responses call (lessons 01–07)
 ```
 
-Conversation state preserves interaction context. It does not prove durable user profile memory. Memory recalls extracted/retrieved information probabilistically. It does not replace source-of-truth customer system or authorization database. Graph state is explicit program state controlled by application. Do not store secrets, credentials, payment data, or sensitive precise location in prompts, vector stores, memory, trace attributes, or tool results.
+### RAG paths
 
-### RAG choices
+| Path | Lesson | Good for | Hard limit |
+|---|---|---|---|
+| Managed file search | 06 | Fast learning path, small corpus | Upload/vector-store lifecycle; no ACL |
+| Foundry Memory | 14 | Scoped durable preference recall | Preview; async/debounced extraction |
+| Local FAISS | 20 | Graph/RAG orchestration learning | Ephemeral; no service RBAC, indexing, or governance |
+| Azure AI Search | 27 | Production retrieval path | Requires ingestion, schema, ACL, monitoring, evaluation |
 
-| Path | Lessons | Storage/index | Good for | Limits |
-|---|---:|---|---|---|
-| Managed file search | 06 | Managed uploaded files/vector store | Fast learning path, small corpus. | Creates cloud files/vector state; retrieval needs evaluation. |
-| Foundry Memory | 14 | Preview memory store | Scoped durable preference recall. | Async/debounced extraction; not immediate or guaranteed recall. |
-| Local FAISS | 22 | In-process index from PDFs | Graph/RAG learning. | Rebuilds every run; no production durability, ACL, or governance. |
-| Azure AI Search | Domain 5 | Search service index | Production retrieval path. | Requires ingestion, schema, ACL, monitoring, and evaluation. |
+---
 
-For any RAG path:
+## Lesson map
 
-1. define authoritative source and update/deletion process;
-2. chunk with source metadata and evaluate retrieval before generation;
-3. apply identity/tenant/document ACL before returning chunks;
-4. pass bounded evidence, not entire corpus, to model;
-5. require citation/uncertainty behavior when evidence is absent;
-6. evaluate answer quality, groundedness, retrieval quality, and safety;
-7. monitor drift, stale content, zero-hit rate, and cost.
+| # | File | Runnable objective | Default side effect |
+|---|---|---|---|
+| 01 | `01_first_api_call.py` | Direct Responses call via DefaultAzureCredential | Model tokens |
+| 02 | `02_model_behavior.py` | Temperature comparison across three values | Model tokens |
+| 03 | `03_reasoning.py` | Streaming reasoning model call | Model tokens (higher cost) |
+| 04 | `04_web_search_tool.py` | Responses call with built-in web search | Model + search tokens |
+| 05 | `05_code_interpreter.py` | Responses call with built-in code interpreter | Model + sandbox tokens |
+| 06 | `06_file_search_tool.py` | Upload PDFs, create vector store, query file search | Files + vector store (persists) |
+| 07 | `07_structured_output.py` | Structured JSON extraction with `strict=True` schema | Model tokens |
+| 08 | `08_prompt_agent_create.py` | Register IT HelpDesk Prompt Agent version | Agent version |
+| 09 | `09_prompt_agent_invoke.py` | Invoke agent, execute function tools safely | Model tokens |
+| 10 | `10_agent_web_search.py` | Register agent with built-in web search tool | Agent version |
+| 11 | `11_agent_function_tools.py` | End-to-end create + invoke + function loop | Agent version + model tokens |
+| 12 | `12_agent_openapi_tools.py` | Agent with OpenAPI tool and deployed Function backend | Agent version + model + API tokens |
+| 13 | `13_conversation_thread.py` | Multi-turn conversation via `conversation.id` | Agent version + model tokens |
+| 14 | `14_foundry_memory.py` | Preview memory store with user-scoped recall | Memory store (preview) |
+| 15 | `15_workflow_intake.py` | Intake agent producing structured triage JSON | Agent version + model tokens |
+| 16 | `16_workflow_conditional.py` | Preview YAML conditional workflow definition | Agent versions + preview workflow |
+| 17 | `17_agent_framework_local.py` | Local Agent Framework call to Foundry model | Model tokens via PROJECT_ENDPOINT |
+| 18 | `18_multi_agent_coord.py` | Router delegating to billing/technical specialists | Agent versions + model tokens |
+| 19 | `19_langchain_agent.py` | LangChain agent with local tools and Azure model | Model tokens via AZURE_OPENAI_ENDPOINT |
+| 20 | `20_langgraph_agent.py` | LangGraph agent with local FAISS RAG | Model + embedding tokens |
+| 21 | `21_evaluator_task_adherence.py` | Local SDK evaluators against one agent turn | Evaluator model tokens |
+| 22 | `22_cloud_evaluation.py` | Preflight; `--apply` uploads JSONL + starts cloud eval run | **Read-only** until `--apply` |
+| 23 | `23_langchain_tracing.py` | LangChain agent with OpenTelemetry export | Model tokens; optional App Insights spans |
+| 24 | `24_production_observability_preflight.py` | Observability config guide and preflight | **Read-only**; `--check-connection` calls telemetry API |
+| 25 | `25_mcp_tool_preflight.py` | MCP tool preflight; `--apply --approve` for reviewed read calls | **Read-only** until `--apply` |
+| 26 | `26_toolbox_tool_catalog_preflight.py` | Toolbox preflight; `--apply` publishes version | **Read-only** until `--apply` |
+| 27 | `27_agent_azure_ai_search_preflight.py` | AI Search agent preflight; `--apply` tests integration | **Read-only** until `--apply` |
+| 28 | `28_hosted_agent_responses.py` | Validate Responses hosted-agent runtime contract | Local only |
+| 29 | `29_hosted_agent_a2a.py` | Verify A2A boundary — Responses ≠ A2A | Local only |
+| 30 | `30_hosted_agent_cicd.py` | Inspect OIDC CI/CD reference and deployment guard | Local only |
 
-## Preview and lifecycle boundaries
+---
 
-| Area | Current lesson contract | Planning consequence |
-|---|---|---|
-| Foundry Memory | Preview; `project.beta.memory_stores`, `MemorySearchPreviewTool`, scoped `{{$userId}}`, and `x-memory-user-id`. | Pin/test SDK behavior, design fallback/source of truth, avoid relying on immediate recall. |
-| Workflows | Preview and retire December 1, 2026. | Do not begin new long-lived solution on visual workflow alone; migrate orchestration to Agent Framework/hosted agent path. |
-| Agent evaluators | Preview evaluator SDK surface. | Treat output scores as measurements needing dataset, thresholds, review, and regression policy. |
-| Hosted agents | Separate deployment product/lifecycle. | Local Agent Framework code needs packaging, deployment, identity, ingress, monitoring, and release process. |
+## Stage 1 — Direct model calls (lessons 01–03)
 
-Lesson 14 creates/fetches a named store, versioned agent, and two conversations. It scopes memory through `x-memory-user-id: user-sarah-chen`. It waits 65 seconds after first conversation because updates are asynchronous and debounced. Wait is demonstration, not delivery guarantee. The answer must never claim a preference absent from retrieved memory.
-
-Lessons 15–16 retain YAML as study artifact. `wf_triage.yml` routes `policy_question` to Knowledge agent and other input to Ticket agent after intake output stored as `Local.Triage`. Lesson 16 uploads preview workflow definition and tells you to test portal playground while preview remains. It does not prove a hosted-agent deployment or production scheduler.
-
-## Lesson-by-lesson guide
-
-### How to read each walkthrough
-
-For lessons 01–24, **Question** gives what problem is solved, **Concepts** gives why/architecture vocabulary, **What code proves** traces code path, **Limitations** states where not to use sample, and **Check** names expected output or verification, pitfall, and best next practice. The run-order table states cross-lesson dependencies and resource prerequisites. Lessons 25–30 use explicit **What and why**, **Prerequisites**, **Architecture**, **Output**, **Use and do not use**, **Pitfalls**, and **Key takeaway** labels because they cross deployment, network, and durable-data boundaries.
+These three lessons use only `AZURE_OPENAI_ENDPOINT` and make no Azure agent or project API calls. They validate your direct client, credential chain, and deployment names before introducing any Foundry-specific surface. Run these first to isolate endpoint and credential issues from agent issues.
 
 ### 01 — First Responses API call
 
-**Question:** Can direct Azure OpenAI-compatible Responses call deployed chat model?
+**Question answered:** Does a direct Azure OpenAI-compatible Responses call work with keyless auth?
 
-Run:
+**Background.** The Responses API is the unified endpoint for Azure OpenAI completions. Lesson 01 is the minimal smoke test: one `responses.create()` call, no tools, no agent definition, no conversation. DefaultAzureCredential picks up `az login` on a workstation and managed identity in Azure.
 
 ```bash
 uv run python 02-generative-ai-and-agents/01_first_api_call.py
 ```
 
-**Concepts:** `OpenAI` client, `DefaultAzureCredential`, deployment name, `responses.create`, `response.output_text`.
+**Code path.**
+1. `openai_client()` → builds `OpenAI(base_url=AZURE_OPENAI_ENDPOINT/openai/v1, …)` with bearer token
+2. `client.responses.create(model=DEFAULT_MODEL, input=…)` → single completion call
+3. Prints `response.output_text`
 
-**What code proves:** Direct client from `_shared/openai_client.py` sends one prompt through `AZURE_OPENAI_ENDPOINT/openai/v1`.
+**What to watch in the output.** Printed answer confirms endpoint, credential, and deployment name work together. 401/403 → check endpoint URL and data-plane RBAC assignment (needs Azure OpenAI User or Contributor on the resource).
 
-**Limitations:** It does not create a Foundry agent, test project endpoint, or prove tool, evaluation, throughput, or production authorization behavior.
+**What this proves / does NOT prove.** Proves direct endpoint + credential chain. Does NOT prove project endpoint access, tool use, throughput, or production authorization.
 
-**Check:** A printed answer proves direct endpoint, credential, and deployment work together for this simple request.
+**References:** [Responses API quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api) · [Authentication and authorization in Foundry](https://learn.microsoft.com/azure/foundry/concepts/authentication-authorization-foundry)
 
-### 02 — Model behavior
+---
 
-**Question:** How does temperature alter sampling behavior?
+### 02 — Model behavior (temperature)
 
-Run:
+**Question answered:** How does the `temperature` parameter change output across the same prompt?
+
+**Background.** Temperature controls sampling entropy: 0.0 collapses the distribution toward the most likely token; 2.0 spreads it widely. This lesson runs the same prompt at 0.0, 1.0, and 2.0 to make the difference visible. The model is hard-coded to `gpt-4.1` because temperature range support is model-specific.
 
 ```bash
 uv run python 02-generative-ai-and-agents/02_model_behavior.py
 ```
 
-**Concepts:** temperature, output variability, prompt invariance, deployment configuration versus request parameters.
+**Code path.**
+1. For `t` in `(0.0, 1.0, 2.0)`: `client.responses.create(model="gpt-4.1", temperature=t, input=…)`
+2. Prints `r.output_text` under each temperature header
 
-**What code proves:** Same prompt runs with `0.0`, `1.0`, and `2.0`.
+**What to watch in the output.** Temperature 0.0 output is nearly identical on repeated runs. Temperature 2.0 output diverges significantly. Compare several runs at each value — do not draw conclusions from one run.
 
-**Limitations:** Temperature is not a truth, safety, grounding, determinism, or quality guarantee. Exact support/range remains model/API dependent.
+**Exam cues.** Temperature is NOT a safety, truth, grounding, or quality guarantee. Exact support and range are model/API dependent. Check deployment capability before using temperature > 1.0.
 
-**Check:** Compare patterns across repeated runs; do not choose value by one example.
+**References:** [Responses API quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api) · [Foundry models overview](https://learn.microsoft.com/azure/foundry/concepts/foundry-models-overview)
 
-### 03 — Reasoning
+---
 
-**Question:** How is a reasoning-tier request configured?
+### 03 — Reasoning model
 
-Run:
+**Question answered:** How is a reasoning-tier model request configured differently from a standard call?
+
+**Background.** Reasoning-tier models (o3, o4-mini) use a separate parameter surface. The `temperature` parameter is replaced by `reasoning={"effort": "high", "summary": "detailed"}`. These deployments think silently and emit a structured summary before the final answer. They cost more and have higher latency — benchmark against representative problems before choosing effort level.
 
 ```bash
 uv run python 02-generative-ai-and-agents/03_reasoning.py
 ```
 
-**Concepts:** separate `REASONING_MODEL`, `reasoning={"effort": "high"}`, reasoning cost/latency trade-off.
+**Code path.**
+1. `client.responses.create(model=REASONING_MODEL, reasoning={"effort": "high", "summary": "detailed"}, stream=True)`
+2. Iterates stream events: `response.reasoning_summary_text.delta` → prints reasoning summary; `response.output_text.delta` → prints answer
 
-**What code proves:** Direct Responses request asks configured reasoning deployment to analyze concurrency failure scenario.
+**What to watch in the output.** Two event types arrive in sequence: the thinking summary first, then the final answer. Run with a standard model for comparison to see the latency and cost difference.
 
-**Limitations:** High effort is not proof of correctness. Reasoning models, parameter support, price, and latency depend on deployment/model availability.
+**Exam cues.** `reasoning={"effort": …}` not `temperature`. `REASONING_MODEL` must be a compatible deployment name — not a model family label. High effort ≠ correct.
 
-**Check:** Compare against representative problems and total latency/cost.
+**References:** [Responses API quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api) · [Foundry models overview](https://learn.microsoft.com/azure/foundry/concepts/foundry-models-overview)
+
+---
+
+## Stage 2 — Built-in managed tools (lessons 04–07)
+
+Built-in tools run service-side: the model emits a tool call, the Azure service executes it, and the result arrives in the same response. No application executor needed. These lessons use `AZURE_OPENAI_ENDPOINT` directly (same as Stage 1) with no agent definition.
 
 ### 04 — Web search tool
 
-**Question:** How can model obtain current public information?
+**Question answered:** How can a model obtain current public information without application code?
 
-Run:
+**Background.** The built-in `web_search` tool is executed by the Azure OpenAI service, not your application. The model decides when to invoke it unless `tool_choice="required"` is set. Search results are untrusted public-web text — verify citations and obey source data-use requirements.
 
 ```bash
 uv run python 02-generative-ai-and-agents/04_web_search_tool.py
 ```
 
-**Concepts:** built-in `web_search`, `tool_choice="auto"`, freshness, citations, tool selection.
+**Code path.**
+1. `client.responses.create(tools=[{"type": "web_search"}], tool_choice="required", stream=True)`
+2. Streams response; model emits web search event then final text with citations
 
-**What code proves:** Direct Responses call exposes managed web search and asks for citations.
+**What to watch in the output.** Citation lines confirm the model fetched and attributed external sources. `tool_choice="required"` forces search for teaching purposes — remove it in production to let the model decide.
 
-**Limitations:** `auto` can skip search. Search output can be incomplete, wrong, malicious, or unfit for sensitive decisions. Validate citations and follow source/data-use requirements.
+**What this proves / does NOT prove.** Proves service-side tool invocation. Does NOT prove citation accuracy, completeness, or fitness for sensitive decisions.
 
-**Check:** Use `tool_choice="required"` only to test invocation behavior, not as a substitute for answer verification.
+**References:** [Web search tool how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/web-search) · [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
+
+---
 
 ### 05 — Code interpreter
 
-**Question:** When should model calculate rather than narrate calculation?
+**Question answered:** When should the model calculate rather than narrate a calculation?
 
-Run:
+**Background.** The built-in `code_interpreter` tool runs Python inside an isolated sandbox managed by Azure OpenAI. It handles precise numeric computation, data analysis, and chart generation. The sandbox is managed service infrastructure, not production compute — treat generated code and outputs as untrusted results.
 
 ```bash
 uv run python 02-generative-ai-and-agents/05_code_interpreter.py
 ```
 
-**Concepts:** managed `code_interpreter`, auto container, generated code, execution output, final answer.
+**Code path.**
+1. `client.responses.create(tools=[{"type": "code_interpreter", …}])`
+2. Response contains `code_interpreter_call` items with the Python code generated
+3. Lesson prints the generated code and execution output before the final answer
 
-**What code proves:** Response can contain `code_interpreter_call` items and message item; lesson prints code and outputs.
+**What to watch in the output.** The generated Python code appears before the answer. Independently verify the formula and input assumptions — sandbox execution does not make assumptions correct.
 
-**Limitations:** Sandbox execution does not make assumptions, data, or conclusions correct. Never treat it as unrestricted production compute.
+**Exam cues.** Code interpreter runs in a managed sandbox, not your machine. It cannot access your local filesystem or network. Never treat it as unrestricted production compute.
 
-**Check:** Independently verify formula and input assumptions.
+**References:** [Code interpreter how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/code-interpreter) · [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
 
-### 06 — File search tool
+---
 
-**Question:** What is smallest managed RAG path without Azure AI Search?
+### 06 — File search (managed RAG)
 
-Run:
+**Question answered:** What is the smallest managed RAG path without Azure AI Search?
+
+**Background.** File search uploads documents, creates a managed vector store, handles chunking and embeddings, and retrieves relevant chunks at query time — all service-side. No Azure AI Search or external index required. This is useful for small corpora and rapid learning, but creates persistent cloud files and a vector store that incur charges and require cleanup.
 
 ```bash
 uv run python 02-generative-ai-and-agents/06_file_search_tool.py
 ```
 
-**Concepts:** files API, `purpose="assistants"`, vector store, managed chunking/embeddings/retrieval, file-search tool.
+**Code path.**
+1. Validates local PDFs from `_shared/sample_data/northwind_policies/`
+2. Uploads each PDF to Azure OpenAI Files API with `purpose="assistants"`
+3. Creates named vector store and attaches uploaded file IDs
+4. `client.responses.create(tools=[{"type": "file_search", "vector_store_ids": [vs.id]}])`
+5. Prints grounded answer with retrieved chunk evidence
 
-**What code proves:** Uploads each policy PDF, creates named vector store, and requests answer with its ID.
+**What to watch in the output.** Answer cites policy content from uploaded PDFs. Record the vector store ID for cleanup — normal lesson completion deletes it, but interrupted runs leave persistent state.
 
-**Limitations:** Every run can create files/vector-store state and charges. No ACL, metadata filter, ingestion cleanup, citation validation, or retrieval evaluation is implemented.
+**What this proves / does NOT prove.** Proves managed file ingestion + retrieval pipeline. Does NOT prove retrieval quality, ACL, citation accuracy, or production-grade document governance.
 
-**Check:** Record IDs, test known-answer/zero-answer cases, then delete labs.
+**References:** [File search tool how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/file-search) · [Vector stores concept](https://learn.microsoft.com/azure/foundry/agents/concepts/vector-stores) · [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
+
+---
 
 ### 07 — Structured output
 
-**Question:** How can extraction have machine-valid schema contract?
+**Question answered:** How can model extraction have a machine-valid schema contract?
 
-Run:
+**Background.** Passing "respond in JSON" to a model is advisory — the model may deviate. `text.format` with `type: "json_schema"` and `strict: true` constrains the token sampler so the response is mechanically guaranteed to match the schema. This is what makes generative extraction production-grade instead of best-effort.
 
 ```bash
 uv run python 02-generative-ai-and-agents/07_structured_output.py
 ```
 
-**Concepts:** `text.format`, JSON Schema, schema name, `strict=True`, `additionalProperties: false`, JSON parsing.
+**Code path.**
+1. Defines JSON Schema with `additionalProperties: false` and all fields in `required`
+2. `client.responses.create(text={"format": {"type": "json_schema", "strict": True, "schema": _SCHEMA}})`
+3. Parses `response.output_text` with `json.loads()` — guaranteed to succeed with strict schema
 
-**What code proves:** Ticket extraction parses `response.output_text` into entities/topics after strict schema response request.
+**What to watch in the output.** Parsed Python dict with `entities` and `topics` arrays. Try removing `strict: true` and rerunning — outputs may sometimes violate the schema.
 
-**Limitations:** Schema conformance does not prove extraction accuracy or business validity. Validate content, missing facts, and downstream constraints.
+**Exam cues.** Schema conformance does NOT prove extraction accuracy or business validity. Validate content, missing facts, and downstream constraints separately.
 
-**Check:** Add representative adversarial/ambiguous tickets to evaluation set.
+**References:** [Responses API quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api) · [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
+
+---
+
+## Stage 3 — Prompt agents and state (lessons 08–16)
+
+Prompt agents are stored, versioned definitions in Foundry: model + instructions + tools. Unlike direct Responses calls, they live in the project and can be invoked by name. This stage uses `PROJECT_ENDPOINT` through `AIProjectClient`.
 
 ### 08 — Prompt-agent creation
 
-**Question:** What does a versioned Foundry Prompt Agent definition contain?
+**Question answered:** What does a versioned Foundry Prompt Agent definition contain?
 
-Run:
+**Background.** A Prompt Agent stores a model, instructions, and tool schemas as a named versioned entity in Foundry. Each `create_version()` call increments the version. Registering a `FunctionTool` schema advertises the tool to the model — it does NOT run any local Python function until invoked by the application in lesson 09.
 
 ```bash
 uv run python 02-generative-ai-and-agents/08_prompt_agent_create.py
 ```
 
-**Concepts:** project client, `PromptAgentDefinition`, instructions, `FunctionTool`, strict parameter schemas, agent name/version.
+**Code path.**
+1. `project_client()` → `AIProjectClient` via PROJECT_ENDPOINT
+2. Defines three `FunctionTool` schemas: `get_password_reset_steps`, `get_vpn_troubleshooting_steps`, `get_software_install_guide`
+3. `client.agents.create_version(agent_name=AGENT_NAME, definition=PromptAgentDefinition(…))`
+4. Prints agent id, name, version — save for lesson 09
 
-**What code proves:** Creates version for `IT-HelpDesk-Agent` with three function-tool schemas.
+**What to watch in the output.** Version number increments on each re-run. Changing instructions or tool schemas and re-running creates a new version, not in-place mutation.
 
-**Limitations:** Registering schema never runs local Python functions. Each run creates a new version; lifecycle/cleanup matters.
+**Exam cues.** `strict=True` on `FunctionTool` constrains argument schema, not execution authorization. Each version persists and incurs potential costs — clean up stale lab versions.
 
-**Check:** Save printed name/version and use lesson 09 to execute calls.
+**References:** [Prompt agent quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/prompt-agent) · [Function calling how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/function-calling) · [Development lifecycle](https://learn.microsoft.com/azure/foundry/agents/concepts/development-lifecycle)
+
+---
 
 ### 09 — Prompt-agent invocation and safe tool loop
 
-**Question:** How does application execute prompt-agent requested functions?
+**Question answered:** How does the application execute the tools a Prompt Agent requests?
 
-Run:
+**Background.** Lesson 08 registered the agent definition. This lesson invokes it. The model emits `function_call` items; this application is the executor. It validates each tool name against an allowlist, parses JSON arguments, rejects unexpected keys or missing required fields, executes the local helpdesk function, and returns `function_call_output` items with the original `call_id`. The loop caps at `MAX_TOOL_ROUNDS = 8`.
 
 ```bash
 uv run python 02-generative-ai-and-agents/09_prompt_agent_invoke.py
 ```
 
-**Concepts:** agent reference, server conversation, `function_call`, `function_call_output`, call ID, JSON validation, tool loop cap.
+**Code path.**
+1. `project.agents.get(AGENT_NAME)` → resolves latest version; `ResourceNotFoundError` if lesson 08 not run
+2. `openai.conversations.create()` → server-managed conversation id
+3. `openai.responses.create(conversation=conv.id, input=user_message, extra_body={"agent_reference": ref})`
+4. For each `function_call` item: validate name + args → execute → collect `function_call_output`
+5. Send tool outputs back in same conversation; repeat until no more tool calls
 
-**What code proves:** It uses latest named agent version, validates allowed and required parameters, executes local helpdesk functions, and continues response.
+**What to watch in the output.** "→ tool: get_vpn_troubleshooting_steps({})" lines show which tool was called with what arguments. The final answer uses the tool's returned text as grounding. A mismatched `call_id` causes the model to error.
 
-**Limitations:** Demo functions are not authorization system. Production must bind caller identity/tenant and evaluate confidential result redaction.
+**Exam cues.** Run lesson 08 first — lesson 09 will `SystemExit` if the agent does not exist. Tool allowlisting happens in application code, not in the model schema.
 
-**Check:** Inspect printed tool name/arguments; call ID must be returned unchanged.
+**References:** [Function calling how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/function-calling) · [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice) · [Tool catalog](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-catalog)
 
-### 10 — Prompt agent with web search
+---
 
-**Question:** How is built-in tool persisted in agent definition?
+### 10 — Agent with built-in web search
 
-Run:
+**Question answered:** How is a built-in tool persisted in an agent definition?
+
+**Background.** Lesson 04 attached web search ad-hoc per Responses call. This lesson stores it in a named Prompt Agent definition via `WebSearchTool()`. The stored definition is callable by name from any client without re-specifying the tool on each request. This lesson creates the definition — it does not invoke it.
 
 ```bash
 uv run python 02-generative-ai-and-agents/10_agent_web_search.py
 ```
 
-**Concepts:** `WebSearchTool`, stored versioned model/instructions/tools, citations.
+**Code path.**
+1. `client.agents.create_version(agent_name=AGENT_NAME, definition=PromptAgentDefinition(tools=[WebSearchTool()]))`
+2. Prints agent id, name, version
 
-**What code proves:** Creates `web-search-lab-agent`; it does not invoke it.
+**What to watch in the output.** Agent id/name/version confirms the definition is stored. Nothing is invoked here — lesson 18 and multi-agent patterns consume stored agents by reference.
 
-**Limitations:** New version costs/lifecycle apply; tool availability/results and citation requirements remain runtime/model dependent.
+**Exam cues.** Creating a new agent version costs accumulating version state. Web search queries leave your application's data boundary — confirm DPA, retention, residency, and cost before use.
 
-**Check:** This is definition evidence only, not a completed research answer.
+**References:** [Web search tool how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/web-search) · [Prompt agent quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/prompt-agent)
+
+---
 
 ### 11 — End-to-end function-tool agent
 
-**Question:** What does entire model-tool-model cycle look like in one file?
+**Question answered:** What does the entire model → tool → model cycle look like in a single file?
 
-Run:
+**Background.** Lessons 08 and 09 split creation and invocation. This lesson runs the complete cycle in one file so you can see the full agentic loop end-to-end: create definition → pin version reference → open conversation → model picks tool → app validates and executes → model gets result → final answer.
 
 ```bash
 uv run python 02-generative-ai-and-agents/11_agent_function_tools.py
 ```
 
-**Concepts:** create version, pin agent version in reference, conversation, multi-call iteration, safe local executor.
+**Code path.**
+1. `create_version(IT-HelpDesk-Agent-Demo)` → pins `active_agent_reference(agent)` so version is immutable for this run
+2. `openai.conversations.create()` → conversation id
+3. First `responses.create()` → model emits tool calls
+4. Validates tool names, args; executes local functions; submits outputs with `call_id`
+5. Second `responses.create()` → final grounded answer
 
-**What code proves:** Model can request password and Slack installation tools; application validates each request and returns results before final answer.
+**What to watch in the output.** Tool call lines show the agentic request/execute/respond cycle. Compare against lesson 09 to see the create+invoke unified pattern.
 
-**Limitations:** No durable idempotency key, per-user authorization, timeout, rate limit, audit sink, or human approval exists.
+**Exam cues.** `active_agent_reference()` pins the version so a re-run mid-way does not silently switch to a newer version. No idempotency key, per-user authorization, or audit sink is implemented — these are production requirements not shown here.
 
-**Check:** Treat tool description/schema as untrusted request interface and apply production policy outside model.
+**References:** [Function calling how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/function-calling) · [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
+
+---
 
 ### 12 — OpenAPI tool and Function backend
 
-**Question:** How does Foundry turn reachable OpenAPI operations into tools?
+**Question answered:** How does Foundry turn a reachable OpenAPI spec into agent tools?
 
-Run:
+**Background.** The Foundry Agent Service reads an OpenAPI 3.0 spec and auto-wraps each operation as a callable tool — no glue code. The operation's `description` field is what the model reads to decide when to call which endpoint. The backend must be deployed and reachable from Agent Service; `localhost` is not reachable. This sample uses anonymous auth for static demo orders only.
+
+**Before code.** Deploy the Function App and set `ORDERS_FN_ENDPOINT` (without `/api` suffix):
+```bash
+cd 02-generative-ai-and-agents/azure_functions_orders
+func start   # local contract test only — Agent Service cannot reach localhost
+curl http://localhost:7071/api/orders
+func azure functionapp publish <your-function-app-name>
+```
 
 ```bash
 uv run python 02-generative-ai-and-agents/12_agent_openapi_tools.py
 ```
 
-**Concepts:** OpenAPI 3.0, operation IDs/descriptions, runtime server override, remote reachability, OpenAPI anonymous auth demo.
+**Code path.**
+1. Loads `azure_functions_orders/northwind_spec.json`; overrides `servers[0].url` with `ORDERS_FN_ENDPOINT/api`
+2. `OpenApiFunctionDefinition(spec=spec, auth=OpenApiAnonymousAuthDetails())` → wraps spec operations
+3. `client.agents.create_version(…tools=[OpenApiTool(openapi=fn_def)])` → registers agent
+4. Invokes agent with order query → model calls spec operation → prints result
 
-**What code proves:** Agent definition discovers operations from spec, then queries order `1002` through deployed backend.
+**What to watch in the output.** Model calls the deployed Function's order endpoint and returns grounded order data. If Agent Service cannot reach the backend, the tool call fails with a network error.
 
-**Limitations:** `func start` only validates local Function. Agent Service cannot call localhost. Sample uses anonymous static data; no production auth is implemented.
+**Exam cues.** `func start` only validates the local Function contract. Production path: protect API with API key or Entra auth, select matching OpenAPI auth details, verify Agent Service egress/DNS.
 
-**Check:** Curl deployed URL from suitable network, validate auth, then run.
+**References:** [OpenAPI tools how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/openapi) · [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication)
+
+---
 
 ### 13 — Conversation thread
 
-**Question:** How is multi-turn context retained without resending messages?
+**Question answered:** How is multi-turn context retained without resending messages?
 
-Run:
+**Background.** In a stateless Responses call, the application must resend prior messages on each turn. With `conversations.create()`, Foundry manages the transcript server-side: subsequent `responses.create(conversation=conv.id, …)` calls automatically have access to previous turns. The second message can reference "it" and the model resolves it from server-managed context.
 
 ```bash
 uv run python 02-generative-ai-and-agents/13_conversation_thread.py
 ```
 
-**Concepts:** `conversations.create`, one ID, server-managed transcript, agent-reference name, version creation.
+**Code path.**
+1. `create_version(northwind-support-agent-conv)` → inline agent creation (self-contained, no prior setup needed)
+2. `openai.conversations.create()` → new `conv.id`
+3. First `responses.create(conversation=conv.id, input="My order #4521 is late.")` → model responds
+4. Second `responses.create(conversation=conv.id, input="Can you escalate it?")` → model resolves "it" from transcript
 
-**What code proves:** Second request in same conversation can resolve “it” to order `#4521` from prior turn.
+**What to watch in the output.** Second response correctly refers to order #4521 without you resending it. Change to a new conversation id to verify blank-slate behavior.
 
-**Limitations:** Conversation context is not durable profile memory. Scope, retention, user isolation, and deletion policy need explicit design.
+**Exam cues.** Conversation context is NOT durable profile memory. It is scoped to one conversation. Scope, retention, user isolation, and deletion policy require explicit design.
 
-**Check:** Use new conversation ID to verify blank-slate behavior.
+**References:** [Responses API quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api) · [Isolate sessions per user](https://learn.microsoft.com/azure/foundry/agents/how-to/isolate-sessions-per-user)
 
-### 14 — Foundry Memory preview
+---
 
-**Question:** How can preview memory recall a scoped preference across conversations?
+### 14 — Foundry Memory (preview)
 
-Run:
+**Question answered:** How can preview memory recall a scoped user preference across conversations?
+
+**Background.** Foundry Memory is a preview service that extracts facts from conversations asynchronously and retrieves them in later conversations using `MemorySearchPreviewTool`. Records are partitioned by the `x-memory-user-id` header through `{{$userId}}` scope. Writes are debounced — immediate recall is not guaranteed. This is NOT a source-of-truth customer system or PII consent solution.
 
 ```bash
 uv run python 02-generative-ai-and-agents/14_foundry_memory.py
 ```
 
-**Concepts:** beta memory store, chat/embedding deployment contract, `MemorySearchPreviewTool`, `{{$userId}}`, `x-memory-user-id`, async update.
+**Code path.**
+1. `project.beta.memory_stores.create(name=…, definition=MemoryStoreDefaultDefinition(chat_model=…, embedding_model=…))`
+2. Creates prompt agent with `MemorySearchPreviewTool(memory_store_name=…)`
+3. First conversation with `x-memory-user-id: user-sarah-chen` → model stores stated preference
+4. Waits 65 seconds (demonstration, not guarantee); second conversation in same scope → model may recall preference
 
-**What code proves:** Store definition uses configured chat and embedding models; two new conversations use same explicit memory-user header.
+**What to watch in the output.** After the wait, the second conversation may echo the stored preference. It may not — async extraction is non-deterministic. Never invent a recalled fact not present in retrieved memory.
 
-**Limitations:** Preview API. Memory writes are asynchronous/debounced and extraction/retrieval is not guaranteed after 65 seconds. It is not source of truth or consent/PII solution.
+**Exam cues.** Preview API surface (`project.beta`). Memory writes are asynchronous and debounced. 65-second wait is illustrative, not a SLA. Uses `EMBEDDING_MODEL` — must be a valid embedding deployment.
 
-**Check:** Verify same header/user scope, then test absent, stale, and deleted preference behavior.
+**References:** [Memory concept](https://learn.microsoft.com/azure/foundry/agents/concepts/what-is-memory) · [Memory usage how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/memory-usage)
+
+---
 
 ### 15 — Workflow intake prerequisite
 
-**Question:** How does intake agent emit data required for conditional route?
+**Question answered:** How does an intake agent emit structured data required for a conditional route?
 
-Run:
+**Background.** Foundry workflows (retiring December 1, 2026) require structured routing data. Lesson 15 creates a `wf-IntakeAgent` that classifies customer messages into a strict JSON schema (`wf_intake_schema.json`). This agent is the prerequisite for lesson 16 — the workflow YAML references it by name. Run lesson 15 before lesson 16.
 
 ```bash
 uv run python 02-generative-ai-and-agents/15_workflow_intake.py
 ```
 
-**Concepts:** schema file, strict JSON-schema response, versioned intake agent, `policy_question` versus `service_issue`, `refund_related`.
+**Code path.**
+1. Loads `workflows/wf_intake_schema.json` — the routing schema
+2. Creates `wf-IntakeAgent` with `PromptAgentDefinition` and `strict json_schema` response format
+3. `openai.responses.create(input=_SAMPLE_TICKET, text={"format": {"type": "json_schema", …}})` → classifies ticket
+4. Prints structured triage JSON with `category`, `refund_related`, and `priority` fields
 
-**What code proves:** Creates `wf-IntakeAgent`, produces JSON matching `workflows/wf_intake_schema.json`.
+**What to watch in the output.** The printed JSON must match the schema for lesson 16's workflow to route correctly. Try ambiguous tickets to see classification behavior.
 
-**Limitations:** Classification can be wrong even with valid JSON. It is preview preparation, not workflow deployment.
+**Exam cues.** Classification can be wrong even with valid JSON. This is preview preparation, not workflow deployment. Workflow retires December 1, 2026.
 
-**Check:** Run before lesson 16; include ambiguous tickets in evaluation.
+**References:** [Workflow concept](https://learn.microsoft.com/azure/foundry/agents/concepts/workflow) · [Prompt agent quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/prompt-agent)
 
-### 16 — Conditional workflow preview
+---
 
-**Question:** What does preview YAML conditional routing describe?
+### 16 — Conditional workflow (preview)
 
-Run:
+**Question answered:** What does a preview YAML conditional workflow definition look like?
 
+**Background.** Foundry preview workflows route between agents using YAML conditional edges. This lesson creates the leaf agents (Knowledge + Ticket), verifies the intake agent from lesson 15 exists, then creates/updates the `wf-Triage` preview workflow version. Workflows retire December 1, 2026 — use this as a study artifact and plan migration to Agent Framework/hosted agent.
+
+**Before code.** Run lesson 15 first — `wf-IntakeAgent` must exist:
 ```bash
+uv run python 02-generative-ai-and-agents/15_workflow_intake.py
 uv run python 02-generative-ai-and-agents/16_workflow_conditional.py
 ```
 
-**Concepts:** YAML artifact, leaf agents, workflow definition, agent existence preflight, portal playground testing.
+**Code path.**
+1. Creates `wf-KnowledgeAgent` and `wf-TicketAgent` as leaf agents inline
+2. Verifies `wf-IntakeAgent` exists (exits with clear error if lesson 15 not run)
+3. Loads `workflows/wf_triage.yml` — defines `OnConversationStart → InvokeAzureAgent(wf-IntakeAgent) → ConditionGroup → leaf agents`
+4. `client.agents.create_version(workflow_name=WORKFLOW_NAME, definition=…)` → registers preview workflow version
 
-**What code proves:** Verifies intake agent, versions Knowledge/Ticket agents, and creates/updates `wf-Triage` preview definition.
+**What to watch in the output.** Workflow version created. Test in Foundry portal → Agents playground → wf-Triage while preview remains active.
 
-**Limitations:** Workflows retire December 1, 2026. SDK preview surface may vary. This is not hosted-agent deployment, CI/CD workflow, or durable job run.
+**Exam cues.** This is NOT a hosted-agent deployment, CI/CD workflow, or durable job run. Study the YAML routing logic, then plan the Agent Framework equivalent path for production.
 
-**Check:** Study YAML and plan equivalent Agent Framework/hosted-agent path.
+**References:** [Workflow concept](https://learn.microsoft.com/azure/foundry/agents/concepts/workflow) · [Development lifecycle](https://learn.microsoft.com/azure/foundry/agents/concepts/development-lifecycle)
 
-## Lessons 17–20: local frameworks and orchestration
+---
 
-All four lessons in this group run locally on your machine. None of them package, deploy, or host anything in Azure. They show four different local framework/orchestration options so you can compare them side by side before choosing one.
+## Stage 4 — Local frameworks and orchestration (lessons 17–20)
 
-| Lesson | Framework | Endpoint used | Traces automatically? |
+All four lessons run locally on your machine. None deploy, package, or host anything in Azure. They show four local framework/orchestration patterns side by side so you can compare before choosing.
+
+| Lesson | Framework | Endpoint | Auto-traces? |
 |---|---|---|---|
-| 17 | Microsoft Agent Framework | `PROJECT_ENDPOINT` | Yes — when App Insights is connected |
-| 18 | Multi-agent router (app pattern) | `PROJECT_ENDPOINT` | No — application-controlled loop |
-| 19 | LangChain + `@tool` | `AZURE_OPENAI_ENDPOINT` | No — requires lesson 23 tracer |
-| 20 | LangGraph + FAISS RAG | `AZURE_OPENAI_ENDPOINT` | No — requires lesson 23 tracer |
+| 17 | Microsoft Agent Framework | `PROJECT_ENDPOINT` | Yes — when App Insights connected |
+| 18 | Multi-agent router (app pattern) | `PROJECT_ENDPOINT` | No |
+| 19 | LangChain + `@tool` | `AZURE_OPENAI_ENDPOINT` | No — needs lesson 23 tracer |
+| 20 | LangGraph + FAISS RAG | `AZURE_OPENAI_ENDPOINT` | No — needs lesson 23 tracer |
 
 ### 17 — Local Agent Framework
 
-**Question:** What does the Microsoft Agent Framework look like when calling a Foundry model locally?
+**Question answered:** What does the Microsoft Agent Framework look like calling a Foundry model locally?
 
-Run:
+**Background.** Microsoft Agent Framework is a Python library for building agents that call Foundry models. This lesson runs entirely on your machine — it is not deployed, packaged, or hosted anywhere. The framework handles the async run loop; your application supplies instructions. Contrast with lesson 08 (prompt agent: stored versioned Foundry definition) and lessons 28–30 (hosted agent: deployed managed runtime with lifecycle). Agent Framework natively integrates with Foundry tracing: when Application Insights is connected to the project, traces appear in the Foundry portal automatically with no additional instrumentation.
 
 ```bash
 uv run python 02-generative-ai-and-agents/17_agent_framework_local.py
 ```
 
-**Concepts:** `Agent`, `FoundryChatClient`, async `run`, `PROJECT_ENDPOINT`, local process with automatic tracing integration.
+**Code path.**
+1. `FoundryChatClient(project_endpoint=PROJECT_ENDPOINT, model=DEFAULT_MODEL, credential=DefaultAzureCredential())`
+2. `Agent(client=chat_client, instructions=…)`
+3. `await agent.run("Give me a one-line summary of Northwind's mission.")` → prints `result.text`
 
-**What code proves:** Local Python process calls configured Foundry model through Agent Framework. When Application Insights is connected to the project, traces appear in the Foundry portal automatically — no extra instrumentation code needed.
+**What to watch in the output.** One-line response from the Foundry model via the Agent Framework local process. If App Insights is connected, a trace appears in the portal without any extra code.
 
-**Limitations:** This runs on your machine only. It does not package, deploy, host, invoke, monitor, or grant identity to a hosted agent. For a deployed runtime, see lessons 28–30.
+**Exam cues.** Local Agent Framework code does NOT deploy anything. It is not a hosted agent. For a deployed runtime, see lessons 28–30. LangChain and LangGraph (lessons 19–20) do NOT have this automatic tracing integration — they need explicit instrumentation (lesson 23).
 
-**Check:** For hosted runtime, use Foundry hosted-agent deployment docs and implement the deployment lifecycle separately from this local process.
+**References:** [Framework hosted agents](https://learn.microsoft.com/azure/foundry/how-to/develop/framework-hosted-agents) · [Agent tracing setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup) · [Development lifecycle](https://learn.microsoft.com/azure/foundry/agents/concepts/development-lifecycle)
+
+---
 
 ### 18 — Multi-agent coordination
 
-**Question:** How can a router delegate to specialists through a tool loop?
+**Question answered:** How can a router delegate to specialists through a tool loop?
 
-Run:
+**Background.** This lesson implements the "agent-as-tool" application pattern: each specialist is exposed as a `FunctionTool` that wraps a Responses API call to the target agent's name. The router model decides which specialist to invoke per turn — no hardcoded routing. This is an application-controlled pattern, NOT Foundry A2A protocol.
 
 ```bash
 uv run python 02-generative-ai-and-agents/18_multi_agent_coord.py
 ```
 
-**Concepts:** router, specialists, agent-as-tool application pattern, strict single-question schema, error propagation, tool rounds.
+**Code path.**
+1. Creates two specialists: `northwind-billing-specialist` and `northwind-tech-specialist`
+2. Router is given two `FunctionTool` schemas: `ask_billing_specialist` and `ask_tech_specialist`
+3. Router `responses.create()` → model emits a function call for one specialist
+4. Executor invokes target agent via `responses.create(extra_body={"agent_reference": ref})` and returns result
+5. Loop caps at `MAX_TOOL_ROUNDS = 8`
 
-**What code proves:** Router selects billing or technical function; executor invokes named specialist through agent reference and returns response.
+**What to watch in the output.** The router routes to billing or technical based on question content. Try a mixed question (billing + technical) to see which specialist the model picks.
 
-**Limitations:** This is not Foundry A2A protocol implementation. Model routing is probabilistic; no escalation, authorization propagation, budgeting, or specialist trust policy is implemented.
+**Exam cues.** Probabilistic routing means the model can pick the wrong specialist. No escalation, authorization propagation, budgeting, or specialist trust policy is implemented. This is NOT A2A.
 
-**Check:** Measure wrong-route, multi-intent, unavailable-specialist, and loop cases before real delegation.
+**References:** [Agent-to-agent tools](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/agent-to-agent) · [Agent-to-agent authentication](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-to-agent-authentication) · [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
+
+---
 
 ### 19 — LangChain agent
 
-**Question:** How does LangChain reuse local tools with an Azure OpenAI-compatible model?
+**Question answered:** How does LangChain reuse local tools with an Azure OpenAI-compatible model?
 
-Run:
+**Background.** LangChain's `create_agent()` wires `@tool`-decorated Python functions to a `ChatOpenAI` model. Auth is keyless: `ChatOpenAI` points at the Azure OpenAI-compatible `/openai/v1` endpoint with a bearer token from `DefaultAzureCredential` via a callable token provider. Use this pattern when you already have LangChain chains or tools. LangChain does NOT trace automatically — see lesson 23 for explicit tracing.
 
 ```bash
 uv run python 02-generative-ai-and-agents/19_langchain_agent.py
 ```
 
-**Concepts:** `create_agent`, `@tool`, `ChatOpenAI`, bearer token provider, OpenAI-compatible `/openai/v1` base URL.
+**Code path.**
+1. `azure_openai_token_provider()` → callable returning bearer token (refreshes per call)
+2. `ChatOpenAI(base_url=AZURE_OPENAI_ENDPOINT/openai/v1, api_key=token_provider, model=DEFAULT_MODEL)`
+3. `create_agent(model=model, tools=[get_order_status, get_inventory])` → agent executor
+4. Agent answers both order and inventory sub-questions via the two tools
 
-**What code proves:** LangChain local tools answer order/inventory request; chat model uses `AZURE_OPENAI_ENDPOINT`, not project endpoint.
+**What to watch in the output.** Final answer addresses both order and inventory after the model has invoked both tools. Do not point `ChatOpenAI` at `PROJECT_ENDPOINT` — it uses direct Azure OpenAI endpoint.
 
-**Limitations:** Tools use in-memory demo data. `token_provider()` returns a token when model is built; production must account for credential refresh behavior, retries, tracing, and authorization. LangChain does not trace automatically — see lesson 23 for explicit tracing.
+**Exam cues.** `token_provider()` returns a token when the model object is built — production must account for credential refresh and retries. LangChain does NOT use `PROJECT_ENDPOINT`.
 
-**Check:** Do not point `ChatOpenAI` at `PROJECT_ENDPOINT` or `FOUNDRY_ENDPOINT` in this lesson contract.
+**References:** [LangChain agents how-to](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-agents) · [LangChain integration](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain)
+
+---
 
 ### 20 — LangGraph local RAG agent
 
-**Question:** How do explicit graph state and a tool loop create a local RAG agent?
+**Question answered:** How do explicit graph state and a tool loop create a local RAG agent?
 
-Run:
+**Background.** LangGraph adds explicit graph state and conditional edges to a LangChain agent. This lesson builds a local FAISS index over Northwind policy PDFs and binds a `search_northwind_policies` tool to a graph that loops model → tool → model while the model requests tool calls. This is about graph orchestration, NOT production RAG — FAISS is local, in-memory, rebuilt on every run, with no ACL, persistence, or evaluation. Use Azure AI Search (lesson 27 / Domain 5) for production retrieval.
 
 ```bash
 uv run python 02-generative-ai-and-agents/20_langgraph_agent.py
 ```
 
-**Concepts:** `StateGraph`, `MessagesState`, `START`, `END`, conditional edge, `ToolNode`, `FAISS`, PDF loader, chunking, embeddings, similarity search.
+**Code path.**
+1. Loads Northwind PDFs via `PyPDFLoader`, splits into chunks, builds `FAISS.from_documents(chunks, embeddings)`
+2. `StateGraph(MessagesState)` with two nodes: model node + `ToolNode([search_northwind_policies])`
+3. Conditional edge: model has tool calls → go to tool node; no tool calls → END
+4. `graph.invoke({"messages": [HumanMessage(query)]})` → loop runs until model stops requesting tools
 
-**What code proves:** Rebuilds local FAISS from policy PDFs per run, binds search tool, loops model → tool → model while model requests tool.
+**What to watch in the output.** "Loaded N pages across Northwind policies" and "Split into N chunks" confirm FAISS index was built. Final answer cites policy content. Index rebuilds on every run.
 
-**Limitations:** Both `ChatOpenAI` and `OpenAIEmbeddings` use `AZURE_OPENAI_ENDPOINT/openai/v1`; embedding `model` is configured deployment name. Index is ephemeral local demo with no ACL, persistence, update/delete, evaluation, citations policy, or production retrieval service. LangGraph does not trace automatically — see lesson 23 for explicit tracing.
+**Exam cues.** Both `ChatOpenAI` and `OpenAIEmbeddings` use `AZURE_OPENAI_ENDPOINT/openai/v1` — not `PROJECT_ENDPOINT`. LangGraph does NOT auto-trace — needs lesson 23 instrumentation.
 
-**Check:** Use Azure AI Search in Domain 5 for production retrieval design.
+**References:** [LangChain agents how-to](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-agents) · [Retrieval-augmented generation concept](https://learn.microsoft.com/azure/foundry/concepts/retrieval-augmented-generation) · [RAG evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/rag-evaluators)
 
-## Lessons 21–24: evaluation and observability
+---
 
-Understand what to measure (21–22) before you instrument it (23–24). Evaluation tells you whether your agent is correct. Observability tells you where it went wrong.
+## Stage 5 — Evaluation and observability (lessons 21–24)
 
-### 21 vs 22 — local evaluator vs cloud evaluation
+Understand what to measure (21–22) before you instrument it (23–24). Evaluation tells you whether your agent is correct. Observability tells you where it went wrong. These are distinct concerns.
 
 | Dimension | Lesson 21 — local evaluator | Lesson 22 — cloud evaluation |
 |---|---|---|
 | Where it runs | In your Python process | Foundry cloud (managed) |
-| Cloud state created | None (evaluator is an LLM call, not a run) | Uploaded dataset, evaluation definition, run record |
+| Cloud state created | None | Uploaded dataset, evaluation definition, run record |
 | Meaningful at one case | No | Only with a representative dataset |
-| When to use | Iterative dev, evaluator input contract verification | Pre-release gating, shared datasets, CI/CD |
+| When to use | Iterative dev, evaluator input contract check | Pre-release gating, CI/CD, shared datasets |
 | Env var | `AZURE_OPENAI_ENDPOINT` | `AZURE_AI_PROJECT_ENDPOINT` |
 | Trigger | Always runs | Read-only until `--apply` |
 
 ### 21 — Local evaluator SDK
 
-**Question:** What is a local evaluator call and what does a complete agent-turn input look like?
+**Question answered:** What is a local evaluator call and what does a complete agent-turn input look like?
 
-Run:
+**Background.** The `azure-ai-evaluation` SDK evaluates agent output against rubrics using a model-as-judge pattern. This is a local invocation — no dataset, evaluation definition, or run record is created in Foundry. The evaluator is still an LLM call: it sends the conversation to your Azure OpenAI deployment and consumes tokens. Task Adherence evaluates the whole agent turn, not just the final text. One synthetic trace demonstrates the input contract only — it is NOT representative evidence.
 
 ```bash
 uv run python 02-generative-ai-and-agents/21_evaluator_task_adherence.py
 ```
 
-**Concepts:** trace shape, `TaskAdherenceEvaluator`, `ToolCallAccuracyEvaluator`, evaluator model config, score/reasoning.
+**Code path.**
+1. Builds `_QUERY` (system + user messages) and `_TOOL_CALL` + `_TOOL_DEFINITIONS` in evaluator-format dicts
+2. `TaskAdherenceEvaluator(credential=…, azure_openai_endpoint=…, deployment_name=…)`
+3. `evaluator(query=…, response=[assistant_turn, tool_call_turn, tool_result_turn, final_answer])`
+4. Prints `task_adherence` score and reasoning from the judge model
+5. Also runs `ToolCallAccuracyEvaluator` on the same turn
 
-**What code proves:** Builds complete redacted in-memory agent turn, including tool call and matching tool result, then passes it to local SDK evaluators. `azure-ai-evaluation` is already in root manifest.
+**What to watch in the output.** Score (0–5) and reasoning string. An empty `response` list → evaluator errors. A response with only final text → poor tool evaluation — the full conversation thread is needed.
 
-**Limitations:** It does **not** create Foundry portal/cloud evaluation, upload dataset, persist run, or guarantee meaningful score. One synthetic trace only demonstrates evaluator input contract; it is not representative evidence.
+**Exam cues.** One case is statistically meaningless. Build a versioned representative dataset before drawing conclusions. See lesson 22 for durable cloud evaluation.
 
-**Check:** Build versioned representative dataset/traces, aggregate metrics, set thresholds, inspect failures, and gate releases separately. See lesson 22 for cloud evaluation.
+**References:** [Agent evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/agent-evaluators) · [Task adherence concept](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/task-adherence) · [Evaluate agent how-to](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-agent)
+
+---
 
 ### 22 — Cloud evaluation
 
-**What and why:** Lesson 21 invokes evaluator classes locally. This lesson optionally uploads reviewed JSONL, creates a persisted evaluation definition, and starts a durable cloud run. Cloud evaluation suits shared datasets, scale, predeployment evidence, scheduled/continuous comparison, and CI gates.
+**Question answered:** How is a durable cloud evaluation run created with a reviewed JSONL dataset?
 
-**Prerequisites and dependencies:** Need `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_MODEL_DEPLOYMENT_NAME`, Foundry project access, supported region/model/evaluator, quota, and runner egress. Create versioned reviewed dataset; each sample row requires non-empty `query`. Specific sample is single-turn and sends all queries to model target. For tool/multi-turn agents, preserve complete messages, tool calls/results, and final answer in reviewed trajectory schema rather than flattening transcript.
-
-Run local validation first:
+**Background.** Lesson 21 invokes evaluators locally. This lesson optionally uploads reviewed JSONL, creates a persisted Foundry evaluation definition, and starts a durable cloud run. Cloud evaluation suits shared datasets, scale, pre-deployment evidence, and CI gates. Each row needs a non-empty `query` string. Dataset uploads, evaluator calls, model tokens, and stored results all incur cost.
 
 ```bash
+# Local validation first (no cloud calls):
 uv run python 02-generative-ai-and-agents/22_cloud_evaluation.py --dataset cases.jsonl
+# Cloud run (uploads data, creates evaluation, starts run):
 uv run python 02-generative-ai-and-agents/22_cloud_evaluation.py --dataset cases.jsonl --apply
 ```
 
-**Architecture and code path:** Default output describes no Azure work. `--apply` validates JSONL locally, uploads `evals` file with 30-day expiry, creates Task Adherence criterion with `{{item.query}}` and complete `{{sample.output_items}}`, then starts `evals.runs.create()`. It prints dataset file, evaluation, and run IDs. It does not poll to completion, score human review, or delete run records.
+**Code path.**
+1. `validate_dataset(dataset)` → validates JSONL shape locally (no Azure call)
+2. `--apply`: `evals.files.create(file=dataset, purpose="evals", expires_after={"days": 30})` → uploads dataset
+3. `evals.create(data_source_config=…, testing_criteria=[TaskAdherence criterion])` → creates evaluation definition
+4. `evals.runs.create(name=…, run_id=eval.id)` → starts cloud run; prints dataset file id, eval id, run id
+5. Does NOT poll to completion — check results in Foundry portal
 
-**Use and do not use:** Use synthetic/redacted data and record prompt, model, agent/tool, corpus, evaluator, and dataset version. Do not upload credentials, customer secrets, or unredacted personal data. Do not call one score release decision: inspect distributions/failures, groundedness/safety/tool metrics, thresholds, approval, and rollback. `--apply` incurs upload, storage, evaluation/model-token, and retained-result cost.
+**What to watch in the output.** Default (no `--apply`): describes what would be created. With `--apply`: prints dataset file id, evaluation id, run id. Results appear in Foundry portal after the run completes.
 
-**Network, RBAC, and takeaway:** Private deployments require private DNS and runner access to Foundry, Azure OpenAI, and Azure Monitor. Restricted telemetry results require monitoring-reader access, including protected-table role where configured. **Key takeaway:** cloud run is durable evidence only when data, mappings, evaluator, access, region, and release policy are deliberate.
+**Exam cues.** `AZURE_AI_PROJECT_ENDPOINT` may differ from `PROJECT_ENDPOINT` if targeting a separate evaluation project. Data uploaded with 30-day expiry. Never upload credentials, customer secrets, or unredacted PII.
+
+**References:** [Cloud evaluation how-to](https://learn.microsoft.com/azure/foundry/how-to/develop/cloud-evaluation) · [Evaluate agent](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-agent) · [Agent evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/agent-evaluators)
+
+---
 
 ### 23 — LangChain tracing
 
-**Question:** How can LangChain calls export an OpenTelemetry trace to Azure Monitor?
+**Question answered:** How can LangChain calls export an OpenTelemetry trace to Azure Monitor?
 
-Run:
+**Background.** Unlike Agent Framework (lesson 17), LangChain and LangGraph do NOT automatically emit traces when App Insights is connected to the project. They require explicit instrumentation with `AzureAIOpenTelemetryTracer`. Content recording is intentionally disabled here — enabling it captures prompts, tool arguments, and model outputs, which requires privacy and compliance approval before production use.
 
 ```bash
 uv run python 02-generative-ai-and-agents/23_langchain_tracing.py
 ```
 
-**Concepts:** `AzureAIOpenTelemetryTracer`, callbacks, agent ID, Application Insights connection string, metadata-only content-recording default.
+**Code path.**
+1. If `APPLICATIONINSIGHTS_CONNECTION_STRING` set: `AzureAIOpenTelemetryTracer(connection_string=…, enable_content_recording=False)`
+2. Otherwise: prints warning, agent still runs without tracer
+3. `create_agent(model=model, tools=[…], callbacks=[tracer] if tracer else [])` → agent with optional tracing
+4. Agent answers order/inventory question; spans export to App Insights
 
-**What code proves:** Adds tracer only if environment setting exists; otherwise runs and reports stdout-only destination. It passes `enable_content_recording=False`.
+**What to watch in the output.** If tracing is enabled, spans appear in App Insights → Transaction Search after propagation delay (2–5 min). Query by the printed `agent_id`. Missing traces ≠ request did not run.
 
-**Limitations:** Content recording is disabled here. Enabling it can capture sensitive prompts, tool arguments, and outputs. Configure retention, access, redaction, sampling, and consent before production. Trace export is not evaluator/cloud evaluation. Unlike Agent Framework (lesson 17), LangChain and LangGraph require this explicit instrumentation.
+**Exam cues.** `enable_content_recording=False` is the safe default. Metadata-only tracing can still be sensitive and incur ingestion/retention cost. Tracing is observability, not evaluation.
 
-**Check:** Query Application Insights by printed agent ID after propagation; never interpret missing trace as proof request did not run.
+**References:** [LangChain traces how-to](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-traces) · [Framework tracing how-to](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-framework) · [Sensitive content in traces](https://learn.microsoft.com/azure/foundry/observability/how-to/traces-sensitive-content)
+
+---
 
 ### 24 — Production observability preflight
 
-**What and why:** Trace, evaluation, and retrieval data carry operational, privacy, and cost obligations. This lesson explains three observability layers (server-side, framework, client-side), checks local configuration, and prints a production setup guide before connecting telemetry, changing retention, creating evaluation records, or sending traffic.
+**Question answered:** What are the three observability layers and is my environment configured for them?
 
-Run:
+**Background.** Trace, evaluation, and retrieval data carry operational, privacy, and cost obligations. This lesson explains the three observability layers and checks your local configuration before you connect telemetry, change retention, or send production traffic. It makes no Azure calls by default; `--check-connection` calls the project telemetry API.
 
 ```bash
 uv run python 02-generative-ai-and-agents/24_production_observability_preflight.py
 uv run python 02-generative-ai-and-agents/24_production_observability_preflight.py --check-connection
 ```
 
-**Architecture and output:** `preflight()` reads shared settings and reports whether Application Insights, project, direct Azure OpenAI, and Search endpoints are configured. Default run makes no Azure request. `--check-connection` calls `client.telemetry.get_application_insights_connection_string()` to verify App Insights is connected to the project. Output also prints server-side setup steps, framework tracing behavior (Agent Framework vs LangChain), and client-side instrumentation pattern.
+**Code path.**
+1. `preflight()` → reads `settings()` and reports whether App Insights, project, direct Azure OpenAI, and Search endpoints are configured
+2. Prints server-side setup steps, framework tracing comparison (Agent Framework vs LangChain), and client-side instrumentation pattern
+3. `--check-connection`: `client.telemetry.get_application_insights_connection_string()` → verifies App Insights is connected to the project
 
-**Use and do not use:** Use as configuration evidence before production review or CI preflight. Do not treat "configured" as reachable, authorized, healthy, compliant, or cost-approved. It does not connect Application Insights, configure sampling/redaction, grant Monitoring Reader, or create private endpoints.
+**What to watch in the output.** Three observability layers:
+  1. Server-side (automatic for Foundry-hosted agents — connect App Insights in portal)
+  2. Framework tracing (automatic for Agent Framework; explicit for LangChain/LangGraph)
+  3. Client-side instrumentation (`AIProjectInstrumentor()`)
 
-**Best practice and takeaway:** Set retention, sampling, redaction, access review, alert thresholds, and cleanup owner before export. Register `protectGenAISensitiveData` feature flag before September 30, 2026 to route sensitive span attributes to the protected `AppGenAIContent` table. **Key takeaway:** observability measures behavior; it is neither authorization nor quality proof.
+"Configured" does NOT mean reachable, authorized, healthy, compliant, or cost-approved.
 
-## Lessons 25–27: governed external tools
+**Exam cues.** Register `protectGenAISensitiveData` feature flag before September 30, 2026 to route sensitive span attributes to the protected `AppGenAIContent` table.
+
+**References:** [Trace agent setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup) · [Client-side tracing](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-client-side) · [Sensitive content in traces](https://learn.microsoft.com/azure/foundry/observability/how-to/traces-sensitive-content) · [Observability concept](https://learn.microsoft.com/azure/foundry/concepts/observability)
+
+---
+
+## Stage 6 — Governed external tools (lessons 25–27)
+
+External tool boundaries: each lesson starts with a no-cloud preflight. `--apply` creates/connects real cloud state. Review owner, data boundary, auth, region, retention, logging, and cost before using `--apply`.
 
 ### 25 — MCP tool preflight and approval
 
-**What and why:** MCP is a protocol for an agent to discover and invoke remote tools. It reduces custom adapter work; it does not make a server, server output, identity, or requested action trustworthy. This lesson makes that boundary explicit before attaching independent [`northwind_mcp/`](northwind_mcp/README.md) Azure Function server.
+**Question answered:** What does connecting a remote MCP server to a Foundry agent require, and what is the approval model?
 
-**Prerequisites and dependencies:** Deploy Function, expose `https://<app>.azurewebsites.net/runtime/webhooks/mcp`, create matching Foundry project connection, and set `NORTHWIND_MCP_ENDPOINT` and `NORTHWIND_MCP_CONNECTION`. Endpoint must be HTTPS and reachable from Agent Service; `localhost` only works with local MCP client. Use Function/Entra authentication in real service. For private server, use supported private networking, private DNS, dedicated MCP subnet, and test route from agent network.
+**Background.** MCP (Model Context Protocol) is a protocol for an agent to discover and invoke remote tools. It reduces custom adapter work; it does not make a server, server output, identity, or requested action trustworthy. This lesson enforces that boundary explicitly before attaching the [`northwind_mcp/`](northwind_mcp/README.md) Azure Function server. All tool calls require `require_approval="always"` and `--approve` to execute.
 
-Run read-only preflight:
+**Before code.** Deploy `northwind_mcp/`, create a Foundry project connection for its HTTPS MCP endpoint, then set `NORTHWIND_MCP_ENDPOINT` and `NORTHWIND_MCP_CONNECTION`.
 
 ```bash
+# No-cloud preflight:
 uv run python 02-generative-ai-and-agents/25_mcp_tool_preflight.py
-```
-
-Then, only after reviewing server owner, arguments, data boundary, auth, region, retention, logging, and cost:
-
-```bash
+# Create temp agent (no tool calls):
 uv run python 02-generative-ai-and-agents/25_mcp_tool_preflight.py --apply
+# Execute reviewed read tools with approval:
 uv run python 02-generative-ai-and-agents/25_mcp_tool_preflight.py --apply --approve
 ```
 
-**Architecture and code path:** `MCPTool` identifies remote endpoint and project connection, restricts discovery to `get_order_status` and `list_customer_orders`, and sets `require_approval="always"`. Prompt agent requests tool; application prints each `mcp_approval_request`, allowlists its name, and returns approval response only with `--approve`. `finally` deletes temporary agent version.
+**Code path.**
+1. Validates `NORTHWIND_MCP_ENDPOINT` is HTTPS and not localhost; `NORTHWIND_MCP_CONNECTION` is set
+2. `MCPTool(endpoint=…, connection_id=…, allowed_tools=["get_order_status", "list_customer_orders"], require_approval="always")`
+3. Agent emits `mcp_approval_request` → app prints name/arguments and returns `approved=True` only with `--approve`
+4. `finally` deletes temporary agent version
 
-**Output and use:** Default output says `No cloud calls made.` Applied output shows approval decision, answer, and deletion message. Use for reviewed read tools or UI-mediated approval checkpoint. Do not use `--approve` as unattended authorization for writes, payments, personal data, or unassessed third-party server. Preserve independent caller authorization at tool backend; project connection authenticates service, not end user.
+**What to watch in the output.** Default: "No cloud calls made." With `--apply --approve`: approval decision, answer, deletion message. Without `--approve`: tool call is blocked.
 
-**Pitfalls and takeaway:** MCP differs from function tools (application executes them), Toolbox (managed MCP-compatible catalog), and A2A (delegated agent protocol). Tool description and output are untrusted input. Keep allowlist, approval, least-privilege identity, timeout, result-size limit, and audit correlation. **Key takeaway:** remote protocol integration is external trust boundary, not permission grant.
+**Exam cues.** MCP ≠ function tools (app executes them) ≠ Toolbox (Foundry-managed catalog) ≠ A2A (delegated agent protocol). Project connection authenticates service, not end user.
 
-### 26 — Toolbox and tool catalog preflight
+**References:** [MCP tools how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/model-context-protocol) · [MCP authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication) · [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication)
 
-**What and why:** Foundry Toolbox packages curated tool collection behind one versioned MCP-compatible endpoint. It centralizes connection management, governance, and discovery. Tool search helps when large catalog would otherwise consume context and input tokens; it does not validate action or replace tool authorization.
+---
 
-**Prerequisites and dependencies:** Need Foundry project, compatible region/model support, and developer/agent identity with appropriate Foundry access. Review each included connection's identity, RBAC scope, DPA, residency, retention, telemetry, quota, and billing. Web search sends queries to public service, so do not include secrets or customer data. Production consumers need migration/version plan before toolbox version removal.
+### 26 — Toolbox and tool catalog
 
-Run:
+**Question answered:** How does Foundry Toolbox govern a reusable, versioned tool collection?
+
+**Background.** Foundry Toolbox packages a curated tool collection behind one versioned MCP-compatible endpoint. It centralizes connection management, governance, and discovery. `ToolSearchToolboxTool` helps the model discover relevant tools from a large catalog without sending every definition as tokens — it does NOT validate tool authorization. Toolbox is NOT an arbitrary MCP server you operate; it is Foundry-managed.
 
 ```bash
+# No-cloud preflight:
 uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py
+# Publish version (persists — record the printed version):
 uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py --apply
-# After verifying no consumer still selects this version:
+# Delete version (only after checking consumers):
 uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py --apply --delete-version <version>
 ```
 
-**Architecture and code path:** Default execution prints no-cloud plan. `catalog_tools()` declares named public-web tool and `ToolSearchToolboxTool`; `--apply` calls `project.toolboxes.create_version()` for `northwind-tool-catalog-lab`. Deletion calls `delete_version()` only with both `--apply` and explicit version. Print output records created version and cleanup command.
+**Code path.**
+1. `catalog_tools()` → `[WebSearchToolboxTool(…), ToolSearchToolboxTool(…)]`
+2. `--apply`: `client.toolboxes.create_version(name=TOOLBOX_NAME, tools=catalog_tools())` → prints version
+3. `--apply --delete-version`: `client.toolboxes.delete_version(name=…, version=…)` → prints deletion confirmation
 
-**Use and do not use:** Use Toolbox when several agents/frameworks share governed catalog and need versioned rollout. Use direct function tools for small application-owned actions. Do not call Toolbox arbitrary MCP server: it is Foundry-managed, but can expose MCP-compatible tools. Do not delete default or referenced version without checking consumers, rollback, and compatibility.
+**What to watch in the output.** Version number from `create_version`. Record it before cleanup — deletion requires the exact version string.
 
-**Best practice and takeaway:** Pin or promote tested versions, maintain tool owners and data classifications, and make downstream tools independently authorize callers. **Key takeaway:** catalog discovery saves context; it does not turn selected tool into approved operation.
+**Exam cues.** Toolbox versions persist. Deleting a referenced version breaks consumers. Pin or promote tested versions in downstream agents before removing old ones.
 
-### 27 — Azure AI Search agent tool preflight
+**References:** [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview) · [Toolbox how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox) · [Tool catalog](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-catalog)
 
-**What and why:** This is production-RAG direction: Agent Service queries vector-capable Azure AI Search index through existing Foundry project connection. It contrasts with lesson 06 managed file search and lesson 20 ephemeral local FAISS. Search supplies durable indexing and retrieval operations; it does not make retrieved documents tenant-authorized.
+---
 
-**Prerequisites and dependencies:** Create Search service, index, ingestion pipeline, retrievable source URL/content fields, embeddings, and Foundry connection. Set `SEARCH_CONNECTION_NAME` and `SEARCH_INDEX`. For keyless access, grant project managed identity **Search Index Data Contributor** and **Search Service Contributor** as required by configuration; grant developers/agent callers Foundry access separately. Private-network Search uses identity-based access, private endpoint/DNS, and agent-to-Search reachability. Do not use key-based Search path for private-network scenario.
+### 27 — Azure AI Search agent tool
 
-Run:
+**Question answered:** What does connecting a vector-capable Azure AI Search index to an agent look like?
+
+**Background.** This is the production-RAG direction: Agent Service queries a vector-capable Azure AI Search index through an existing Foundry project connection. It contrasts with lesson 06 (managed file search) and lesson 20 (ephemeral local FAISS). Search supplies durable indexing, ACL, and retrieval operations — it does not make retrieved documents tenant-authorized. Security trimming, source lifecycle, and retrieval quality evaluation are separate requirements.
+
+**Before code.** Create Search service, index, and Foundry project connection. Set `SEARCH_CONNECTION_NAME` and `SEARCH_INDEX`.
 
 ```bash
+# No-cloud preflight:
 uv run python 02-generative-ai-and-agents/27_agent_azure_ai_search_preflight.py
+# Create temp agent, query, delete (does NOT create/delete Search data):
 uv run python 02-generative-ai-and-agents/27_agent_azure_ai_search_preflight.py --apply
 ```
 
-**Architecture and code path:** Preflight is local. With `--apply`, lesson resolves named connection, builds `AzureAISearchTool` with `VECTOR_SEMANTIC_HYBRID` and `top_k=3`, creates temporary prompt-agent version, requires tool, prints URL citations, then deletes agent in `finally`. It never creates or deletes Search service, index, documents, or connection. Expected output is grounded answer/citation lines followed by temporary-agent deletion.
+**Code path.**
+1. Resolves `SEARCH_CONNECTION_NAME` → connection object → `connection_id`
+2. `AzureAISearchTool(indexes=[AISearchIndexResource(project_connection_id=…, index_name=…, query_type=VECTOR_SEMANTIC_HYBRID, top_k=3)])`
+3. Creates temp agent with `require_tool_calls=True`; invokes with query → prints citation lines
+4. `finally` deletes temp agent version (does NOT delete Search data)
 
-**Use and do not use:** Use as bounded integration smoke test after retrieval quality and ACL behavior are tested. Do not treat it as ingestion, security trimming, citation validation, or RAG evaluation. Do not index data without source ownership, retention/deletion workflow, sensitivity review, and per-document or tenant filter design.
+**What to watch in the output.** Citation lines with source URLs confirm retrieval. Preflight (`no --apply`) prints configuration requirements and exits cleanly.
 
-**Pitfalls and takeaway:** Retrieved content can contain indirect prompt injection. Apply security trimming before retrieval, pass bounded excerpts, require evidence/citations or uncertainty, and measure retrieval hit quality, groundedness, latency, Search/model/embedding cost, and zero-result behavior. **Key takeaway:** RAG is retrieval plus authorization, source lifecycle, and evaluation—not vector query alone.
+**Exam cues.** Grant project managed identity `Search Index Data Contributor` and `Search Service Contributor` for keyless access. Key-based Search auth is NOT supported for private-network scenarios.
 
-## Lessons 28–30: hosted agent delivery
+**References:** [Azure AI Search tool how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/ai-search) · [AI Search agentic retrieval index](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-create-index) · [RAG evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/rag-evaluators)
+
+---
+
+## Stage 7 — Hosted agent delivery (lessons 28–30)
+
+Hosted agents run packaged application code under Foundry Agent Service with a managed runtime, deployment lifecycle, and identity. The contained [`hosted_agent_responses/`](hosted_agent_responses/README.md) project is part of lessons 28–30, not a separate lesson. All three lesson scripts are local-only; actual deployment uses explicit `--apply` in the contained sample.
 
 ### 28 — Responses hosted-agent preflight
 
-**What and why:** Hosted agent runs packaged application code under Foundry Agent Service. This lesson validates contained source-deployment sample [`hosted_agent_responses/`](hosted_agent_responses/README.md), not local `AgentFramework` process. It uses Responses protocol for OpenAI-compatible user/application requests.
+**Question answered:** What is the Responses hosted-agent runtime contract and what does a preflight check verify?
 
-**Prerequisites and dependencies:** Need Python 3.13+, `azd` 1.25.3+, `azd auth login`, `azd ext install azure.ai.agents`, Foundry project, and model deployment. Set non-secret azd environment values `FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL_NAME`; keep `.azure/` uncommitted. Deployment needs appropriate project/control-plane roles. Platform creates agent identity; assign it RBAC on external Storage, Search, or tool resources as needed. Use project connections/Key Vault-backed connections for secrets.
-
-Run local validation:
+**Background.** A hosted agent is NOT a local Agent Framework process (lesson 17). It is packaged application code with a deployment lifecycle, container image, managed identity, platform-injected environment, and a defined HTTP protocol. The Responses adapter owns the contract: Linux amd64 remote build, port 8088, GET /readiness, POST /responses, and SIGTERM shutdown. This lesson validates the contained `hosted_agent_responses/` sample against that contract — it never deploys.
 
 ```bash
 uv run python 02-generative-ai-and-agents/28_hosted_agent_responses.py
+# Then validate locally:
 cd 02-generative-ai-and-agents/hosted_agent_responses
 azd ai agent run
 azd ai agent invoke --local "Give a one-line deployment status."
 curl -sS http://localhost:8088/readiness
 ```
 
-**Architecture and code path:** `azure.yaml` declares Linux amd64 remote source build, Python 3.13, `protocol: responses` version 2.0.0, and 0.5 CPU/1 GiB container. `main.py` reads platform-injected `FOUNDRY_PROJECT_ENDPOINT`, reads configured model name, and delegates HTTP server, `GET /readiness`, `POST /responses`, SIGTERM, and formatting to `ResponsesAgentServerHost`. Handler obtains request input, calls project Responses client with `store=False`, then returns `TextResponse`.
+**Code path.**
+1. `28_hosted_agent_responses.py` → `subprocess.run([sys.executable, "preflight.py"], cwd=hosted_agent_responses/)`
+2. `preflight.py` validates `azure.yaml` contract: protocol, port, build spec
+3. Prints adapter contract: Linux amd64 remote build, port 8088, /readiness, /responses, SIGTERM
 
-**Output, use, and limits:** Expected preflight says adapter owns `:8088`, `/readiness`, and SIGTERM. Use for managed conversational endpoint with platform-managed conversation protocol. Do not expose it as A2A, hand-roll adapter endpoints, redeclare `FOUNDRY_PROJECT_ENDPOINT`, or bundle macOS/Windows/ARM wheels. Sample has no custom tools, network isolation, approval flow, or production SLO policy.
+**What to watch in the output.** Contract validation output confirms the sample is correctly configured. Any contract drift causes the preflight to fail with a specific error.
 
-**Best practice and takeaway:** Use `python deploy.py` to print plan; use `--apply` only after testing and reviewing region, quota, capacity, image build, network, identity, telemetry, and cost. **Key takeaway:** hosted agent has runtime contract, deployment lifecycle, and identity beyond local agent code.
+**Exam cues.** Platform injects `FOUNDRY_PROJECT_ENDPOINT` — do not redeclare it. Do not bundle macOS/Windows/ARM wheels. `python deploy.py` is a dry run; `--apply` deploys.
+
+**References:** [Hosted agents concept](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents) · [Hosted-agent contract](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-contract) · [Hosted-agent quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/quickstart-hosted-agent)
+
+---
 
 ### 29 — Hosted agent A2A boundary
 
-**What and why:** Responses is user/application protocol at `POST /responses`. A2A is separate preview agent-to-agent protocol with agent discovery, task lifecycle, caller authentication, delegated authority, and data-sharing design. This lesson prevents false protocol claim.
+**Question answered:** Is the Responses endpoint an A2A endpoint?
 
-**Prerequisites and code path:** Run after lesson 28 source preflight:
+**Background.** Responses (`POST /responses`) is an OpenAI-compatible user/application protocol. A2A is a separate preview agent-to-agent protocol with agent discovery, task lifecycle, caller authentication, delegated authority, and data-sharing design. They are not interchangeable. This lesson explicitly verifies the contained sample does NOT declare A2A — preventing false protocol claims before integration.
 
 ```bash
 uv run python 02-generative-ai-and-agents/29_hosted_agent_a2a.py
 ```
 
-Wrapper calls `preflight.py --a2a`. It reads `azure.yaml`, verifies sample does **not** declare `protocol: a2a`, and prints `POST /responses` is not A2A. No Azure call, deployment, agent, or network connection occurs.
+**Code path.**
+1. Calls `preflight.py --a2a` in `hosted_agent_responses/`
+2. `preflight.py --a2a` reads `azure.yaml`, verifies `protocol: responses` (NOT `a2a`)
+3. Prints "`POST /responses` is not A2A" — no Azure call, no deployment, no agent version
 
-**When to use:** Use check when team wants to delegate to another agent but has only Responses endpoint. To implement A2A, separately enable incoming A2A on target, create A2A project connection with target base path and matching authentication, select `A2APreviewTool`, and design caller/target authorization, consent, tasks, timeout, audit, and fallback. Use Foundry Agent Consumer or another least-privilege role for callers where appropriate; target identity still needs its own resource RBAC.
+**What to watch in the output.** Confirmation that the sample declares Responses protocol and not A2A. This is a contractual check, not a functional test.
 
-**Do not use and takeaway:** Do not treat direct Responses invocation, lesson 18 application router, or MCP tool as A2A. Do not forward user credentials or authority to specialist without explicit delegation policy. **Key takeaway:** transport-compatible endpoint is not agent-delegation security model.
+**Exam cues.** To implement A2A: enable incoming A2A on target, create A2A project connection with target base path and auth, select `A2APreviewTool`, and design caller/target authorization, consent, tasks, timeout, audit, and fallback.
 
-### 30 — Hosted-agent CI/CD reference
+**References:** [Agent-to-agent tools](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/agent-to-agent) · [Enable A2A endpoint](https://learn.microsoft.com/azure/foundry/agents/how-to/enable-agent-to-agent-endpoint) · [A2A authentication](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-to-agent-authentication)
 
-**What and why:** Delivery must reproduce build, identity, deployment, smoke test, telemetry, and rollback conditions. Contained `hosted-agent-cd.yml` is reference asset, not active repository workflow. It demonstrates GitHub OIDC rather than long-lived client secret.
+---
 
-Run:
+### 30 — Hosted-agent CI/CD
+
+**Question answered:** What does an OIDC-based CI/CD pipeline for a hosted agent look like?
+
+**Background.** Delivery must reproduce build, identity, deployment, smoke test, telemetry, and rollback conditions. The contained `hosted-agent-cd.yml` is a reference CI/CD asset using GitHub OIDC rather than long-lived client secrets. The deployment wrapper only mutates cloud state with `--apply`.
 
 ```bash
 uv run python 02-generative-ai-and-agents/30_hosted_agent_cicd.py
 cd 02-generative-ai-and-agents/hosted_agent_responses
-python deploy.py             # plan only
-python deploy.py --apply     # deploy only after environment review
+python deploy.py          # plan only — prints what would be deployed
+python deploy.py --apply  # deploy only after environment review
 ```
 
-**Architecture and code path:** Workflow uses `id-token: write`, `Azure/setup-azd`, `azure/login` with repository variables, creates/configures azd environment, runs local preflight, calls explicit deployment wrapper, then invokes smoke prompt. Wrapper orders optional `azd provision` before `azd deploy`, and never mutates without `--apply`. Expected lesson output prints asset, dry-run, and deploy paths.
+**Code path.**
+1. `30_hosted_agent_cicd.py` → prints paths to `hosted-agent-cd.yml`, `deploy.py`, and deployment guide
+2. `hosted-agent-cd.yml` uses `id-token: write`, `azure/login` with OIDC, `Azure/setup-azd`, then runs local preflight, explicit deployment wrapper, and smoke prompt
+3. `deploy.py` orders optional `azd provision` before `azd deploy`; never mutates without `--apply`
 
-**Prerequisites and configuration:** Configure federated credential, client, tenant, subscription, project endpoint, model deployment, project roles, and existing azd environment. Keep values in identity/platform configuration, not source. IaC should own resource group, network, private endpoints, DNS, ACR, Key Vault, RBAC, tags, and monitoring connection. Pipeline must reach private endpoints or use self-hosted/private runner with correct DNS.
+**What to watch in the output.** Lesson 30 prints file paths only — it makes no cloud calls. Read `hosted-agent-cd.yml` to understand the pipeline structure.
 
-**Pitfalls and takeaway:** OIDC login can succeed while deployment identity lacks Foundry Project Manager/control-plane, ACR, or resource permissions. Smoke test must exercise deployed endpoint, identity, required tool egress, safe failure, and observability—not only build success. Promote pinned agent versions with evaluation evidence and rollback plan. **Key takeaway:** CI/CD is identity and environment contract, not `deploy` command alone.
+**Exam cues.** OIDC login can succeed while deployment identity lacks Foundry Project Manager, ACR, or resource permissions. Smoke test must exercise the deployed endpoint, identity, required tool egress, safe failure, and observability — not only build success.
 
-## Evaluation and tracing truth
+**References:** [Hosted-agent CI/CD quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/set-up-cicd-hosted-agent) · [Deploy hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent) · [Hosted-agent code deployment](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent-code)
 
-### What lesson 21 is
+---
 
-Lesson 21 is local evaluator SDK invocation. It has one hand-built, complete, in-memory agent-turn dictionary. It prints evaluator result to terminal. It does not create a portal experiment. It does not send a dataset to Foundry cloud evaluation. It does not store a result history automatically. It includes one valid tool call and result, but does not prove tool quality. It does not prove agent quality because one case is statistically meaningless.
+## Feature status and hard limits
 
-### What a credible evaluation loop needs
+| Feature | Status | Practical boundary |
+|---|---|---|
+| Responses API | GA | Direct Azure OpenAI-compatible; tool availability is model-dependent |
+| Prompt agents | GA | Versioned; each `create_version()` persists a new version; clean up stale lab versions |
+| Conversation threads | GA | Turn-scoped context; not durable profile memory |
+| Built-in tools (web, code, file) | GA | Managed service-side execution; usage and residency apply |
+| Function tools / OpenAPI tools | GA | App executes; model requests; backend must be deployed and reachable |
+| Foundry Memory | Preview | Async/debounced writes; not guaranteed retrieval; `project.beta` surface |
+| Workflows | Preview → retiring Dec 1, 2026 | Study as artifact; migrate to Agent Framework/hosted agent |
+| Agent Framework | GA | Local process; not deployed; no packaging, identity, or lifecycle |
+| Multi-agent (agent-as-tool) | GA | Application-controlled pattern; not A2A |
+| LangChain/LangGraph on Azure | GA | Requires explicit tracing instrumentation |
+| Local SDK evaluation | GA | Local process; no cloud state; one case is not evidence |
+| Cloud evaluation | GA | Persisted runs; dataset upload; cost incurred |
+| App Insights tracing | GA | Content recording disabled by default; opt-in with governance approval |
+| MCP | GA | External trust boundary; allowlist + approval required |
+| Toolbox | GA | Foundry-managed versioned catalog; version deletion breaks consumers |
+| Azure AI Search agent tool | GA | Requires existing index + project connection; no ingestion in lesson |
+| Hosted agents (Responses) | GA | Full deployment lifecycle; not local Agent Framework |
+| A2A | Preview | Separate protocol from Responses; requires explicit enablement |
 
-1. Define task, user population, harm boundary, and success metric.
-2. Build versioned representative dataset with expected outcomes or rubrics.
-3. Include normal, edge, ambiguous, multilingual, adversarial, and zero-evidence cases.
-4. Capture exact model/deployment, prompt/agent version, tool schema, and corpus version.
-5. Evaluate response quality, groundedness, tool selection/arguments, latency, cost, and safety.
-6. Inspect distributions and failures, not only average score.
-7. Establish release thresholds, human review, rollback, and regression comparisons.
-8. Run predeployment and periodically against production-like traces under governance.
+---
 
-### Cloud evaluation distinction
+## Troubleshooting
 
-Cloud evaluation is managed experiment/run workflow with dataset, configuration, persisted results, comparison, and service-side visibility subject to current Foundry contract. It is larger than calling evaluator class in process. Use local SDK for quick iterative checks. Use cloud evaluation when you need repeatable shared datasets, persisted runs, comparisons, and release evidence. Verify current region, quota, networking, identity, and preview support from local Foundry documentation before adopting it.
+| Symptom | Likely cause | Resolution |
+|---|---|---|
+| `401`/`403` direct call | Wrong endpoint, missing role, or credential chain failure | Use `AZURE_OPENAI_ENDPOINT`; assign Azure OpenAI User role on resource |
+| `401`/`403` project agent call | Wrong project URL or missing Foundry project access role | Use `PROJECT_ENDPOINT`; assign Foundry User on project |
+| `404 DeploymentNotFound` | Deployment name/endpoint mismatch | List deployments; use configured name, not model family label |
+| Lesson 03 fails | Reasoning deployment absent or incompatible | Deploy supported reasoning model; set `REASONING_MODEL` to deployment name |
+| Lesson 09 exits: agent not found | Lesson 08 not run | Run `08_prompt_agent_create.py` first |
+| Function result rejected | Missing/mismatched `call_id` or invalid loop | Preserve each `call_id`; submit all outputs in same conversation |
+| Tool loop runs forever | Ambiguous instructions or repeated failure | Inspect loop; keep `MAX_TOOL_ROUNDS`; return bounded errors |
+| Lesson 12 rejects endpoint | `ORDERS_FN_ENDPOINT` empty or localhost | Deploy backend; use HTTPS URL without `/api` suffix |
+| MCP `--apply` fails | Localhost endpoint, missing auth, or unreachable backend | Use HTTPS MCP endpoint reachable from Agent Service |
+| Lesson 25 tool blocked | `--approve` absent, tool not in allowlist | Review printed tool name and arguments; approve only reviewed allowlisted read actions |
+| Lesson 26 version removal breaks agent | Consumer references deleted version | Inventory consumers; promote/test replacement before deleting |
+| Lesson 27 fails | Connection name, index name, RBAC, or private DNS mismatch | Verify `SEARCH_CONNECTION_NAME`, `SEARCH_INDEX`, identity role, agent-to-Search route |
+| Memory misses preference | Different user header, async delay, or extraction miss | Use same `x-memory-user-id`; never invent a recalled fact |
+| Lesson 16 fails | Lesson 15 not run or preview SDK changed | Create intake agent first; inspect supported preview surface |
+| Low evaluator score | One case, weak trace, or out-of-scope rubric | Build representative dataset; inspect failure distribution |
+| No lesson 23 traces | Missing connection string or telemetry propagation delay | Set `APPLICATIONINSIGHTS_CONNECTION_STRING`; wait 2–5 min |
+| Lesson 28 preflight fails | Runtime contract or dependency drift | Preserve Responses adapter, port 8088, Linux amd64 remote build contract |
+| Hosted deploy succeeds but invoke fails | Version inactive, wrong protocol, RBAC, or private DNS | Poll version status; invoke correct protocol; test identity from deployed runtime |
+| LangChain/LangGraph error | Wrong endpoint or deployment name | Use `AZURE_OPENAI_ENDPOINT/openai/v1`; use deployment names |
+| FAISS embedding fails | Chat model used as embedding deployment | Set `EMBEDDING_MODEL` to a compatible embedding deployment |
 
-### Tracing distinction
+---
 
-A trace records what happened in execution. An evaluator judges aspects of output/trace against rule/model/rubric. Observability helps find latency, retry, tool-loop, and failure patterns. Observability is not a correctness score. A high evaluator score is not authorization evidence. Record content only after data-governance approval.
-
-## Operations, security, and CI/CD
-
-### Production readiness checklist
-
-| Concern | Minimum evidence |
-|---|---|
-| Identity | Workload identity selected; roles scoped to endpoint/action; no user shared credentials. |
-| Network | Tool backends and remote MCP endpoints reachable from runtime; DNS/egress/ingress tested. |
-| Secrets | Secret store/managed identity; no keys in repository, prompts, tool schema, or logs. |
-| Input safety | Size/type/rate limits; injection handling; user and document trust boundaries defined. |
-| Tool safety | Allowlist, strict schema, semantic validation, caller authorization, timeout, idempotency, approval. |
-| State | Conversation/user/tenant isolation; retention/deletion; source-of-truth decision documented. |
-| RAG | ACL filtering, source versioning, ingestion/deletion, retrieval and groundedness evaluation. |
-| Output | Schema/content validation, citations where required, escalation/human review for consequential results. |
-| Telemetry | Correlation IDs, latency/errors/cost estimates, redaction, sampling, retention, access review. |
-| Evaluation | Versioned dataset, thresholds, regression comparison, failure triage, release decision owner. |
-| Resilience | Rate limit policy, bounded retry, timeout, circuit/queue/fallback behavior, rollback. |
-| Cost | Token/tool/storage/telemetry budget, quotas, alerts, cleanup owner. |
-
-### CI/CD sequence
+## CI/CD and operational release
 
 ```text
-Commit code, prompts, schemas, infrastructure, and evaluation fixtures
-    -> lint/type/test deterministic application code
-    -> run schema and contract tests against mock/isolated backend
-    -> provision/update least-privileged nonproduction resources through IaC
-    -> deploy versioned agent/hosted runtime/tool backend
-    -> smoke test endpoint, identity, tool reachability, and safe failure paths
-    -> run evaluation dataset and policy checks
-    -> approve promotion with model/prompt/tool/corpus version evidence
-    -> canary or staged release with traces, alerts, rollback
-    -> evaluate production-like failures and remove stale versions/resources
+Commit code, prompts, schemas, infrastructure, evaluation fixtures
+    → lint / type / test deterministic application code
+    → run schema and contract tests against mock/isolated backend
+    → provision / update least-privileged non-production resources through IaC
+    → deploy versioned agent / hosted runtime / tool backend
+    → smoke test endpoint, identity, tool reachability, and safe failure paths
+    → run evaluation dataset and policy checks
+    → approve promotion with model / prompt / tool / corpus version evidence
+    → canary or staged release with traces, alerts, rollback
+    → evaluate production-like failures and remove stale versions/resources
 ```
 
-Do not deploy mutable prompts/tool definitions manually without version record. Do not make production tool mutation enabled merely because dev read tool works. Do not use model output as CI approval decision by itself.
+| Release gate | Minimum evidence |
+|---|---|
+| Identity | Workload identity selected; roles scoped to endpoint/action; no user shared credentials |
+| Network | Tool backends and MCP endpoints reachable from runtime; DNS/egress/ingress tested |
+| Secrets | Secret store/managed identity; no keys in repository, prompts, tool schema, or logs |
+| Tool safety | Allowlist, strict schema, semantic validation, caller authorization, timeout, approval |
+| Evaluation | Versioned dataset, thresholds, regression comparison, failure triage, release owner |
+| Resilience | Rate limit policy, bounded retry, timeout, circuit/queue/fallback behavior, rollback |
+| Cost | Token/tool/storage/telemetry budget, quotas, alerts, cleanup owner |
 
-### Hosted-agent boundary
+---
 
-Lesson 17 only demonstrates local Agent Framework. Lessons 28–30 add a contained Responses hosted-agent source sample, static contract validation, and an OIDC CI/CD reference. They still do not prove a production deployment. Before promotion, verify deployed endpoint, version `active` state, project and agent identity RBAC, external-tool/network reachability, private DNS, session policy, telemetry access/data handling, scaling, cost, health behavior, rollback, and cleanup in your target environment.
+## Security, networking, and IaC
 
-### Cost and cleanup
-
-| Asset | Lessons | Cleanup concern |
-|---|---:|---|
-| Model tokens/reasoning | 01–05, 07, 09, 11–21, 23, 27 | Input/output/reasoning, managed tools, evaluators, and retries accrue usage. |
-| File/vector store | 06 | Normal completion deletes lesson-created vector store and uploaded files; interrupted runs still need inventory. |
-| Agent versions | 08, 10–18, 25, 27 | Re-runs create versions; 25/27 delete their temporary version in `finally`; review/remove stale lab versions after interrupted runs. |
-| Memory store/items | 14 | Preview data, retention, consent, and deletion need owner. |
-| Function Apps and hosted runtime | 12, 25, 28–30 | Hosting, storage, remote build/image, telemetry, egress, auth, and container capacity cost. |
-| Toolbox and Search | 26–27 | Toolbox versions persist; Search service/index/embedding/query costs exist even though lesson 27 does not create them. |
-| Evaluation and telemetry | 21, 22, 23–24 | Local evaluator tokens, App Insights ingestion/retention, uploaded evaluation data, runs, and results need budget and deletion owner. |
-
-Use disposable study names/projects when possible. Inventory after experiments. Delete agents/versions, files, vector stores, memory stores, Function Apps, telemetry data/resources, and test deployments according to policy.
-
-## Troubleshooting decision table
-
-| Symptom | Diagnose | Correct action |
+| Decision | Recommendation | Common pitfall |
 |---|---|---|
-| `401`/`403` direct call | Endpoint, effective identity, direct role/scope. | Use `AZURE_OPENAI_ENDPOINT`; assign matching data-plane role. |
-| `401`/`403` project agent call | Project URL, identity, Foundry project access. | Use `PROJECT_ENDPOINT`; verify project/resource role. |
-| `404 DeploymentNotFound` | Deployment name/endpoint mismatch. | List deployments; set configured deployment name. Do not retry blindly. |
-| Lesson 03 fails | Reasoning deployment absent/incompatible. | Set/deploy supported `REASONING_MODEL`; review model support. |
-| Function result rejected | Missing/mismatched `call_id` or invalid result loop. | Preserve each `call_id`; submit all outputs in same conversation. |
-| Tool loops forever | Ambiguous instructions/tool result or repeated failure. | Keep cap, return bounded errors, inspect trace; never remove cap. |
-| Lesson 12 rejects endpoint | `ORDERS_FN_ENDPOINT` empty/local host. | Deploy backend; use reachable HTTPS base URL without `/api`. |
-| Lesson 12 backend fails | Route/auth/network/spec mismatch. | Curl deployed `/api/orders`; align OpenAPI auth and Function auth. |
-| MCP connection fails | Local endpoint, auth, network, protocol server issue. | Deploy `/runtime/webhooks/mcp`; configure matching auth. |
-| Lesson 25 denies tool | `--approve` absent, tool not allowlisted, or malformed approval request. | Inspect printed name/arguments; approve only reviewed allowlisted read action. |
-| Lesson 26 version removal breaks agent | Consumer references deleted Toolbox version. | Inventory consumers, promote/test replacement, then delete during controlled change. |
-| Lesson 27 fails | Connection/index/RBAC/private DNS mismatch. | Verify named project connection, vector-capable index, identity role, and agent-to-Search route. |
-| Memory misses preference | Different header/scope, async update, extraction/retrieval miss. | Use same user ID, wait/retry per contract, never invent recall. |
-| Lesson 16 fails | Lesson 15 not run or workflow preview SDK/service changed. | Create intake agent first; inspect supported preview surface. |
-| Lesson 21 import failure | Environment not synced. | Run `uv sync`; package exists in root manifest. |
-| Low evaluator score | Single case, weak trace, or out-of-scope rubric. | Inspect result, improve dataset/trace and regression process. |
-| No lesson 23 traces | Missing/invalid connection string or telemetry delay. | Set connection string; inspect governance/export configuration. |
-| Lesson 28 preflight fails | Runtime contract/dependency drift. | Run contained preflight; preserve Responses adapter, port 8088, and remote Linux amd64 build contract. |
-| Hosted deploy succeeds but invoke fails | Version inactive, wrong protocol, RBAC, private DNS, or egress issue. | Poll status; invoke correct protocol; test identity and route from deployed runtime. |
-| Lesson 22 `--apply` fails | Missing dataset/env/RBAC/region/quota. | Validate JSONL and both environment values; inspect project role, evaluator support, quota, and runner network. |
-| LangChain/LangGraph error | Wrong endpoint/deployment/token scope. | Use OpenAI-compatible endpoint `/openai/v1`, deployment names. |
-| Embedding failure in 20 | Chat model used as embedding deployment or unsupported endpoint. | Set compatible `EMBEDDING_MODEL`; use same OpenAI-compatible base URL. |
-| FAISS answer is unsupported | Retrieval miss or model skipped evidence. | Evaluate chunks/retrieval, require grounded behavior, return uncertainty. |
-| High cost/latency | Reasoning, output length, tools, retrieval, retries, telemetry. | Trace path; cap output/tools; choose model and budget deliberately. |
+| Identity in deployed workloads | Managed or workload identity; no user-shared credentials | `az login` tokens are personal — not suitable for deployed workloads |
+| Secrets | Project connection or Key Vault-backed connection | Secrets in `.env`, tool descriptions, or trace attributes |
+| Network boundary | Private endpoints for Foundry, Azure OpenAI, Search, App Insights, tool backends; test from actual runner | Private endpoint ≠ RBAC; DNS + egress + ingress each need verification |
+| Tool backend auth | API key or Entra auth in production; align OpenAPI auth details | Anonymous demo auth from lesson 12 is NOT production auth |
+| MCP server trust | Allowlist tools, require approval, least-privilege identity, timeout, audit | `--approve` is client-side; backend still enforces authorization |
+| Content recording | Disabled by default; opt-in only with data governance approval | Content recording can retain sensitive prompts, tool args, model outputs |
+| IaC scope | Resource groups, networking, private endpoints, RBAC, tags, monitoring | Manual portal clicks drift; record every production setting in IaC |
 
-## Common traps
+---
 
-1. **Same resource name, wrong endpoint.** `services.ai.azure.com` project URL is
-not direct `openai.azure.com` base URL in this repository's OpenAI SDK path.
-2. **Model family versus deployment.** `model=` normally needs configured
-deployment name.
-3. **Tool schema equals permission.** It does not; application authorizes.
-4. **Strict JSON equals true content.** It only constrains structure.
-5. **Local curl equals agent reachability.** It does not; Agent Service cannot
-reach laptop localhost.
-6. **Anonymous demo equals production OpenAPI auth.** It does not.
-7. **MCP equals OpenAPI/Toolbox/A2A.** They solve different integration layers.
-8. **Conversation equals memory.** Conversation is turn context; memory is
-preview durable extraction/retrieval.
-9. **Waiting 65 seconds equals guaranteed memory.** It does not.
-10. **Workflow YAML equals supported long-term runtime.** Workflows retire
-December 1, 2026.
-11. **Local Agent Framework equals hosted agent.** It does not deploy anything.
-12. **One evaluator printout equals cloud evaluation.** It does not.
-13. **Trace equals evaluation.** Trace observes execution; evaluator scores it.
-14. **Application Insights content recording is harmless.** It can retain
-sensitive data.
-15. **LangChain accepts project endpoint.** Lessons 19–20 and 23 configure direct
-Azure OpenAI-compatible `/openai/v1` base URL.
-16. **Embedding model can be chat deployment.** Use compatible embedding
-deployment name.
-17. **FAISS demo is production RAG.** It rebuilds local index and has no ACL.
-18. **Agent version re-run is free/no state.** New versions and cloud state
-accumulate.
-19. **`--apply` means harmless preview.** It can upload, create, invoke, or
-delete durable cloud assets.
-20. **MCP approval is backend authorization.** It is one client-side
-decision; backend still enforces identity and business policy.
-21. **Toolbox is MCP server you operate yourself.** It is Foundry-managed,
-versioned catalog with an MCP-compatible endpoint.
-22. **Search citations prove permission or truth.** Citations expose source;
-ACL, source quality, and groundedness still need validation.
-23. **Responses hosted agent is A2A.** It is not unless separately declared
-and configured for A2A.
-24. **Private endpoint proves private runtime path.** DNS, egress, ingress,
-and every identity/action still need verification.
-25. **Cloud evaluation run equals release approval.** It is evidence to
-review against thresholds and policy.
-26. **Metadata-only tracing is free of governance.** Metadata can still be
-sensitive and incur ingestion/retention cost.
+## Common exam traps
 
-## Coverage limits and high-value next lessons
+| Claim | Correct interpretation |
+|---|---|
+| "Same resource name → same endpoint" | `services.ai.azure.com` project URL ≠ `openai.azure.com` direct URL |
+| "Model family name in `DEFAULT_MODEL`" | `model=` needs the configured deployment name, not family label |
+| "Tool schema = execution permission" | Schema constrains model input; application authorizes execution |
+| "`strict=True` = true content" | Constrains response structure; does not validate content accuracy |
+| "Local curl = Agent Service reachability" | Agent Service cannot reach laptop localhost |
+| "Anonymous OpenAPI = production auth" | Demo auth is for static data only; protect production APIs |
+| "MCP = Toolbox = A2A = function calling" | Distinct integration layers solving different problems |
+| "Conversation = memory" | Conversation is turn context; Memory is preview durable extraction |
+| "65 seconds = guaranteed memory recall" | Async debounced extraction is non-deterministic |
+| "Workflow YAML = long-term runtime" | Workflows retire December 1, 2026 |
+| "Local Agent Framework = hosted agent" | Local process does not deploy or host anything |
+| "One evaluator result = cloud evaluation" | Local SDK call ≠ persisted Foundry run with dataset |
+| "Trace = evaluation" | Trace observes execution; evaluator scores it |
+| "Content recording is harmless" | Can retain sensitive data; requires governance approval |
+| "LangChain uses PROJECT_ENDPOINT" | Lessons 19–20, 23 use `AZURE_OPENAI_ENDPOINT/openai/v1` |
+| "Embedding model = chat model" | Use compatible embedding deployment name |
+| "FAISS demo = production RAG" | Ephemeral in-process index with no ACL, governance, or persistence |
+| "Toolbox = MCP server you operate" | Foundry-managed versioned catalog with MCP-compatible endpoint |
+| "Responses hosted agent = A2A" | Requires separate explicit A2A protocol declaration |
+| "Private endpoint = private runtime path" | DNS, egress, ingress, and RBAC still each need verification |
+| "Cloud evaluation run = release approval" | Evidence to review against thresholds and policy — not automatic approval |
+| "`--apply` = harmless preview" | Can upload, create, invoke, or delete durable cloud assets |
 
-This domain intentionally demonstrates narrow runnable paths. Lessons 21–24 add evaluation and observability, and lessons 25–30 add preflight and minimal, explicitly gated examples for MCP approval, Toolbox/versioning, Azure AI Search integration, hosted Responses runtime, hosted A2A boundary, and OIDC CI/CD.
+---
 
-It does not fully implement following production requirements:
+## Objective coverage and limits
 
-- remote MCP OAuth/Entra setup, credential rotation, server lifecycle, or
-backend authorization;
-- incoming A2A endpoint deployment, delegated-identity policy, task lifecycle,
-or cross-agent audit;
-- Azure AI Search ingestion, ACL/security trimming, reranking, index lifecycle,
-and RAG quality/safety evaluation;
-- hosted-agent private networking, supply-chain policy, scaling, incident
-operations, session strategy, or promotion gate;
-- cloud-evaluation completion polling, results analysis, continuous evaluation,
-safety/RAG evaluator selection, or CI release approval;
-- human approval workflows for write tools, idempotent writes, durable queues,
-or transaction reconciliation.
+Domain 2 covers: direct Responses API calls; built-in managed tools (web search, code interpreter, file search, structured output); Prompt Agent creation, invocation, function tools, OpenAPI tools, conversation threads, Foundry Memory, and workflow preview; local Microsoft Agent Framework, multi-agent routing, LangChain agents, and LangGraph RAG; local SDK evaluation, cloud evaluation runs, LangChain tracing, and production observability preflight; MCP tool integration with approval, Toolbox versioning, and Azure AI Search agent integration; and Responses hosted-agent contract validation, A2A boundary verification, and OIDC CI/CD reference.
 
-Treat these as deliberate curriculum boundaries, not implied support.
+It does **not** fully implement: remote MCP OAuth/Entra setup, credential rotation, or server lifecycle; incoming A2A endpoint deployment, delegated-identity policy, or task lifecycle; Azure AI Search ingestion, ACL/security trimming, reranking, or index lifecycle; hosted-agent private networking, supply-chain policy, scaling, or incident operations; cloud-evaluation completion polling, continuous evaluation, or safety/RAG evaluator selection; human approval workflows for write tools, idempotent writes, or durable queues.
 
-## Local references
+---
 
-### Core contracts
+## References
 
-- [Responses API quickstart](../.context/azure-ai-docs/articles/foundry/agents/quickstarts/responses-api.md)
-- [Prompt agent quickstart](../.context/azure-ai-docs/articles/foundry/agents/quickstarts/prompt-agent.md)
-- [Function calling](../.context/azure-ai-docs/articles/foundry/agents/how-to/tools/function-calling.md)
-- [Tool best practices](../.context/azure-ai-docs/articles/foundry/agents/concepts/tool-best-practice.md)
-- [Tool catalog](../.context/azure-ai-docs/articles/foundry/agents/concepts/tool-catalog.md)
-- [Toolbox overview](../.context/azure-ai-docs/articles/foundry/agents/concepts/toolbox-overview.md)
-- [Create and use a Toolbox](../.context/azure-ai-docs/articles/foundry/agents/how-to/tools/toolbox.md)
-- [MCP tools](../.context/azure-ai-docs/articles/foundry/agents/how-to/tools/model-context-protocol.md)
-- [MCP authentication](../.context/azure-ai-docs/articles/foundry/agents/how-to/mcp-authentication.md)
-- [Agent-to-agent tools](../.context/azure-ai-docs/articles/foundry/agents/how-to/tools/agent-to-agent.md)
-- [Agent-to-agent authentication](../.context/azure-ai-docs/articles/foundry/agents/concepts/agent-to-agent-authentication.md)
-- [OpenAPI tools](../.context/azure-ai-docs/articles/foundry/agents/how-to/tools/openapi.md)
-- [Tool authentication](../.context/azure-ai-docs/articles/foundry/agents/how-to/tools/tool-authentication.md)
+### Responses API and direct model calls
 
-### State, runtime, and operations
+- [Responses API quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api)
+- [Foundry models overview](https://learn.microsoft.com/azure/foundry/concepts/foundry-models-overview)
+- [Authentication and authorization in Foundry](https://learn.microsoft.com/azure/foundry/concepts/authentication-authorization-foundry)
 
-- [Memory usage](../.context/azure-ai-docs/articles/foundry/agents/how-to/memory-usage.md)
-- [Memory concept](../.context/azure-ai-docs/articles/foundry/agents/concepts/what-is-memory.md)
-- [Workflow concept](../.context/azure-ai-docs/articles/foundry/agents/concepts/workflow.md)
-- [Hosted agents](../.context/azure-ai-docs/articles/foundry/agents/concepts/hosted-agents.md)
-- [Hosted-agent runtime contract](../.context/azure-ai-docs/articles/foundry/agents/concepts/hosted-agent-contract.md)
-- [Hosted-agent deployment](../.context/azure-ai-docs/articles/foundry/agents/how-to/deploy-hosted-agent.md)
-- [Hosted-agent code deployment](../.context/azure-ai-docs/articles/foundry/agents/how-to/deploy-hosted-agent-code.md)
-- [Hosted-agent permissions](../.context/azure-ai-docs/articles/foundry/agents/concepts/hosted-agent-permissions.md)
-- [Hosted-agent CI/CD](../.context/azure-ai-docs/articles/foundry/agents/quickstarts/set-up-cicd-hosted-agent.md)
-- [Hosted-agent telemetry](../.context/azure-ai-docs/articles/foundry/agents/how-to/configure-hosted-agent-telemetry.md)
-- [Development lifecycle](../.context/azure-ai-docs/articles/foundry/agents/concepts/development-lifecycle.md)
+### Prompt agents and tools
 
-### Evaluation and frameworks
+- [Prompt agent quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/prompt-agent)
+- [Function calling how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/function-calling)
+- [OpenAPI tools how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/openapi)
+- [Web search tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/web-search)
+- [Code interpreter tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/code-interpreter)
+- [File search tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/file-search)
+- [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication)
+- [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
+- [Tool catalog](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-catalog)
+- [Vector stores concept](https://learn.microsoft.com/azure/foundry/agents/concepts/vector-stores)
 
-- [Agent evaluators](../.context/azure-ai-docs/articles/foundry/concepts/evaluation-evaluators/agent-evaluators.md)
-- [Cloud evaluation](../.context/azure-ai-docs/articles/foundry/how-to/develop/cloud-evaluation.md)
-- [Foundry observability](../.context/azure-ai-docs/articles/foundry/concepts/observability.md)
-- [Trace data](../.context/azure-ai-docs/articles/foundry/observability/concepts/trace-data.md)
-- [Tracing setup](../.context/azure-ai-docs/articles/foundry/observability/how-to/trace-agent-setup.md)
-- [Client-side tracing](../.context/azure-ai-docs/articles/foundry/observability/how-to/trace-agent-client-side.md)
-- [Framework tracing (LangChain/LangGraph/Semantic Kernel)](../.context/azure-ai-docs/articles/foundry/observability/how-to/trace-agent-framework.md)
-- [Sensitive content in traces](../.context/azure-ai-docs/articles/foundry/observability/how-to/traces-sensitive-content.md)
-- [RAG evaluators](../.context/azure-ai-docs/articles/foundry/concepts/evaluation-evaluators/rag-evaluators.md)
-- [Risk and safety evaluators](../.context/azure-ai-docs/articles/foundry/concepts/evaluation-evaluators/risk-safety-evaluators.md)
-- [LangChain agents](../.context/azure-ai-docs/articles/foundry/how-to/develop/langchain-agents.md)
-- [LangChain hosted agents](../.context/azure-ai-docs/articles/foundry/how-to/develop/langchain-hosted-agents.md)
+### State: conversation, memory, and workflow
+
+- [Memory concept](https://learn.microsoft.com/azure/foundry/agents/concepts/what-is-memory)
+- [Memory usage how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/memory-usage)
+- [Workflow concept](https://learn.microsoft.com/azure/foundry/agents/concepts/workflow)
+- [Isolate sessions per user](https://learn.microsoft.com/azure/foundry/agents/how-to/isolate-sessions-per-user)
+
+### Local frameworks and orchestration
+
+- [Framework hosted agents](https://learn.microsoft.com/azure/foundry/how-to/develop/framework-hosted-agents)
+- [LangChain agents how-to](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-agents)
+- [LangChain integration](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain)
+- [LangChain traces](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-traces)
+- [Retrieval-augmented generation concept](https://learn.microsoft.com/azure/foundry/concepts/retrieval-augmented-generation)
+- [Agent-to-agent tools](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/agent-to-agent)
+- [A2A authentication](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-to-agent-authentication)
+
+### Evaluation and observability
+
+- [Agent evaluators concept](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/agent-evaluators)
+- [Task adherence concept](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/task-adherence)
+- [Cloud evaluation how-to](https://learn.microsoft.com/azure/foundry/how-to/develop/cloud-evaluation)
+- [Evaluate agent how-to](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-agent)
+- [RAG evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/rag-evaluators)
+- [Risk and safety evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/risk-safety-evaluators)
+- [Trace agent setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup)
+- [Client-side tracing](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-client-side)
+- [Framework tracing how-to](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-framework)
+- [Sensitive content in traces](https://learn.microsoft.com/azure/foundry/observability/how-to/traces-sensitive-content)
+- [Observability concept](https://learn.microsoft.com/azure/foundry/concepts/observability)
+- [Trace data concept](https://learn.microsoft.com/azure/foundry/observability/concepts/trace-data)
+
+### Governed external tools
+
+- [MCP tools how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/model-context-protocol)
+- [MCP authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication)
+- [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview)
+- [Toolbox how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox)
+- [Azure AI Search tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/ai-search)
+- [AI Search agentic retrieval index](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-create-index)
+
+### Hosted agent delivery
+
+- [Hosted agents concept](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
+- [Hosted-agent contract](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-contract)
+- [Hosted-agent permissions](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions)
+- [Hosted-agent quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/quickstart-hosted-agent)
+- [Deploy hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent)
+- [Hosted-agent code deployment](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent-code)
+- [Hosted-agent CI/CD quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/set-up-cicd-hosted-agent)
+- [Hosted-agent telemetry](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-hosted-agent-telemetry)
+- [Enable A2A endpoint](https://learn.microsoft.com/azure/foundry/agents/how-to/enable-agent-to-agent-endpoint)
+- [Development lifecycle](https://learn.microsoft.com/azure/foundry/agents/concepts/development-lifecycle)
 
 ### Repository assets
 
-- [OpenAPI Function asset](azure_functions_orders/README.md)
-- [MCP Function asset](northwind_mcp/README.md)
+- [OpenAPI Function backend](azure_functions_orders/README.md)
+- [MCP Function server](northwind_mcp/README.md)
 - [Workflow preview assets](workflows/README.md)
-- [Responses hosted-agent asset](hosted_agent_responses/README.md)
+- [Responses hosted-agent sample](hosted_agent_responses/README.md)
 - [Domain 1 planning guide](../01-plan-and-manage/README.md)
 - [Domain 5 retrieval guide](../05-information-extraction/README.md)
-
-## Before declaring a lab complete
-
-- [ ] Command ran from repository root or documented nested asset directory.
-- [ ] Endpoint used matches selected client.
-- [ ] Deployment names exist and match required capability.
-- [ ] Identity/role failure, if any, was diagnosed without adding secrets.
-- [ ] Created agent/file/vector/memory/workflow/Toolbox/evaluation IDs and versions were recorded.
-- [ ] Tool request/response path preserved call IDs and rejected bad arguments.
-- [ ] External API/MCP backend was tested from actual runtime reachability path.
-- [ ] Preview limitation and migration path were recorded.
-- [ ] Costs, stored data, traces, and cleanup owner were reviewed.
-- [ ] Evaluation claims distinguish local sample from persisted cloud evidence.
-- [ ] Hosted deployment, if used, passed readiness, protocol, identity, network, and smoke-test checks.
-- [ ] Private DNS, endpoint reachability, RBAC, quota, region, cost, retention, and cleanup were reviewed from runtime network.

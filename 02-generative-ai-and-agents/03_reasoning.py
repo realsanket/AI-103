@@ -1,7 +1,23 @@
-# Run:
-# uv run python 02-generative-ai-and-agents/03_reasoning.py
+# Run: uv run python 02-generative-ai-and-agents/03_reasoning.py
+"""Reasoning model call with streaming summary — demonstrates the `reasoning` parameter.
 
-"""Reasoning example with streaming."""
+Azure Foundry supports separate reasoning-tier deployments (e.g. o3, o4-mini). These
+use a different parameter surface: `reasoning={"effort": "high", "summary": "detailed"}`
+instead of `temperature`. The model thinks silently, then emits a reasoning summary and
+final answer as a stream. Use `REASONING_MODEL` (a deployment name, not a model family).
+
+This is NOT evidence of correctness. High effort raises latency and cost; benchmark
+against representative problems before choosing effort level.
+
+What to watch:
+  The stream emits `response.reasoning_summary_text.delta` events (the thinking summary)
+  followed by `response.output_text.delta` events (the final answer). Run a few times
+  and compare answer quality against a standard model call.
+
+Prerequisites / env vars:
+  AZURE_OPENAI_ENDPOINT — Azure OpenAI-compatible base URL
+  REASONING_MODEL       — name of a deployed reasoning-capable model (e.g. o4-mini)
+"""
 
 from _shared.openai_client import openai_client
 from _shared.config import settings

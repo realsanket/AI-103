@@ -1,10 +1,29 @@
 # Run: uv run python 02-generative-ai-and-agents/09_prompt_agent_invoke.py
 
-"""Invoke the IT HelpDesk agent + execute its function-tool requests locally.
+"""Invoke the IT HelpDesk Prompt Agent and execute its function-tool requests.
 
-The agent decides which tool to call; this app is the executor. Round-trips the
-tool outputs back into the same conversation so the final answer is grounded
-in what we returned.
+Lesson 08 registered the agent definition. This lesson invokes it: the model
+decides which tool to call, this application is the executor. It round-trips
+tool outputs back into the same conversation so the model's final answer is
+grounded in what the local functions returned.
+
+Code path (the function-calling loop):
+  1. `project.agents.get(AGENT_NAME)` → resolves latest version
+  2. `openai.conversations.create()` → server-managed turn history
+  3. `openai.responses.create(conversation=…)` → model produces function_call items
+  4. For each function_call item: validate name, parse JSON, reject bad args, execute
+  5. Send `function_call_output` items with original `call_id` back into same conversation
+  6. Loop up to MAX_TOOL_ROUNDS = 8; print final answer when no more tool calls
+
+What to watch:
+  "→ tool: get_vpn_troubleshooting_steps({})" lines show which tool was called.
+  The final answer uses the tool's returned text as grounding.
+  Mismatch between call_id sent and call_id returned → model will error.
+
+Prerequisites / env vars:
+  PROJECT_ENDPOINT — Foundry project URL
+  DEFAULT_MODEL    — deployment name (must match agent's model)
+  Run lesson 08 first to register IT-HelpDesk-Agent.
 """
 import json
 

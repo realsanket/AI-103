@@ -1,14 +1,18 @@
 # Run: uv run python 02-generative-ai-and-agents/28_hosted_agent_responses.py
 
-"""Lesson 26 — preflight a Foundry Responses hosted-agent source deployment.
+"""Lesson 28 — preflight a Foundry Responses hosted-agent source deployment.
 
 Run from repository root:
-    uv run python 02-generative-ai-and-agents/26_hosted_agent_responses.py
+    uv run python 02-generative-ai-and-agents/28_hosted_agent_responses.py
 
-The contained sample uses the current Responses adapter. The adapter owns the
-HTTP runtime contract: Linux amd64 remote build, port 8088, GET /readiness,
-POST /responses, and SIGTERM shutdown. Run its preflight before local or cloud
-work; it never deploys.
+The contained sample (`hosted_agent_responses/`) uses the current Responses adapter.
+The adapter owns the HTTP runtime contract: Linux amd64 remote build, port 8088,
+GET /readiness, POST /responses, and SIGTERM shutdown. Run its preflight before
+local or cloud work; it never deploys.
+
+This is NOT a local Agent Framework process (lesson 17). A hosted agent has a
+packaging, build, identity, and deployment lifecycle that local framework code
+does not have.
 """
 from pathlib import Path
 import subprocess

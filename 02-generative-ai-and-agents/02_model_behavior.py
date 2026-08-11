@@ -1,9 +1,24 @@
 # Run: uv run python 02-generative-ai-and-agents/02_model_behavior.py
 
-"""Tune generation behavior — temperature knob.
+"""Temperature parameter — same prompt, three generation regimes.
 
-Run twice mentally: temperature=0 → deterministic; temperature=2 → wild.
-Same prompt, wildly different outputs — that's the parameter doing work.
+The `temperature` parameter controls how deterministically the model samples
+from its probability distribution. 0.0 → reproducible outputs; 2.0 → high
+entropy and creative divergence. This lesson runs the same prompt through
+three values so you can compare outputs side by side.
+
+Note: temperature is model-dependent. The code hard-codes `gpt-4.1` because
+only specific models accept the full 0–2 range; check deployment capability
+before using temperature > 1.0.
+
+What to watch:
+  Temperature 0.0 output is nearly identical on repeated runs.
+  Temperature 2.0 output changes significantly between runs.
+  Temperature is NOT a safety, truth, grounding, or quality control.
+
+Prerequisites / env vars:
+  AZURE_OPENAI_ENDPOINT — Azure OpenAI-compatible base URL
+  (model is hard-coded to gpt-4.1; no DEFAULT_MODEL needed)
 """
 from _shared.openai_client import openai_client
 from _shared.config import settings

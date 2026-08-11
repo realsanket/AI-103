@@ -1,12 +1,13 @@
 # Run: uv run python 02-generative-ai-and-agents/30_hosted_agent_cicd.py
 
-"""Lesson 28 — inspect hosted-agent CI/CD and explicit deployment guard.
+"""Lesson 30 — inspect hosted-agent CI/CD and explicit deployment guard.
 
 Run from repository root:
-    uv run python 02-generative-ai-and-agents/28_hosted_agent_cicd.py
+    uv run python 02-generative-ai-and-agents/30_hosted_agent_cicd.py
 
-The contained workflow is a reference asset for GitHub OIDC plus azd deploy and
-smoke test. Deployment wrapper only mutates cloud state with --apply:
+The contained workflow (`hosted_agent_responses/hosted-agent-cd.yml`) is a
+reference asset for GitHub OIDC plus azd deploy and smoke test. The deployment
+wrapper only mutates cloud state with --apply:
     python hosted_agent_responses/deploy.py --apply
 """
 from pathlib import Path
