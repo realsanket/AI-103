@@ -162,6 +162,8 @@ CUSTOM_SPEECH_ENDPOINT_ID=<guid-from-speech-studio>
 | 19 | Speech recognition via custom endpoint |
 | 23 | Document Translation batch billable on `--apply`; Blob output persists until storage lifecycle removes it |
 | 24 | Voice Live + model tokens on `--run`; `.pcm` file written |
+| 26 | Preflight free; `--apply` opens WebSocket + exchanges one text turn (minor compute). |
+| 27 | Preflight free; `--apply` sends audio via HTTP (billed per request). |
 | 21, 25 | No cloud calls by default |
 
 ---
@@ -247,6 +249,8 @@ Audio output?
 | 23 | `23_translator_batch_operations.py` | Document Translation lifecycle | `--apply` for cloud; persistent output |
 | 24 | `24_voice_live_audio_flow.py` | Voice Live PCM file-to-file flow | `--run` for cloud; raw .pcm output |
 | 25 | `25_text_speech_governance_preflight.py` | Monitoring + governance config check | No cloud calls; config check only |
+| 26 | [Realtime Audio WebSocket](26_realtime_audio_websocket.py) | Open WSS session; exchange one text turn; prove auth | `--apply` requires `websockets` package |
+| 27 | [Audio completions](27_audio_completions.py) | Send WAV audio as input_audio; receive text response via HTTP | `--apply` billed per request |
 
 ---
 
@@ -854,6 +858,56 @@ uv run python 04-text-and-speech/25_text_speech_governance_preflight.py
 **Exam cues.** Monitoring measures behavior; it does not grant access, prove correctness, or make data handling compliant. Preflight ≠ health probe. IaC controls RBAC, networking, and retention — not this script.
 
 **References:** [Azure Monitor overview](https://learn.microsoft.com/azure/azure-monitor/overview) · [Translator secure deployment](https://learn.microsoft.com/azure/ai-services/translator/secure-deployment) · [Speech service data privacy](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/speech-to-text/data-privacy-security)
+
+---
+
+## Stage 7 — Realtime Audio API (lessons 26–27)
+
+The Realtime Audio API is a WebSocket-based bidirectional stream — fundamentally different from the HTTP-based speech and chat lessons. Lesson 26 proves WebSocket auth and text-mode turn; lesson 27 proves the simpler HTTP audio completions path.
+
+### 26 — Realtime Audio WebSocket
+
+**Question answered:** How do I open a Realtime Audio WebSocket session and exchange one text turn to prove auth works?
+
+**Background.** The Realtime API (`/openai/realtime?deployment=...`) uses WebSocket, not HTTP POST. Audio is streamed as PCM16 chunks in real time. This lesson uses text modality only to verify the connection and auth before adding mic/speaker I/O. Requires `websockets` Python package. The endpoint is the Azure OpenAI resource endpoint (not the Foundry project endpoint).
+
+```bash
+uv run python 04-text-and-speech/26_realtime_audio_websocket.py
+uv run python 04-text-and-speech/26_realtime_audio_websocket.py --apply
+```
+
+**Code path.**
+1. `_realtime_url(endpoint, model)` → `wss://{resource}.openai.azure.com/openai/realtime?deployment={model}&api-version=...`.
+2. `websockets.connect(url, additional_headers={"api-key": KEY})`.
+3. Send `session.update` (modalities: text) → `conversation.item.create` (text input) → `response.create`.
+4. Read events until `response.done` → collect `response.text.delta` → print.
+
+**What to watch.** Model text reply proves connection + auth. `1006 ConnectionClosedError` = wrong URL format or deployment not realtime-capable. `401` = wrong API key or credential.
+
+**References:** [Realtime audio how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/realtime-audio) · [Realtime audio WebSockets](https://learn.microsoft.com/azure/foundry/openai/how-to/realtime-audio-websockets) · [Realtime audio WebRTC](https://learn.microsoft.com/azure/foundry/openai/how-to/realtime-audio-webrtc) · [Audio completions quickstart](https://learn.microsoft.com/azure/foundry/openai/audio-completions-quickstart)
+
+---
+
+### 27 — Audio completions
+
+**Question answered:** How do I send a WAV file to a model as input and receive a text response via standard HTTP?
+
+**Background.** Audio Completions extends `chat.completions.create()` with `input_audio` content blocks — standard HTTP, not WebSocket. The model transcribes the audio and responds. Use this for batch audio analysis where streaming latency is not needed. Requires a `gpt-4o-audio-preview` deployment. A silent WAV is used as a placeholder when no real audio file is supplied.
+
+```bash
+uv run python 04-text-and-speech/27_audio_completions.py
+uv run python 04-text-and-speech/27_audio_completions.py --apply
+uv run python 04-text-and-speech/27_audio_completions.py --apply --input-file recording.wav
+```
+
+**Code path.**
+1. `base64.b64encode(Path(input_file).read_bytes())` or synthesized silent WAV.
+2. `openai_client().chat.completions.create(model=AUDIO_MODEL, modalities=["text"], messages=[{"role":"user","content":[{"type":"input_audio","input_audio":{"data":b64,"format":"wav"}}]}])`.
+3. `choices[0].message.content` → print.
+
+**What to watch.** Text response = model's transcription/answer to the audio. Empty response or error = deployment does not support `input_audio` modality (upgrade to `gpt-4o-audio-preview`).
+
+**References:** [Audio completions quickstart](https://learn.microsoft.com/azure/foundry/openai/audio-completions-quickstart) · [Realtime audio how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/realtime-audio) · [Speech to text quickstart](https://learn.microsoft.com/azure/ai-services/speech-service/get-started-speech-to-text)
 
 ---
 

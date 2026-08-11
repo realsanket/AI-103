@@ -251,6 +251,8 @@ Need previous turns only inside one interaction?
 | 33 | [Prompt caching](33_openai_prompt_caching.py) | Prove cache hit via two calls; report cached_tokens | `--apply` sends 2 requests |
 | 34 | [LangChain memory](34_langchain_memory.py) | Multi-turn conversation with ChatMessageHistory | `--apply` sends 3 requests |
 | 35 | [Function calling](35_openai_function_calling.py) | Two-step direct Responses API function call loop | `--apply` sends 2 requests |
+| 36 | [Reasoning models](36_openai_reasoning_models.py) | o-series thinking tokens: call o1/o3, report reasoning_tokens count | `--apply --model <o-deployment>` required |
+| 37 | [Web search tool](37_openai_web_search.py) | Built-in web_search_preview tool; print grounded answer + citations | `--apply` sends 1 request with Bing lookup |
 
 ---
 
@@ -342,6 +344,56 @@ uv run python 02-generative-ai-and-agents/35_openai_function_calling.py --apply
 **What to watch.** Step 1 prints `Tool call: get_weather({city: "Seattle"})`. Step 3 prints a weather sentence integrating the fake result. Model extracted city from prompt — never asked user.
 
 **References:** [Function calling](https://learn.microsoft.com/azure/foundry/openai/how-to/function-calling)
+
+---
+
+## Stage 9 — Reasoning models + grounded web search (lessons 36–37)
+
+Reasoning models and live web search are the two Responses API capabilities most absent from traditional chat completions training. Lesson 36 proves thinking tokens are real and billable; lesson 37 proves grounding in live Bing results without a Bing API key.
+
+### 36 — Reasoning models (o-series)
+
+**Question answered:** How many thinking tokens did the model spend reasoning through this problem?
+
+**Background.** o1, o3, and o3-mini generate an internal chain of thought before answering. Thinking tokens appear in `usage.output_tokens_details.reasoning_tokens` — they are billed at output token rates but not shown in `output_text`. `reasoning_effort` (low/medium/high) controls the thinking budget. Higher effort improves accuracy on complex problems at higher cost. This is NOT the same as prompting the model to "think step by step" — reasoning happens inside the model before output begins.
+
+```bash
+uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py
+uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py --apply --model o3-mini
+uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py --apply --model o3-mini --effort high
+```
+
+**Code path.**
+1. `openai_client().responses.create(model=O_MODEL, input=prompt, reasoning={"effort": effort})`.
+2. `usage.output_tokens_details.reasoning_tokens` → thinking token count.
+3. `output_text` → final answer only (thinking chain not exposed).
+
+**What to watch.** `reasoning_tokens > 0` confirms reasoning is active. Compare `reasoning_tokens` between `low` and `high` effort to see the budget difference.
+
+**References:** [Reasoning models](https://learn.microsoft.com/azure/foundry/openai/how-to/reasoning) · [Responses API](https://learn.microsoft.com/azure/foundry/openai/how-to/responses) · [Working with models](https://learn.microsoft.com/azure/foundry/openai/how-to/working-with-models)
+
+---
+
+### 37 — Built-in web search
+
+**Question answered:** How does the Responses API ground an answer in live Bing results without a Bing API key?
+
+**Background.** Adding `{"type": "web_search_preview"}` to the `tools` list activates the built-in Bing search tool. The model decides when to call it, sends a query to Bing, receives top results, and uses them as context for the answer. URL citations appear in `annotations` on output items. This is NOT the same as the Bing Search SDK, Azure AI Search, or an agent with a Bing connection — it is a zero-config built-in for the Responses API only.
+
+```bash
+uv run python 02-generative-ai-and-agents/37_openai_web_search.py
+uv run python 02-generative-ai-and-agents/37_openai_web_search.py --apply
+uv run python 02-generative-ai-and-agents/37_openai_web_search.py --apply --query "Latest Azure AI Foundry SDK release notes"
+```
+
+**Code path.**
+1. `openai_client().responses.create(model=..., input=query, tools=[{"type": "web_search_preview"}])`.
+2. `response.output_text` → grounded answer.
+3. Iterate `response.output` items → collect `annotation.url` entries → print citations.
+
+**What to watch.** `output_text` reflects live information. `annotations` list holds cited Bing URLs. Empty annotations = model answered from training data without triggering search (short/obvious queries may not trigger web search).
+
+**References:** [Web search how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/web-search) · [Responses API](https://learn.microsoft.com/azure/foundry/openai/how-to/responses) · [Tool search](https://learn.microsoft.com/azure/foundry/openai/how-to/tool-search)
 
 ---
 

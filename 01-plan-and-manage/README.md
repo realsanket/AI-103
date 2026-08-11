@@ -170,6 +170,8 @@ For a managed identity, enable or attach the identity, then assign roles to its 
 | 27 | Live subscription-wide read; needs subscription `Reader` or `Cognitive Services Usages Reader`. |
 | 28 | Local JSON validation only; no cloud call. |
 | 29 | Live KQL read on Log Analytics; needs `Log Analytics Reader` on workspace. |
+| 30 | Local preflight + optional cloud eval; `--apply` calls CoherenceEvaluator against one sample. |
+| 31 | Local preflight + optional red-team probe; `--apply` runs 1-attack scan (billed compute). |
 
 Provisioned deployments reserve PTU capacity and incur hourly capacity cost while present, including idle time. A PTU is reserved throughput capacity, **not a prepaid token bucket** and not per-token billing. PTU quota approval does not guarantee capacity in every requested region.
 
@@ -263,6 +265,8 @@ A deployment `capacity` value is not a universal TPM conversion. Standard quota 
 | 27 | [Control Plane fleet inventory](27_control_plane_fleet_inventory.py) | Read Foundry accounts + deployments subscription-wide. | Live read; `--apply` needed. |
 | 28 | [Guardrail policy preflight](28_guardrail_policy_preflight.py) | Validate a Control Plane compliance policy JSON. | Local only; portal creation manual. |
 | 29 | [Cluster analysis reader](29_observability_cluster_analysis.py) | KQL summary of GenAI dependencies from Log Analytics. | Live read; `--apply --workspace-id`. |
+| 30 | [Evaluation CI/CD preflight](30_evaluation_cicd_preflight.py) | Validate env + run one-sample coherence eval; print CI pipeline patterns. | `--apply` submits cloud eval job. |
+| 31 | [AI red teaming preflight](31_ai_red_teaming_preflight.py) | Run adversarial 1-attack probe; print risk scores per harm category. | `--apply` billable; 1 attack × 1 category. |
 
 ---
 
@@ -1379,6 +1383,59 @@ uv run python 01-plan-and-manage/29_observability_cluster_analysis.py \
 
 ---
 
+## Stage 8 — Evaluation CI/CD + AI red teaming (lessons 30–31)
+
+Evaluation belongs in every release pipeline. These two lessons add the gate: lesson 30 proves a coherence evaluation runs from CI context; lesson 31 probes the model for harm before promotion. Both are preflight-first — validate env locally before spending compute.
+
+### 30 — Evaluation CI/CD preflight
+
+**Question answered:** Does my CI environment have everything needed to run Foundry evaluations, and can I submit one now?
+
+**Background.** Foundry evaluations (`azure-ai-evaluation` SDK, `evaluate()` function) run as cloud jobs that judge model outputs against a labeled dataset. Wiring them into GitHub Actions or Azure DevOps catches coherence/relevance/safety regression before a new model version reaches production. This lesson validates env vars, prints the pipeline step patterns, and optionally submits a one-sample coherence evaluation.
+
+```bash
+# Preflight + pipeline snippet
+uv run python 01-plan-and-manage/30_evaluation_cicd_preflight.py
+
+# Submit one-sample evaluation
+uv run python 01-plan-and-manage/30_evaluation_cicd_preflight.py --apply
+```
+
+**Code path.**
+1. `CoherenceEvaluator(model_config={azure_endpoint, azure_deployment})`.
+2. `evaluate(data=[one sample], evaluators={"coherence": evaluator}, azure_ai_project=...)`.
+3. Print per-sample score + aggregate metric.
+
+**What to watch.** Coherence score 1–5. `AuthenticationError` = missing `AZURE_CLIENT_ID` or no logged-in CLI session in CI.
+
+**References:** [Evaluate generative AI app](https://learn.microsoft.com/azure/foundry/how-to/evaluate-generative-ai-app) · [Evaluation GitHub Actions](https://learn.microsoft.com/azure/foundry/how-to/evaluation-github-action) · [Evaluation Azure DevOps](https://learn.microsoft.com/azure/foundry/how-to/evaluation-azure-devops) · [Built-in evaluators](https://learn.microsoft.com/azure/foundry/concepts/built-in-evaluators) · [azd evaluation](https://learn.microsoft.com/azure/foundry/observability/how-to/azure-developer-cli-evaluation)
+
+---
+
+### 31 — AI red teaming preflight
+
+**Question answered:** Does my model respond unsafely to adversarial adversarial attack patterns before I promote it?
+
+**Background.** AI red teaming sends adversarial multi-turn prompts (not real harmful content) to probe whether the model can be manipulated into unsafe outputs. Foundry's `RedTeamingOrchestrator` (preview) automates this via `azure.ai.evaluation.red_team`. Categories include violence, sexual, self-harm, and hate/fairness. Run this before every model-version promotion. A clean scan does not guarantee safety — it narrows the known attack surface.
+
+```bash
+# Preflight
+uv run python 01-plan-and-manage/31_ai_red_teaming_preflight.py
+
+# Run minimal probe (1 attack × 1 category)
+uv run python 01-plan-and-manage/31_ai_red_teaming_preflight.py --apply
+```
+
+**Code path.**
+1. `RedTeamingOrchestrator(azure_ai_project=..., credential=..., target=model_config, attack_strategies=[BASE64], risk_categories=[VIOLENCE], num_objectives=1)`.
+2. `.orchestrate()` → print `risk_scores` per category.
+
+**What to watch.** `risk_score` 0.0 = no harm detected, 1.0 = harm surfaced. High score = content filter tuning needed before promotion.
+
+**References:** [AI red teaming agent concepts](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent) · [Run AI red teaming (cloud)](https://learn.microsoft.com/azure/foundry/how-to/develop/run-ai-red-teaming-cloud) · [Run scans with red teaming agent](https://learn.microsoft.com/azure/foundry/how-to/develop/run-scans-ai-red-teaming-agent) · [Safety evaluations transparency](https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note)
+
+---
+
 ## Feature status and hard limits
 
 | Feature | Status | Practical boundary |
@@ -1587,6 +1644,17 @@ It does **not** prove production readiness, regional feature availability, compl
 - [Quickstart: create guardrail policy](https://learn.microsoft.com/azure/foundry/control-plane/quickstart-create-guardrail-policy)
 - [Register custom agent](https://learn.microsoft.com/azure/foundry/control-plane/register-custom-agent)
 - [Optimize cost + performance](https://learn.microsoft.com/azure/foundry/control-plane/how-to-optimize-cost-performance)
+
+### CI/CD evaluation and red teaming
+
+- [Evaluate generative AI app](https://learn.microsoft.com/azure/foundry/how-to/evaluate-generative-ai-app)
+- [Evaluation in GitHub Actions](https://learn.microsoft.com/azure/foundry/how-to/evaluation-github-action)
+- [Evaluation in Azure DevOps](https://learn.microsoft.com/azure/foundry/how-to/evaluation-azure-devops)
+- [azd evaluation integration](https://learn.microsoft.com/azure/foundry/observability/how-to/azure-developer-cli-evaluation)
+- [AI Red Teaming Agent concepts](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent)
+- [Run AI red teaming in cloud](https://learn.microsoft.com/azure/foundry/how-to/develop/run-ai-red-teaming-cloud)
+- [Run scans with red teaming agent](https://learn.microsoft.com/azure/foundry/how-to/develop/run-scans-ai-red-teaming-agent)
+- [Evaluate hosted agent](https://learn.microsoft.com/azure/foundry/observability/quickstarts/quickstart-evaluate-hosted-agent)
 
 ### Observability (advanced)
 

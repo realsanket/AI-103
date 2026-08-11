@@ -205,6 +205,13 @@ Preview features (Foundry IQ portal surfaces, Toolbox tool search, A2A, Routines
 | 08 | [Hosted agent env vars](08_hosted_agent_env_preflight.py) | Set runtime env var (or KV ref) on hosted agent | `--apply` PATCHes agent; use KV ref for secrets |
 | 09 | [MCP get started](09_mcp_get_started.py) | Connect agent to MCP server; list discovered tools | `--apply` creates ephemeral probe agent + deletes |
 | 10 | [MCP security preflight](10_mcp_security_preflight.py) | Validate MCP security checklist + optional policy JSON | Local; no cloud call |
+| 11 | [Agent memory](11_agent_memory.py) | Create vector store, upload fact, attach to agent, verify recall, cleanup | `--apply` creates + deletes cloud resources |
+| 12 | [Agent routines preflight](12_agent_routines_preflight.py) | Validate routine JSON (cron/event trigger definition) | Local; no cloud call |
+| 13 | [Agent 365 preflight](13_agent_365_preflight.py) | Check Entra M365 permissions for Agent 365 integration | `--apply` calls Graph API read |
+| 14 | [Browser automation preflight](14_browser_automation_preflight.py) | Probe browser tool discovery on ephemeral agent | `--apply` creates + deletes agent |
+| 15 | [Foundry toolbox preflight](15_foundry_toolbox_preflight.py) | List toolbox connections configured in this project | `--apply` reads project connections |
+| 16 | [Foundry IQ preflight](16_foundry_iq_preflight.py) | Verify Foundry IQ enterprise knowledge connection | `--apply` reads project connection |
+| 17 | [Agent optimizer](17_agent_optimizer.py) | Create optimizer dataset + submit optimization job | `--apply` submits cloud job (preview) |
 
 ---
 
@@ -538,6 +545,151 @@ uv run python 08-advanced-agents-other/10_mcp_security_preflight.py --policy-fil
 **What to watch.** All `[PASS]`. Any `[FAIL]` = gap before production wiring. `auth_type` not managed identity = `[WARN]`.
 
 **References:** [MCP security best practices](https://learn.microsoft.com/azure/foundry/mcp/security-best-practices) · [Toolbox management](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox)
+
+---
+
+## Stage 8 — Memory, routines, 365, browser, toolbox, IQ, optimizer (lessons 11–17)
+
+Stage 8 covers the advanced agent lifecycle: persistent memory, scheduled routines, M365 data access, browser-driven automation, the toolbox catalog, enterprise knowledge (Foundry IQ), and continuous prompt optimization.
+
+### 11 — Agent memory (vector store)
+
+**Question answered:** How do I attach a vector store to an agent and verify the agent recalls a fact from it?
+
+**Background.** Agent memory persists information across sessions via a Foundry vector store indexed with `file_search`. The agent retrieves relevant chunks automatically on each turn. This lesson proves the create→attach→query→cleanup cycle on an ephemeral agent, so no persistent artifacts are left behind.
+
+```bash
+uv run python 08-advanced-agents-other/11_agent_memory.py
+uv run python 08-advanced-agents-other/11_agent_memory.py --apply
+```
+
+**Code path.**
+1. `agents.vector_stores.create()` → `agents.vector_stores.files.upload_and_poll()`.
+2. `agents.create_version(tools=[{"type":"file_search","file_search":{"vector_store_ids":[vs.id]}}])`.
+3. `agents.threads.create()` → `messages.create(user query)` → `runs.create_and_process()`.
+4. `messages.list()` → print assistant reply → `agents.delete()` + `vector_stores.delete()`.
+
+**What to watch.** Assistant answer contains the uploaded fact. No recall = indexing not yet complete (the `upload_and_poll` call waits, but rerun if needed).
+
+**References:** [Agent memory concepts](https://learn.microsoft.com/azure/foundry/agents/concepts/what-is-memory) · [Vector stores](https://learn.microsoft.com/azure/foundry/agents/concepts/vector-stores) · [Memory quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/quickstart-memory-hosted-agent)
+
+---
+
+### 12 — Agent routines preflight
+
+**Question answered:** Is my agent routine definition JSON valid before I register it in the Foundry portal?
+
+**Background.** Agent routines let hosted agents run on a cron schedule or event trigger without a user initiating the conversation. A routine JSON specifies trigger type (cron/event/webhook), the agent name, and the initial message. This lesson validates the JSON locally — registration is done in the Foundry portal or via `az` CLI.
+
+```bash
+uv run python 08-advanced-agents-other/12_agent_routines_preflight.py
+uv run python 08-advanced-agents-other/12_agent_routines_preflight.py --policy-file my-routine.json
+```
+
+**Code path.** `json.loads(path)` → validate `agent_name` (str), `initial_message` (str), `trigger` (dict with `type` in `{cron, event, webhook}`, `schedule` for cron) → print PASS/FAIL per key.
+
+**What to watch.** All PASS before registering. Missing `initial_message` = agent starts with no context at trigger time.
+
+**References:** [Agent routines concepts](https://learn.microsoft.com/azure/foundry/agents/concepts/routines) · [Foundry agent overview](https://learn.microsoft.com/azure/foundry/agents/overview)
+
+---
+
+### 13 — Agent 365 preflight
+
+**Question answered:** Have the Microsoft Graph API permissions been granted for my Agent 365 M365 integration?
+
+**Background.** Agent 365 lets hosted agents access M365 data (emails, calendar, Teams, SharePoint) via Microsoft Graph. This requires an Entra app registration with admin-consented Graph permissions. This lesson validates that the service principal for the app has the required `oauth2PermissionGrants` scopes.
+
+```bash
+uv run python 08-advanced-agents-other/13_agent_365_preflight.py
+uv run python 08-advanced-agents-other/13_agent_365_preflight.py --apply
+```
+
+**Code path.** `az rest GET graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '{client_id}'` → check `oauth2PermissionGrants` scopes vs `{Mail.Read, Calendars.Read, Sites.ReadWrite.All, Chat.Read}` → print PASS/FAIL per permission.
+
+**What to watch.** All permissions PASS before wiring. Missing consent = agent cannot access M365 data at runtime even with correct credentials.
+
+**References:** [Agent 365 integration](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-365-integration) · [Agent 365 how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/agent-365) · [Grant Agent 365 permissions](https://learn.microsoft.com/azure/foundry/agents/how-to/grant-agent-365-permissions)
+
+---
+
+### 14 — Browser automation preflight
+
+**Question answered:** Is the browser tool connection valid and discovered by an ephemeral probe agent?
+
+**Background.** Browser automation lets hosted agents drive a headless Chromium browser to fill forms and scrape dynamic pages — tasks REST APIs cannot handle. It requires a Foundry project connection of type "browser" and a container with Playwright/Chromium. This lesson probes tool discovery on an ephemeral agent and cleans up.
+
+```bash
+uv run python 08-advanced-agents-other/14_browser_automation_preflight.py
+uv run python 08-advanced-agents-other/14_browser_automation_preflight.py --apply
+```
+
+**Code path.** `agents.create_version(tools=[{"type":"browser","connection_name":...}])` → `agents.list_tools()` → check "browser" in tool list → `agents.delete()`.
+
+**What to watch.** "browser" in discovered tools = connection valid. Not found = wrong `BROWSER_CONNECTION_NAME` or browser tool not enabled for this project.
+
+**References:** [Browser automation how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/browser-automation) · [Computer use](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/computer-use) · [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
+
+---
+
+### 15 — Foundry toolbox preflight
+
+**Question answered:** Which pre-built toolbox tools are configured as connections in this project?
+
+**Background.** The Foundry toolbox is a curated catalog of pre-built tools: Bing web search, SharePoint, Azure Functions, image generation, Fabric, custom code interpreter, and more. Tools are wired as typed project connections and declared in agent definitions by connection name. This lesson enumerates configured toolbox connections.
+
+```bash
+uv run python 08-advanced-agents-other/15_foundry_toolbox_preflight.py
+uv run python 08-advanced-agents-other/15_foundry_toolbox_preflight.py --apply
+```
+
+**Code path.** `project_client().connections.list()` → filter `connection_type` in known toolbox types → print name, type, endpoint.
+
+**What to watch.** Each listed connection is a tool the agent can declare. Zero connections = no toolbox tools wired — add via Foundry portal → Project → Connections → Add.
+
+**References:** [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview) · [Toolbox tools](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/use-toolbox-hosted-agent) · [Tool catalog](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-catalog)
+
+---
+
+### 16 — Foundry IQ preflight
+
+**Question answered:** Is the Foundry IQ enterprise knowledge connection present and readable in this project?
+
+**Background.** Foundry IQ connects agents to enterprise data (SharePoint, OneDrive, Teams, ServiceNow) through a knowledge index. The agent retrieves grounded answers from live organizational data scoped to the user's M365 permissions. Configure the connection in Foundry portal → Project → Connections before wiring to an agent.
+
+```bash
+uv run python 08-advanced-agents-other/16_foundry_iq_preflight.py
+uv run python 08-advanced-agents-other/16_foundry_iq_preflight.py --apply
+```
+
+**Code path.** `project_client().connections.get(FOUNDRY_IQ_CONNECTION_NAME)` → print `connection_type`, endpoint, PASS/FAIL.
+
+**What to watch.** PASS = IQ connection found and readable. Not found = wrong `FOUNDRY_IQ_CONNECTION_NAME` or IQ not provisioned.
+
+**References:** [Foundry IQ tutorial](https://learn.microsoft.com/azure/foundry/agents/how-to/foundry-iq-tutorial-private-inbound) · [Foundry IQ connect](https://learn.microsoft.com/azure/foundry/agents/how-to/foundry-iq-connect) · [What is Foundry IQ](https://learn.microsoft.com/azure/foundry/agents/concepts/what-is-foundry-iq)
+
+---
+
+### 17 — Agent optimizer
+
+**Question answered:** How do I create an optimizer dataset and submit an agent optimization job?
+
+**Background.** The Agent Optimizer (preview) improves a hosted agent's prompts by running it against a labeled dataset, evaluating outputs via LLM-as-judge, then suggesting system-prompt edits. This closed-loop cycle avoids manual prompt iteration. This lesson creates a 3-sample dataset and submits a coherence-targeting job without modifying any production agent.
+
+```bash
+uv run python 08-advanced-agents-other/17_agent_optimizer.py
+uv run python 08-advanced-agents-other/17_agent_optimizer.py --apply --agent-name <agent>
+```
+
+**Code path.**
+1. Build JSON-Lines: `[{input, expected_output, context}, ...]`.
+2. `client.agents.optimizer.datasets.create(name, data=BytesIO, filename)` → `dataset.id`.
+3. `client.agents.optimizer.jobs.create(agent_name, dataset_id, target_metric="coherence")` → print `job.id`.
+4. Poll: `agents.optimizer.jobs.get(job_id)`. Review: Foundry portal → Agent → Optimizer.
+
+**What to watch.** `job_id` returned = job queued. Poll until `status=="Completed"`. Suggested prompt changes appear in portal.
+
+**References:** [Agent optimizer overview](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-optimizer-overview) · [Make agent optimizer ready](https://learn.microsoft.com/azure/foundry/agents/how-to/make-agent-optimizer-ready) · [Optimize agent targets](https://learn.microsoft.com/azure/foundry/agents/how-to/optimize-agent-targets) · [Create optimizer dataset](https://learn.microsoft.com/azure/foundry/agents/how-to/create-optimizer-dataset)
 
 ---
 

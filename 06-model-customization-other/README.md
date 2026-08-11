@@ -207,6 +207,10 @@ Preview prototyping without deployment overhead?
 | 13 | [Cost review](13_cost_review.py) | Local PTU × rate × hours arithmetic. | Local; not a bill or forecast. |
 | 14 | [Foundry Models catalog list](14_foundry_models_list.py) | List model SKUs available in subscription. | `--apply` control-plane read; subscription Reader needed. |
 | 15 | [Claude model call](15_claude_model_call.py) | Call a Claude partner model via Responses API. | `--apply --model` required; Azure Marketplace billing. |
+| 16 | [Model router](16_model_router.py) | Route simple vs complex prompt; observe which backing model selected. | `--apply --model <router-deployment>` required |
+| 17 | [DeepSeek R1](17_deepseek_r1.py) | Call DeepSeek R1; parse `<think>` reasoning chain. | `--apply --model <deepseek-deployment>` required |
+| 18 | [HuggingFace models preflight](18_huggingface_models_preflight.py) | List HuggingFace-origin models in Foundry catalog. | `--apply` subscription-level read |
+| 19 | [Fireworks models preflight](19_fireworks_models_preflight.py) | Check Fireworks AI model availability in catalog. | `--apply` subscription-level read |
 
 ---
 
@@ -248,6 +252,88 @@ uv run python 06-model-customization-other/15_claude_model_call.py --apply --mod
 **What to watch.** `model: claude-opus-4-*` or similar. Same response shape as Azure OpenAI. Billing differs — check Marketplace meters, not Azure OpenAI usage.
 
 **References:** [Claude models](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models) · [Claude models billing](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models-billing) · [Claude models hosting comparison](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models-hosting-comparison)
+
+---
+
+## Stage 7 — Model router + partner models catalog (lessons 16–19)
+
+Stage 7 extends the Foundry Models catalog beyond Azure OpenAI: model routing across a pool, reasoning chains from DeepSeek R1, and discovering HuggingFace and Fireworks AI models in the same catalog surface.
+
+### 16 — Model router
+
+**Question answered:** Which backing model did the router select for a simple vs complex prompt?
+
+**Background.** The Model Router is a Foundry deployment type that automatically selects from a configured pool of backing models. Simple prompts route to fast/cheap models; complex ones to more capable models. The selection is visible in `response.model`. Router configuration (pool, policy) is managed in the Foundry portal or via Bicep — this lesson only observes the routing decision.
+
+```bash
+uv run python 06-model-customization-other/16_model_router.py
+uv run python 06-model-customization-other/16_model_router.py --apply --model <router-deployment>
+```
+
+**Code path.** `openai_client().responses.create(model=ROUTER_MODEL, input=prompt)` × 2 → print `response.model` per request.
+
+**What to watch.** `response.model` differs between simple and complex prompts when the router has multiple backing models. Same model for both = single backing model or router not yet enabled.
+
+**References:** [Model router concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/model-router) · [Model router how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/model-router) · [Responses with model routing](https://learn.microsoft.com/azure/foundry/openai/how-to/responses-model-routing) · [Model choice guide](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/model-choice-guide)
+
+---
+
+### 17 — DeepSeek R1 reasoning chain
+
+**Question answered:** How does DeepSeek R1's `<think>` reasoning chain appear in the Responses API output?
+
+**Background.** DeepSeek R1 is a partner reasoning model in the Foundry catalog. It generates an internal chain of thought surfaced in `<think>...</think>` tags in `output_text`. It uses the identical Responses API client as Azure OpenAI — only the deployment name differs. Billing flows through Azure Marketplace.
+
+```bash
+uv run python 06-model-customization-other/17_deepseek_r1.py
+uv run python 06-model-customization-other/17_deepseek_r1.py --apply --model <deepseek-deployment>
+```
+
+**Code path.** `openai_client().responses.create(model=DEEPSEEK_MODEL, input=prompt)` → `re.search(r"<think>(.*?)</think>", output_text)` → print thinking block + answer.
+
+**What to watch.** Non-empty `<think>` block = reasoning chain exposed. Text after `</think>` = final answer. Empty = deployment does not expose reasoning tags.
+
+**References:** [DeepSeek R1 tutorial](https://learn.microsoft.com/azure/foundry/foundry-models/tutorials/get-started-deepseek-r1) · [Foundry Models catalog](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models) · [Generate responses](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/generate-responses)
+
+---
+
+### 18 — HuggingFace models preflight
+
+**Question answered:** Which HuggingFace-origin open-source models are available in the Foundry catalog for my subscription?
+
+**Background.** Foundry's Models catalog includes Phi, Mistral, Llama, Qwen, Gemma, and other HuggingFace-origin models as serverless or managed compute endpoints. They appear in `resource_skus.list()` alongside Azure OpenAI and partner models. Once deployed, they use the same Responses API — only the deployment name differs.
+
+```bash
+uv run python 06-model-customization-other/18_huggingface_models_preflight.py
+uv run python 06-model-customization-other/18_huggingface_models_preflight.py --apply
+```
+
+**Code path.** `CognitiveServicesManagementClient.resource_skus.list()` → filter `resource_type=="accounts"` + name contains HF family keyword → print name, kind, locations.
+
+**What to watch.** Phi, Mistral, Llama, Qwen entries = HuggingFace-origin available. Zero results = catalog not loaded for subscription region.
+
+**References:** [Foundry Models catalog](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models) · [HuggingFace models](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/hugging-face-models) · [Model choice guide](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/model-choice-guide)
+
+---
+
+### 19 — Fireworks AI models preflight
+
+**Question answered:** Are Fireworks AI partner models available in my Foundry catalog?
+
+**Background.** Fireworks.ai provides optimized inference for open-source models (Llama, Mixtral variants) via Azure Marketplace partnership. They appear in the Foundry Models catalog as marketplace deployments; billing flows through Azure Marketplace separately from Azure OpenAI quota. Enable them in the Foundry portal before deploying.
+
+```bash
+uv run python 06-model-customization-other/19_fireworks_models_preflight.py
+uv run python 06-model-customization-other/19_fireworks_models_preflight.py --apply
+```
+
+**Code path.** `CognitiveServicesManagementClient.resource_skus.list()` → filter name/kind containing "fireworks" → print model name, kind, locations.
+
+**What to watch.** Zero results = Fireworks not enabled. Enable via Foundry portal → Model Catalog → Fireworks.ai → Enable partner.
+
+**References:** [Enable Fireworks models](https://learn.microsoft.com/azure/foundry/how-to/fireworks/enable-fireworks-models) · [Import custom models (Fireworks)](https://learn.microsoft.com/azure/foundry/how-to/fireworks/import-custom-models) · [Foundry Models catalog](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models)
+
+---
 
 ## Stage 1 — Preflight and data validation (lessons 00–03)
 

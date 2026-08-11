@@ -122,6 +122,7 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | 13 | CU async analyzer operation (requires `SAMPLE_IMAGE_URL`) |
 | 14 | CU async analyzer operation (requires `SAMPLE_VIDEO_URL`) |
 | 15 | **Read-only** until `--apply` (then: CU async analyzer operation) |
+| 16 | `--apply` generates image (DALL-E 3 billed per image); PNG saved to disk. |
 
 ---
 
@@ -177,6 +178,7 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | 13 | `13_content_understanding_image.py` | CU `prebuilt-imageSearch` on `SAMPLE_IMAGE_URL` | CU async operation |
 | 14 | `14_video_analysis.py` | CU `prebuilt-videoSearch` on `SAMPLE_VIDEO_URL` | CU async operation |
 | 15 | `15_cu_visual_handoff.py` | Bounded CU handoff; `--apply` submits and normalizes result | **Read-only** until `--apply` |
+| 16 | [Image generation](16_image_generation_dalle.py) | DALL-E 3 text→image; save PNG; show revised_prompt | `--apply` billed per image |
 
 ---
 
@@ -576,6 +578,33 @@ uv run python 03-computer-vision/15_cu_visual_handoff.py --apply --source-url <H
 **Exam cues.** File extension can lie — treat result text as untrusted. Secret regex is defense-in-depth, not a reason to log raw CU data. `--apply` incurs CU operation cost and does not persist operation state.
 
 **References:** [Content Understanding best practices](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/best-practices) · [Content Understanding prebuilt analyzers](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/prebuilt-analyzers)
+
+---
+
+## Stage 6 — Image generation (lesson 16)
+
+Image generation completes the visual pipeline: from analyzing images (stages 1–5) to creating them from text.
+
+### 16 — Image generation (DALL-E 3)
+
+**Question answered:** How do I generate a PNG image from a text prompt using Azure OpenAI DALL-E 3?
+
+**Background.** DALL-E 3 converts natural-language prompts into pixel images. Azure OpenAI hosts it as a named deployment; the API surface is `images.generate()`. The model often rewrites the prompt for safety or clarity — `revised_prompt` in the response shows how. Images are returned as base64-encoded PNG (`b64_json` format) to avoid URL expiry issues in CI. Billing is per-image, not per-token.
+
+```bash
+uv run python 03-computer-vision/16_image_generation_dalle.py
+uv run python 03-computer-vision/16_image_generation_dalle.py --apply
+uv run python 03-computer-vision/16_image_generation_dalle.py --apply --prompt "A watercolor painting of a mountain lake at dawn" --size 1024x1792
+```
+
+**Code path.**
+1. `openai_client().images.generate(model=DALL_E_MODEL, prompt=prompt, n=1, size=size, response_format="b64_json")`.
+2. `base64.b64decode(response.data[0].b64_json)` → write bytes to `generated_image.png`.
+3. Print `revised_prompt` if present.
+
+**What to watch.** `revised_prompt` shows DALL-E's reinterpretation of the input. HTTP 400 = prompt policy rejection — rephrase. File size ~0.7 MB per 1024×1024 image.
+
+**References:** [DALL-E how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e) · [DALL-E concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/models) · [Image generation with Flux](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/use-foundry-models-flux) · [Image generation tool (agents)](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/image-generation)
 
 ---
 

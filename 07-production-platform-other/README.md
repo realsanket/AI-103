@@ -199,6 +199,7 @@ Client outside VNet cannot resolve or reach the private endpoint. GitHub-hosted 
 | 07 | [Network Perimeter preflight](07_network_perimeter_preflight.py) | Read NSP association for Foundry resource | `--apply --resource-id` read-only |
 | 08 | [BYO Storage preflight](08_byo_storage_preflight.py) | Validate BYO storage binding prerequisites | `--run` proves project credential |
 | 09 | [DR verify preflight](09_dr_verify_preflight.py) | Confirm standby Foundry account in secondary region | `--run --region` reads subscription |
+| 10 | [PTU spillover preflight](10_ptu_spillover_preflight.py) | Read PTU deployment + verify spillover target configured | `--apply --deployment` read-only |
 
 ---
 
@@ -466,6 +467,32 @@ uv run python 07-production-platform-other/09_dr_verify_preflight.py --run --reg
 **What to watch.** `Standby account found: <name>` = DR cell deployed. Zero rows = standby not yet provisioned (re-run lessons 01/02 with different region + prefix).
 
 **References:** [High availability and resiliency](https://learn.microsoft.com/azure/foundry/how-to/high-availability-resiliency) · [Agent Service platform DR](https://learn.microsoft.com/azure/foundry/how-to/agent-service-platform-disaster-recovery)
+
+---
+
+## Stage 7 — PTU spillover (lesson 10)
+
+PTU guarantees latency under load; spillover prevents 429 storms when the PTU queue fills.
+
+### 10 — PTU spillover preflight
+
+**Question answered:** Is the PTU deployment configured with a spillover target to prevent 429 errors when capacity is exhausted?
+
+**Background.** PTU (Provisioned Throughput Unit) deployments reserve hourly capacity for predictable latency. When the PTU queue fills, without spillover the API returns HTTP 429. Spillover routes excess traffic to a standard pay-per-token deployment instead. It is configured per-deployment via `spillover_deployment_name` in the deployment properties. This lesson reads that property and reports PASS/FAIL.
+
+```bash
+uv run python 07-production-platform-other/10_ptu_spillover_preflight.py
+uv run python 07-production-platform-other/10_ptu_spillover_preflight.py --apply --deployment <ptu-deployment-name>
+```
+
+**Code path.**
+1. `CognitiveServicesManagementClient(cred, sub).deployments.get(rg, account, deployment)`.
+2. `deployment.sku.name` (should be `ProvisionedManaged`), `deployment.sku.capacity` (PTU count).
+3. `deployment.properties.spillover_deployment_name` → PASS if set, FAIL if None.
+
+**What to watch.** `spillover: [PASS] → "standard-deployment"` = overflow routes safely. `spillover: [MISSING]` = any PTU overflow returns 429 to callers.
+
+**References:** [PTU spillover traffic management](https://learn.microsoft.com/azure/foundry/openai/how-to/spillover-traffic-management) · [Provisioned throughput](https://learn.microsoft.com/azure/foundry/openai/concepts/provisioned-throughput) · [PTU get started](https://learn.microsoft.com/azure/foundry/openai/how-to/provisioned-get-started)
 
 ---
 

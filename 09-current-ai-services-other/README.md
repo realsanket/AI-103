@@ -180,6 +180,7 @@ Labeled custom fields? → custom neural (lesson 05)
 | 04 | [ID document](04_id_document.py) | Extract typed ID fields | `--apply` bills 1 analysis; values redacted unless `--show-values` |
 | 05 | [Custom neural build](05_custom_neural_preflight.py) | Preflight + build a custom neural model | `--apply` billable + persistent; 30-min min per job |
 | 06 | [DI vs CU chooser](06_di_vs_cu_decision.py) | Local decision-tree for DI vs CU | Never billable |
+| 07 | [Healthcare AI preflight](07_healthcare_ai_preflight.py) | Probe CXRReportGen or MedImageInsight endpoint health | `--apply` billed per call; 400 on probe = reachable |
 
 ---
 
@@ -387,6 +388,34 @@ uv run python 09-current-ai-services-other/06_di_vs_cu_decision.py \
 - Multi-file or inference/reasoning tips scale to CU regardless of scenario.
 
 **References:** [Choose model](https://learn.microsoft.com/azure/ai-services/document-intelligence/concept/choose-model-feature) · [What's new](https://learn.microsoft.com/azure/ai-services/document-intelligence/whats-new)
+
+---
+
+## Stage 5 — Healthcare AI models (lesson 07)
+
+Specialized medical AI endpoints in the Foundry catalog — separate deployment type, per-image billing, medical imaging input required.
+
+### 07 — Healthcare AI preflight
+
+**Question answered:** Is the CXRReportGen or MedImageInsight endpoint deployed and reachable?
+
+**Background.** Azure AI Foundry provides specialized healthcare AI models: CXRReportGen generates radiology reports from chest X-ray images; MedImageInsight produces image embeddings and classification for medical imaging. Both deploy as premium serverless endpoints — billing is per-image, not per-token. They require DICOM-sourced or standard medical imaging input; they are NOT general-purpose vision models.
+
+```bash
+uv run python 09-current-ai-services-other/07_healthcare_ai_preflight.py
+uv run python 09-current-ai-services-other/07_healthcare_ai_preflight.py --apply --model cxr
+uv run python 09-current-ai-services-other/07_healthcare_ai_preflight.py --apply --model medimage
+```
+
+**Code path.**
+1. `urllib.request.urlopen(POST endpoint, minimal payload, Bearer token)`.
+2. HTTP 200 = endpoint reachable and authed with real data.
+3. HTTP 400 = endpoint reachable (400 expected for minimal probe payload lacking real image).
+4. HTTP 401 = bad key/credential. HTTP 404 = endpoint URL wrong or model not deployed.
+
+**What to watch.** HTTP 200 or 400 = endpoint live. 401 = credential issue. 404 = wrong endpoint or model not yet deployed.
+
+**References:** [Healthcare AI models overview](https://learn.microsoft.com/azure/foundry/how-to/healthcare-ai/healthcare-ai-models) · [Deploy CXRReportGen](https://learn.microsoft.com/azure/foundry/how-to/healthcare-ai/deploy-cxrreportgen-premium) · [Deploy MedImageInsight](https://learn.microsoft.com/azure/foundry/how-to/healthcare-ai/deploy-medimageinsight-premium) · [Fine-tune healthcare models](https://learn.microsoft.com/azure/foundry/how-to/healthcare-ai/fine-tune-premium-healthcare-models)
 
 ---
 
