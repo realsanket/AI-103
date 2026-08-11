@@ -205,8 +205,49 @@ Preview prototyping without deployment overhead?
 | 11 | [Priority processing](11_priority_processing.py) | One priority-tier Responses request. | `--apply` billable; can fall back to Standard. |
 | 12 | [Router + Instant](12_router_instant.py) | Router deployment or Instant model call. | `--apply` one billable request per invocation. |
 | 13 | [Cost review](13_cost_review.py) | Local PTU × rate × hours arithmetic. | Local; not a bill or forecast. |
+| 14 | [Foundry Models catalog list](14_foundry_models_list.py) | List model SKUs available in subscription. | `--apply` control-plane read; subscription Reader needed. |
+| 15 | [Claude model call](15_claude_model_call.py) | Call a Claude partner model via Responses API. | `--apply --model` required; Azure Marketplace billing. |
 
 ---
+
+## Stage 6 — Foundry Models catalog + partner models (lessons 14–15)
+
+Lessons 14 and 15 cover the Foundry model catalog beyond Azure OpenAI: enumerating all model SKUs visible in the subscription and calling a Claude partner model through the same Responses API client.
+
+### 14 — Foundry Models catalog list
+
+**Question answered:** Which model families + SKUs are available in my subscription region?
+
+**Background.** The Foundry model catalog surfaces Azure OpenAI models (sold directly), partner models (Claude, Mistral, etc.), and open-source. Underlying data is `resource_skus` from `CognitiveServicesManagementClient`. Use before deployment (lesson 07, 05) to confirm model IDs, supported SKU tiers, and regions.
+
+```bash
+uv run python 06-model-customization-other/14_foundry_models_list.py
+uv run python 06-model-customization-other/14_foundry_models_list.py --apply --kind openai
+uv run python 06-model-customization-other/14_foundry_models_list.py --apply --kind claude
+```
+
+**Code path.** `resource_skus.list()` → filter `resource_type == "accounts"` → deduplicate by (name, kind) → print table filtered by `--kind`.
+
+**What to watch.** Table of model families, kinds, tiers, and locations. Missing Claude = Marketplace subscription not enabled for subscription/region.
+
+**References:** [Models sold directly by Azure](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure) · [Models from partners](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-from-partners) · [Deploy Foundry Models](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/deploy-foundry-models)
+
+### 15 — Claude partner model call
+
+**Question answered:** Does the Responses API client work identically for Claude partner model deployments?
+
+**Background.** Claude models (Anthropic) in Foundry use the same `responses.create()` API as Azure OpenAI — only the deployment name differs. Billing is Azure Marketplace terms. This lesson proves API shape parity and surfaces `response.model` to identify which Claude variant served the request.
+
+```bash
+uv run python 06-model-customization-other/15_claude_model_call.py
+uv run python 06-model-customization-other/15_claude_model_call.py --apply --model <claude-deployment>
+```
+
+**Code path.** `openai_client().responses.create(model=claude_deployment, input=prompt)` → print `response.model` + `output_text`.
+
+**What to watch.** `model: claude-opus-4-*` or similar. Same response shape as Azure OpenAI. Billing differs — check Marketplace meters, not Azure OpenAI usage.
+
+**References:** [Claude models](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models) · [Claude models billing](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models-billing) · [Claude models hosting comparison](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models-hosting-comparison)
 
 ## Stage 1 — Preflight and data validation (lessons 00–03)
 

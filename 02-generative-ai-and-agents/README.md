@@ -246,6 +246,102 @@ Need previous turns only inside one interaction?
 | 28 | `28_hosted_agent_responses.py` | Validate Responses hosted-agent runtime contract | Local only |
 | 29 | `29_hosted_agent_a2a.py` | Verify A2A boundary — Responses ≠ A2A | Local only |
 | 30 | `30_hosted_agent_cicd.py` | Inspect OIDC CI/CD reference and deployment guard | Local only |
+| 31 | [Embeddings](31_openai_embeddings.py) | Call embeddings deployment; print dim + magnitude | `--apply --model` required |
+| 32 | [JSON schema mode](32_openai_json_mode.py) | Force structured output via json_schema; parse response | `--apply` requires json_schema-capable model |
+| 33 | [Prompt caching](33_openai_prompt_caching.py) | Prove cache hit via two calls; report cached_tokens | `--apply` sends 2 requests |
+| 34 | [LangChain memory](34_langchain_memory.py) | Multi-turn conversation with ChatMessageHistory | `--apply` sends 3 requests |
+| 35 | [Function calling](35_openai_function_calling.py) | Two-step direct Responses API function call loop | `--apply` sends 2 requests |
+
+---
+
+## Stage 8 — OpenAI advanced + LangChain patterns (lessons 31–35)
+
+Lessons 31–35 deepen the Responses API and LangChain integration started in stages 1–4. They add dense signal: embeddings (vector foundations), structured output enforcement (json_schema), cost optimisation (prompt caching), multi-turn memory, and the raw function-calling loop that underlies every agent tool.
+
+### 31 — Embeddings
+
+**Question answered:** How do I get a vector representation of text for semantic search or RAG?
+
+**Background.** Embeddings are fixed-length float vectors that encode semantic meaning. Same embedding model → same vector space → comparable. Different model or version → incompatible index. Embedding deployments are separate from chat deployments.
+
+```bash
+uv run python 02-generative-ai-and-agents/31_openai_embeddings.py
+uv run python 02-generative-ai-and-agents/31_openai_embeddings.py --apply --model <embeddings-deployment>
+```
+
+**Code path.** `openai_client().embeddings.create(model=deployment, input=[texts])` → per item: `len(embedding)`, first-4 values, magnitude.
+
+**What to watch.** `dim: 1536` (small/ada) or `3072` (large). Magnitude ≈ 1.0 (normalized). All inputs share same dim — mismatch means wrong deployment. Compare with domain 05 lessons 02-03 which use server-side vectorization via Search.
+
+**References:** [Embeddings](https://learn.microsoft.com/azure/foundry/openai/how-to/embeddings)
+
+### 32 — JSON schema mode
+
+**Question answered:** How do I enforce a typed schema on model output, not just valid JSON?
+
+**Background.** `json_schema` with `strict: true` constrains structure + types at the service layer. Failure to match schema raises a service error rather than returning an invalid shape. Stronger than older `json_mode` (valid JSON, any shape).
+
+```bash
+uv run python 02-generative-ai-and-agents/32_openai_json_mode.py
+uv run python 02-generative-ai-and-agents/32_openai_json_mode.py --apply
+```
+
+**Code path.** `responses.create(response_format={"type": "json_schema", "json_schema": {"name": ..., "strict": True, "schema": SCHEMA}})` → `json.loads(output_text)`.
+
+**What to watch.** All schema fields present with correct types. `additionalProperties: false` enforces no extra fields. Compare with lesson 07 (Pydantic wrapper over same mechanism).
+
+**References:** [JSON mode](https://learn.microsoft.com/azure/foundry/openai/how-to/json-mode)
+
+### 33 — Prompt caching
+
+**Question answered:** How do prompt cache hits reduce token cost, and how do I verify them?
+
+**Background.** Repeated long prefix tokens (system instructions, RAG blocks, few-shot examples) are cached at service side. Cache hits surface as `usage.input_tokens_details.cached_tokens`. Minimum prefix varies by model (~1024 tokens for gpt-4o). Prefix must be byte-identical.
+
+```bash
+uv run python 02-generative-ai-and-agents/33_openai_prompt_caching.py
+uv run python 02-generative-ai-and-agents/33_openai_prompt_caching.py --apply
+```
+
+**Code path.** Two `responses.create()` calls with same long system prompt + different user messages. Print `cached_tokens` from each `usage.input_tokens_details`.
+
+**What to watch.** Call 1 `cached_tokens: 0` (cold). Call 2 `cached_tokens > 0` (warm, ~50% cheaper). If both 0: prefix too short or cache TTL expired.
+
+**References:** [Prompt caching](https://learn.microsoft.com/azure/foundry/openai/how-to/prompt-caching) · [Latency](https://learn.microsoft.com/azure/foundry/openai/how-to/latency)
+
+### 34 — LangChain memory
+
+**Question answered:** How do I maintain multi-turn conversation state with LangChain?
+
+**Background.** Beyond single-turn calls (lesson 19), production agents need conversation history. `RunnableWithMessageHistory` wraps a chain with a session-scoped `ChatMessageHistory`. In-memory for this demo — production uses Redis, Cosmos DB, or Foundry Memory (lesson 14).
+
+```bash
+uv run python 02-generative-ai-and-agents/34_langchain_memory.py
+uv run python 02-generative-ai-and-agents/34_langchain_memory.py --apply
+```
+
+**Code path.** `AzureChatOpenAI` + `ChatMessageHistory` store + `RunnableWithMessageHistory`. Three turns; same `session_id` key threads history. Turn 3 asks about a fact from turn 1 — should answer without re-prompting.
+
+**What to watch.** Turn 3 correctly references context from turn 1. Compare with lesson 13 (`previous_response_id` native approach) — LangChain adds middleware but same underlying state.
+
+**References:** [LangChain memory](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-memory) · [LangChain models](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-models)
+
+### 35 — Direct function calling
+
+**Question answered:** What does the raw two-step Responses API function-calling loop look like?
+
+**Background.** Lesson 11 wraps function tools in a prompt agent. This lesson shows the raw pattern: send tool schema → model returns `function_call` item → app executes tool locally → send `function_call_output` back → model returns final text. Foundation for all agent tool behavior.
+
+```bash
+uv run python 02-generative-ai-and-agents/35_openai_function_calling.py
+uv run python 02-generative-ai-and-agents/35_openai_function_calling.py --apply
+```
+
+**Code path.** Step 1: `responses.create(tools=[weather_tool])` → `output` contains `function_call`. Step 2: `_fake_weather(city)` locally. Step 3: `responses.create(input=[function_call_output], previous_response_id=r1.id)` → final `output_text`.
+
+**What to watch.** Step 1 prints `Tool call: get_weather({city: "Seattle"})`. Step 3 prints a weather sentence integrating the fake result. Model extracted city from prompt — never asked user.
+
+**References:** [Function calling](https://learn.microsoft.com/azure/foundry/openai/how-to/function-calling)
 
 ---
 

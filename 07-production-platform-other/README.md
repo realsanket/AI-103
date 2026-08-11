@@ -196,6 +196,9 @@ Client outside VNet cannot resolve or reach the private endpoint. GitHub-hosted 
 | 04 | [CI/CD preflight](04_cicd_preflight.py) | Validate reference GitHub workflow markers | Local only; copy workflow is manual reviewed step |
 | 05 | [Diagnostics preflight](05_diagnostics_preflight.py) | Validate Bicep + Terraform diagnostic categories | Local only; setting provisioned by lesson 01/02 |
 | 06 | [HA/DR preflight](06_ha_dr_preflight.py) | Validate README HA/DR guidance markers | Local only; second cell provisioned by re-running 01/02 |
+| 07 | [Network Perimeter preflight](07_network_perimeter_preflight.py) | Read NSP association for Foundry resource | `--apply --resource-id` read-only |
+| 08 | [BYO Storage preflight](08_byo_storage_preflight.py) | Validate BYO storage binding prerequisites | `--run` proves project credential |
+| 09 | [DR verify preflight](09_dr_verify_preflight.py) | Confirm standby Foundry account in secondary region | `--run --region` reads subscription |
 
 ---
 
@@ -411,6 +414,58 @@ uv run python 07-production-platform-other/06_ha_dr_preflight.py
 - User-uploaded thread files can be lost. Define a business fallback (human support) before incident day.
 
 **References:** [High availability and resiliency](https://learn.microsoft.com/azure/foundry/how-to/high-availability-resiliency) · [Agent Service disaster recovery](https://learn.microsoft.com/azure/foundry/how-to/agent-service-disaster-recovery) · [Agent virtual networks](https://learn.microsoft.com/azure/foundry/agents/how-to/virtual-networks)
+
+---
+
+## Stage 6 — Networking, BYO Storage, and DR verification (lessons 07–09)
+
+Advanced operational lessons for teams running production cells. Lesson 07 reads the Network Security Perimeter association. Lesson 08 validates BYO storage prerequisites. Lesson 09 proves standby cell IaC ran in a second region.
+
+### 07 — Network Security Perimeter preflight
+
+**Question answered:** Has my Foundry resource been associated with a Network Security Perimeter, and what is its state?
+
+**Background.** NSP is an additional network boundary on top of private endpoints. PE controls IP routing; NSP adds identity-based inbound/outbound rules. Both can coexist. This lesson reads NSP profile associations via ARM REST.
+
+```bash
+uv run python 07-production-platform-other/07_network_perimeter_preflight.py
+uv run python 07-production-platform-other/07_network_perimeter_preflight.py \
+  --apply --resource-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<name>
+```
+
+**What to watch.** `Profile: <name>  state: Succeeded` = NSP active. Empty = not yet associated. `provisioningState: Updating` = propagating.
+
+**References:** [Add Foundry to Network Security Perimeter](https://learn.microsoft.com/azure/foundry/how-to/add-foundry-to-network-security-perimeter) · [Agents networking deep dive](https://learn.microsoft.com/azure/foundry/agents/concepts/agents-networking-deep-dive)
+
+### 08 — BYO Storage preflight
+
+**Question answered:** Are the prerequisites for binding a customer-owned storage account to a Foundry project satisfied?
+
+**Background.** BYO storage is needed for Standard Agent Service (threads, agent state, capability hosts) with data-residency or CMK-at-storage requirements. It's a project creation-time decision — existing projects cannot swap storage.
+
+```bash
+uv run python 07-production-platform-other/08_byo_storage_preflight.py
+uv run python 07-production-platform-other/08_byo_storage_preflight.py --run
+```
+
+**What to watch.** Preflight: env configured. `--run`: App Insights CS status — proves project credential. Actual binding is done via portal or IaC at project creation.
+
+**References:** [BYO Azure Storage for Foundry](https://learn.microsoft.com/azure/foundry/how-to/bring-your-own-azure-storage-foundry) · [Agent Service operator DR](https://learn.microsoft.com/azure/foundry/how-to/agent-service-operator-disaster-recovery)
+
+### 09 — DR verification preflight
+
+**Question answered:** Is the standby Foundry account deployed in the secondary region?
+
+**Background.** Lesson 06 validates guidance markers in this README. This lesson validates actual cloud state: reads subscription accounts and confirms at least one `AIServices` account exists in the requested secondary region. Proves IaC ran in both regions.
+
+```bash
+uv run python 07-production-platform-other/09_dr_verify_preflight.py
+uv run python 07-production-platform-other/09_dr_verify_preflight.py --run --region westus2
+```
+
+**What to watch.** `Standby account found: <name>` = DR cell deployed. Zero rows = standby not yet provisioned (re-run lessons 01/02 with different region + prefix).
+
+**References:** [High availability and resiliency](https://learn.microsoft.com/azure/foundry/how-to/high-availability-resiliency) · [Agent Service platform DR](https://learn.microsoft.com/azure/foundry/how-to/agent-service-platform-disaster-recovery)
 
 ---
 

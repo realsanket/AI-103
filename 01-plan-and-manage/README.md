@@ -167,6 +167,9 @@ For a managed identity, enable or attach the identity, then assign roles to its 
 | 24 | Red-team scan only with `--apply`; use purple environment and synthetic target. |
 | 25 | Local preflight only; connecting App Insights is an explicit portal/IaC decision. |
 | 26 | Model and Content Safety requests; exports governed telemetry; requires `PROJECT_ENDPOINT` and Foundry User. |
+| 27 | Live subscription-wide read; needs subscription `Reader` or `Cognitive Services Usages Reader`. |
+| 28 | Local JSON validation only; no cloud call. |
+| 29 | Live KQL read on Log Analytics; needs `Log Analytics Reader` on workspace. |
 
 Provisioned deployments reserve PTU capacity and incur hourly capacity cost while present, including idle time. A PTU is reserved throughput capacity, **not a prepaid token bucket** and not per-token billing. PTU quota approval does not guarantee capacity in every requested region.
 
@@ -257,6 +260,9 @@ A deployment `capacity` value is not a universal TPM conversion. Standard quota 
 | 24 | [Red teaming](24_red_teaming.py) | Run a safe synthetic RedTeam target. | Preview/billable; purple environment; requires `--apply`. |
 | 25 | [Foundry tracing setup](25_foundry_tracing_setup.py) | Preflight project/App Insights tracing governance. | Local, read-only guidance; portal setup still required. |
 | 26 | [Manual tracing](26_agent_tracing.py) | SDK auto-instrumentation + custom parent span; fetch App Insights CS from project. | Live calls; client-side only, not server-side Foundry tracing. |
+| 27 | [Control Plane fleet inventory](27_control_plane_fleet_inventory.py) | Read Foundry accounts + deployments subscription-wide. | Live read; `--apply` needed. |
+| 28 | [Guardrail policy preflight](28_guardrail_policy_preflight.py) | Validate a Control Plane compliance policy JSON. | Local only; portal creation manual. |
+| 29 | [Cluster analysis reader](29_observability_cluster_analysis.py) | KQL summary of GenAI dependencies from Log Analytics. | Live read; `--apply --workspace-id`. |
 
 ---
 
@@ -1292,6 +1298,84 @@ Run 25 first, then 26.
 | Sanitize trace-to-dataset samples. | Production traces can contain customer and tool data. |
 
 **References:** [Client-side tracing](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-client-side) · [Framework tracing](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-framework) · [Trace data concepts](https://learn.microsoft.com/azure/foundry/observability/concepts/trace-data) · [Trace agent setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup)
+
+---
+
+## Stage 7 — Control Plane + advanced observability (lessons 27–29)
+
+Control Plane centralizes fleet visibility, compliance, and cross-project governance for organizations running many agents. Portal-driven; underlying data reachable via management-plane clients + Log Analytics KQL. These three lessons reproduce the CLI-friendly slices: fleet inventory read, guardrail-policy JSON validation, and cluster-analysis triage query.
+
+### 27 — Control Plane fleet inventory
+
+**Question answered:** Which Foundry accounts + deployments exist across my subscription right now?
+
+**Background.** Portal Control Plane's Assets pane discovers agents/models/tools across all Foundry accounts in a subscription with a permissions-aware merge. No dedicated Control Plane SDK exists — this lab reproduces the static-inventory slice via `CognitiveServicesManagementClient.accounts.list_by_subscription()` + per-account `.deployments.list()`. Portal view additionally joins App Insights runs/cost/error-rate data; this CLI stays static.
+
+```bash
+# Preflight
+uv run python 01-plan-and-manage/27_control_plane_fleet_inventory.py
+
+# Apply — subscription-wide read
+uv run python 01-plan-and-manage/27_control_plane_fleet_inventory.py --apply
+```
+
+**Code path.**
+1. `client.accounts.list_by_subscription()` → filter to `kind in ("AIServices", "OpenAI")`.
+2. Extract resource group from account ID; `client.deployments.list(rg, name)` per account.
+3. Print (account, region, deployment, model, sku, capacity) row per deployment.
+
+**What to watch.** Table of every Foundry deployment in the subscription. Missing account = missing role at that resource (different callers see different rows).
+
+**References:** [Control plane overview](https://learn.microsoft.com/azure/foundry/control-plane/overview) · [Manage agents at scale](https://learn.microsoft.com/azure/foundry/control-plane/how-to-manage-agents) · [Monitoring across fleet](https://learn.microsoft.com/azure/foundry/control-plane/monitoring-across-fleet)
+
+### 28 — Guardrail policy preflight
+
+**Question answered:** Does my Control Plane compliance policy JSON have the correct Azure Policy structure before I upload it?
+
+**Background.** Control Plane compliance policies (Operate → Compliance → Create policy) build on Azure Policy. Portal creates them; this lab validates the JSON structure your reviewer would upload. Zero cloud call — pure structural validation of `properties.policyRule` (if/then/effect), `mode`, and guardrail-control references.
+
+```bash
+# No file — print sample structure
+uv run python 01-plan-and-manage/28_guardrail_policy_preflight.py
+
+# Validate your policy JSON
+uv run python 01-plan-and-manage/28_guardrail_policy_preflight.py --policy-file my-policy.json
+```
+
+**Code path.**
+1. Read JSON → assert `properties`, `properties.policyRule`, `properties.mode`, `properties.parameters` present.
+2. Assert `policyRule.then.effect` in `{Audit, Deny, Modify, AuditIfNotExists, DeployIfNotExists}`.
+3. Grep rule for guardrail markers (`contentSafety`, `promptShield`, `protectedMaterial`, `jailbreak`, `pii`). Warn if none.
+
+**What to watch.** `Policy JSON is structurally valid` + list of guardrail markers detected. Missing marker warning = policy doesn't reference any Foundry guardrail control (rewrite before uploading).
+
+**References:** [Quickstart: create guardrail policy](https://learn.microsoft.com/azure/foundry/control-plane/quickstart-create-guardrail-policy) · [Enforce limits on models](https://learn.microsoft.com/azure/foundry/control-plane/how-to-enforce-limits-models) · [Manage compliance + security](https://learn.microsoft.com/azure/foundry/control-plane/how-to-manage-compliance-security)
+
+### 29 — Cluster analysis triage reader
+
+**Question answered:** Which GenAI operations dominate the last 24h by call count + latency + failure rate?
+
+**Background.** Portal Cluster Analysis (Observability → Analyze) groups similar failed/low-quality runs so operators triage patterns instead of individual traces. Portal adds embedding similarity on prompt/output — this CLI is aggregate-only: KQL summary over `AppDependencies` grouped by operation name.
+
+```bash
+# Preflight
+uv run python 01-plan-and-manage/29_observability_cluster_analysis.py
+
+# Apply — read triage summary
+uv run python 01-plan-and-manage/29_observability_cluster_analysis.py \
+  --apply --workspace-id <log-analytics-workspace-guid>
+```
+
+**Code path.**
+1. `LogsQueryClient(DefaultAzureCredential()).query_workspace(workspace_id, query=..., timespan=P1D)`.
+2. KQL: `AppDependencies | where Type == "InProc" or Name startswith "chat" or Name startswith "gen_ai" | summarize count, avg_ms, fail_rate by Name | order by count desc | take 20`.
+3. Print (operation, count, avg_ms, fail_rate) table.
+
+**What to watch.** Top-20 operations by call count. High count + high avg_ms = triage target. High fail_rate on single operation = cluster candidate for portal deep-dive.
+
+**Sensitive-content note.** This query returns operation names + counts only — no prompt/output text. Do NOT extend it to include `gen_ai.input.messages` unless targeting `AppGenAIContent` protected table with `Privileged Monitoring Data Reader`.
+
+**References:** [Cluster analysis](https://learn.microsoft.com/azure/foundry/observability/how-to/cluster-analysis) · [Traces to dataset](https://learn.microsoft.com/azure/foundry/observability/how-to/traces-to-dataset) · [Observability troubleshooting](https://learn.microsoft.com/azure/foundry/observability/how-to/troubleshooting)
 
 ---
 

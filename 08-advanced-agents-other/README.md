@@ -201,6 +201,10 @@ Preview features (Foundry IQ portal surfaces, Toolbox tool search, A2A, Routines
 | 04 | [Routines](04_routines_preflight.py) | Create scheduled routine with disabled default | `--apply` creates routine; `--dispatch` runs once |
 | 05 | [Gateway + publish](05_gateway_publishing_preflight.py) | Pin stable endpoint to one reviewed agent version | `--apply` PATCHes `version_selector`; channel publish is portal-only |
 | 06 | [Agent Optimizer](06_agent_optimizer_preflight.py) | Run optimization or apply candidate locally | `--apply` requires Python hosted-agent azd project; never deploys |
+| 07 | [Hosted agent deploy](07_hosted_agent_deploy_preflight.py) | Preflight + `azd deploy` a Python hosted agent | `--apply` containers bill immediately |
+| 08 | [Hosted agent env vars](08_hosted_agent_env_preflight.py) | Set runtime env var (or KV ref) on hosted agent | `--apply` PATCHes agent; use KV ref for secrets |
+| 09 | [MCP get started](09_mcp_get_started.py) | Connect agent to MCP server; list discovered tools | `--apply` creates ephemeral probe agent + deletes |
+| 10 | [MCP security preflight](10_mcp_security_preflight.py) | Validate MCP security checklist + optional policy JSON | Local; no cloud call |
 
 ---
 
@@ -458,6 +462,82 @@ azd ai agent optimize status <operation-id> --watch
 - Optimizer targets Python hosted agents only (not prompt agents from portal).
 
 **References:** [Configure agent](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-agent) · [Foundry IQ concepts](https://learn.microsoft.com/azure/foundry/agents/concepts/what-is-foundry-iq)
+
+---
+
+## Stage 7 — Hosted agent lifecycle + MCP (lessons 07–10)
+
+Lessons 07–10 cover the two biggest operational gaps: deploying and configuring Python hosted agents, and wiring MCP tools securely.
+
+### 07 — Hosted agent deploy
+
+**Question answered:** How do I package and deploy a Python hosted agent to Foundry managed hosting?
+
+**Background.** A hosted agent = Python code in an azd project with `azure.yaml`. `azd deploy` builds and pushes the container image to Foundry hosting. Foundry manages the runtime, endpoint routing, and identity. Never bake secrets into code — use env vars (lesson 08) or KV refs.
+
+```bash
+uv run python 08-advanced-agents-other/07_hosted_agent_deploy_preflight.py --agent-root <path>
+uv run python 08-advanced-agents-other/07_hosted_agent_deploy_preflight.py --apply --agent-root <path>
+```
+
+**Code path.** Preflight: check `azure.yaml` + deps file exist. `--apply`: `azd deploy [--service <svc>]` in agent-root.
+
+**What to watch.** Preflight: asset pass/fail. `--apply`: azd stream with `Endpoint: https://...` — use that URL in PROJECT_ENDPOINT for env-var and telemetry lessons.
+
+**References:** [Deploy hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent) · [Deploy hosted-agent code](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent-code) · [Hosted-agent contract](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-contract)
+
+### 08 — Hosted agent env vars
+
+**Question answered:** How do I set runtime environment variables on a deployed hosted agent without baking them into the container?
+
+**Background.** Runtime env vars are set after deploy via PATCH on the agent resource. Secrets must use Key Vault reference syntax: `@Microsoft.KeyVault(SecretUri=...)`. This lesson validates the value syntax and PATCHes one env var.
+
+```bash
+uv run python 08-advanced-agents-other/08_hosted_agent_env_preflight.py
+uv run python 08-advanced-agents-other/08_hosted_agent_env_preflight.py --apply \
+  --agent-name support-agent --env-name DB_ENDPOINT --env-value https://my.db.example
+```
+
+**Code path.** `az rest --method patch --url .../agents/<name>?api-version=v1 --body {"runtime": {"env_vars": [{"name": KEY, "value": VALUE}]}}`.
+
+**What to watch.** PATCH success. Confirm in portal: Foundry → agent → Settings → Environment variables. KV refs show the ref string, not the resolved secret.
+
+**References:** [Configure hosted-agent env variables](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-hosted-agent-env-variables) · [Hosted-agent permissions](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions)
+
+### 09 — MCP get started
+
+**Question answered:** How do I connect a Foundry agent to an MCP server and list available tools?
+
+**Background.** MCP lets agents discover and call tools on any MCP-compatible server. Connection auth flows through Foundry project connections (managed identity). This lesson creates an ephemeral probe agent, lists its MCP tools, then deletes it — proves discovery without a persistent artifact.
+
+```bash
+export MCP_CONNECTION_NAME=my-mcp-connection
+uv run python 08-advanced-agents-other/09_mcp_get_started.py
+uv run python 08-advanced-agents-other/09_mcp_get_started.py --apply
+```
+
+**Code path.** `agents.create_version()` with MCP tool config → `agents.list_tools()` → print tool names → `agents.delete()`.
+
+**What to watch.** Tool names from MCP server. Zero tools = connection name wrong or server empty. Probe agent always deleted before exit.
+
+**References:** [MCP get started](https://learn.microsoft.com/azure/foundry/mcp/get-started) · [MCP available tools](https://learn.microsoft.com/azure/foundry/mcp/available-tools) · [Build your own MCP server](https://learn.microsoft.com/azure/foundry/mcp/build-your-own-mcp-server)
+
+### 10 — MCP security preflight
+
+**Question answered:** Does my MCP integration satisfy the security checklist before wiring to a production agent?
+
+**Background.** MCP tools call arbitrary external servers — they are a lateral-movement risk if not governed. Security posture requires approved server list, managed-identity auth, tool schema review, and logging. This lesson validates those requirements locally and optionally parses a JSON policy file.
+
+```bash
+uv run python 08-advanced-agents-other/10_mcp_security_preflight.py
+uv run python 08-advanced-agents-other/10_mcp_security_preflight.py --policy-file mcp-policy.json
+```
+
+**Code path.** Env-var checks (endpoint HTTPS, no embedded bearer). Optional policy JSON parse: `approved_servers`, `auth_type == managed_identity`, `logging_enabled`, `tool_allowlist`.
+
+**What to watch.** All `[PASS]`. Any `[FAIL]` = gap before production wiring. `auth_type` not managed identity = `[WARN]`.
+
+**References:** [MCP security best practices](https://learn.microsoft.com/azure/foundry/mcp/security-best-practices) · [Toolbox management](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox)
 
 ---
 
