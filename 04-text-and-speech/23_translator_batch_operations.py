@@ -1,3 +1,4 @@
+# Run: uv run python 04-text-and-speech/23_translator_batch_operations.py [--apply ...]
 """Submit, inspect, or cancel Document Translation batches with explicit apply.
 
 Default execution is local-only. `--apply` is required before any request.

@@ -1,4 +1,23 @@
-"""Sentiment + tone via LLM prompt — per-topic + overall."""
+# Run: uv run python 04-text-and-speech/02_llm_sentiment.py
+"""Sentiment + tone via LLM prompt — per-topic breakdown with rationale.
+
+Azure Language Sentiment returns structured labels (positive/negative/mixed) and,
+with opinion mining, target+assessment pairs. The LLM path costs more but adds
+free-form rationale and custom topic grouping in a single call. This lesson
+shows when the generative path wins over the structured service. Compare with
+20_language_sentiment.py for the structured alternative.
+
+Code path:
+  openai_client() → responses.create() with system instruction asking for per-topic
+  sentiment + intensity + rationale + overall tone → output_text printed as prose.
+
+What to watch: two or more concern blocks (SLA breach → frustrated; Marcus's help →
+grateful) plus an overall tone assessment. If the model merges them, adjust the
+system prompt to be more explicit about per-topic separation.
+
+Prerequisites / env vars:
+  DEFAULT_MODEL — deployed chat model
+"""
 from _shared.openai_client import openai_client
 from _shared.config import settings
 

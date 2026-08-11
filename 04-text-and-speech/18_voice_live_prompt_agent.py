@@ -1,23 +1,31 @@
-"""Voice Live WebSocket protocol demo for a Foundry Prompt Agent.
+# Run: uv run python 04-text-and-speech/18_voice_live_prompt_agent.py
+"""Voice Live WebSocket protocol demo — PCM audio to a Foundry Prompt Agent.
 
-Beginner note:
-  This lesson sends prerecorded PCM16 audio and logs response events. It does
-  not capture a microphone, decode response audio, or play audio through a
-  speaker; it is not an end-to-end voice client.
+Voice Live is a real-time bidirectional WebSocket API that streams audio to an
+agent and receives synthesized audio responses. This lesson is a protocol demo
+only: it sends prerecorded PCM16 audio and logs response events. It does NOT
+capture a microphone, decode audio deltas, or play audio. The Prompt Agent is
+created inline (no portal setup needed). For the file-to-file flow with audio
+output, see 24_voice_live_audio_flow.py.
 
-  Voice Live streams audio → agent → synthesized audio in one WebSocket
-  connection. The endpoint shape changed recently.
-  Current URL (verified in `ai-services/speech-service/voice-live-how-to.md`):
+Current URL shape (api-version=2026-04-10):
+  wss://<resource>.services.ai.azure.com/voice-live/realtime
+      ?api-version=2026-04-10&agent_id=<agent-id>&project_id=<project-name>
+  Older docs used /voice-live/v1 and agent_name — those are outdated.
 
-    wss://<resource>.services.ai.azure.com/voice-live/realtime?api-version=2026-04-10
-        &agent_id=<agent-id>
-        &project_id=<project-id>
+Code path:
+  _ensure_agent() → create Prompt Agent version with DEFAULT_MODEL.
+  websockets.connect() with additional_headers (Entra Bearer token, scope ai.azure.com).
+  Send session.update, input_audio_buffer.append (base64 PCM16), commit, response.create.
+  Iterate events until response.done. finally: delete agent version.
 
-  For non-agent scenarios, pass `model=<name>` instead of `agent_id`+`project_id`.
-  Older docs referenced `/voice-live/v1` and `agent_name` — those are outdated.
+What to watch: session.created, input_audio_buffer.committed, response.audio.delta
+(base64, not played), response.done. Audio deltas are logged only; no sound plays.
 
-  This lesson creates the agent inline so it runs cold. Set
-  `VOICE_LIVE_ENDPOINT` in `.env` to the base wss URL WITHOUT query params.
+Prerequisites / env vars:
+  VOICE_LIVE_ENDPOINT — wss://<resource>.services.ai.azure.com/voice-live/realtime (no query)
+  PROJECT_ENDPOINT    — Foundry project endpoint
+  DEFAULT_MODEL       — deployed chat model supported by Voice Live
 """
 import asyncio
 import base64

@@ -1,3 +1,4 @@
+# Run: uv run python 04-text-and-speech/25_text_speech_governance_preflight.py
 """Local monitoring and governance preflight for text and speech workloads.
 
 This lesson intentionally makes no Azure request or configuration change.

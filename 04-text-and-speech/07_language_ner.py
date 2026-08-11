@@ -1,6 +1,23 @@
-"""NER via Azure AI Language (prebuilt) — discriminative path.
+# Run: uv run python 04-text-and-speech/07_language_ner.py
+"""NER via Azure AI Language (prebuilt) — fixed categories with confidence scores.
 
-Discriminative advantage: benchmarked confidence scores you can defend.
+recognize_entities() is the discriminative counterpart to 01_llm_ner.py.
+It returns fixed categories (Person, Organization, Location, DateTime, Quantity...)
+with subcategories (Person/Employee, Location/City) and a numeric confidence score
+per entity. Use when you need a documented fixed schema and auditable confidence
+values. Use the LLM path (01) when you need novel categories the prebuilt model
+doesn't know, like ticket_id or sla_tier.
+
+Code path:
+  language_client() → recognize_entities(_DOCS, language="en") → for each entity:
+  print [Category / Subcategory] 'text' (confidence).
+
+What to watch: Sarah Chen → [Person], Acme Logistics → [Organization], hour 6 →
+[Quantity/Duration], Northwind Connect → [Product]. Subcategory is optional —
+check for None. Confidence is a model signal, not a guarantee.
+
+Prerequisites / env vars:
+  LANGUAGE_ENDPOINT — Azure AI Language endpoint
 """
 from _shared.language_client import language_client
 

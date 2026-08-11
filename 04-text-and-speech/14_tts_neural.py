@@ -1,4 +1,23 @@
-"""Text-to-speech — neural voice, write WAV to _shared/sample_data/generated/."""
+# Run: uv run python 04-text-and-speech/14_tts_neural.py
+"""Text-to-speech — neural voice synthesis to a WAV file.
+
+SpeechSynthesizer converts plain text to speech audio using a named neural voice.
+Set speech_synthesis_voice_name to select the voice; the voice must be available
+in the configured region. This is the plain-text path — for prosody control, pauses,
+pitch, and emotional style use SSML with a Neural HD voice (15_tts_ssml_hd.py).
+
+Code path:
+  speech_config() → set voice name → AudioOutputConfig(filename) → SpeechSynthesizer
+  → speak_text_async(_TEXT).get() → check ResultReason → print OK or delete output
+  on failure.
+
+What to watch: "OK — synthesized to .../northwind_support_message.wav". Listen to
+the file — JennyNeural sounds professional and natural. If it sounds flat, that's
+the plain-text path's ceiling; switch to SSML+HD (lesson 15) for more control.
+
+Prerequisites / env vars:
+  SPEECH_ENDPOINT — Speech resource endpoint (cognitiveservices.azure.com)
+"""
 import azure.cognitiveservices.speech as speechsdk
 
 from _shared.config import SAMPLE_DATA

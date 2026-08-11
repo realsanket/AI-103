@@ -1,7 +1,22 @@
+# Run: uv run python 04-text-and-speech/03_llm_translation.py
 """Translation via LLM prompt — preserves tone + register.
 
-Compare with `04_translator_rest.py` — Translator has better language coverage
-and glossary support; LLM keeps idiom + tone better.
+Azure Translator Text gives predictable per-character pricing and wide language
+coverage, but produces flat literal output. This lesson demonstrates the LLM
+alternative: instruct the model to preserve the urgency and register of the
+original rather than word-for-word rendering. Compare with 04_translator_rest.py.
+
+Code path:
+  translate() builds a system prompt asking for tone-preserving translation into
+  the target language. responses.create() returns SOURCE LANGUAGE + TRANSLATION
+  formatted text. main() runs French and Japanese.
+
+What to watch: the translated text should feel urgent, not bureaucratic. If it
+sounds flat, the system prompt's "preserve tone" instruction isn't landing —
+add a few-shot example or strengthen the register instruction.
+
+Prerequisites / env vars:
+  DEFAULT_MODEL — deployed chat model
 """
 from _shared.openai_client import openai_client
 from _shared.config import settings

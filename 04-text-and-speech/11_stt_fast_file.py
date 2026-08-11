@@ -1,7 +1,23 @@
-"""Fast transcription — synchronous REST for a single file.
+# Run: uv run python 04-text-and-speech/11_stt_fast_file.py
+"""Fast Transcription — synchronous REST for a single audio file.
 
-For files under ~2hr / 300MB. Returns transcript in the same call. Uses the
-Fast Transcription REST route (`/speechtotext/transcriptions:transcribe`).
+Fast Transcription is the one-file synchronous STT path. POST audio + a JSON
+definition to /speechtotext/transcriptions:transcribe and get the transcript back
+in the same response. Limit: ~2 hr / 300 MB per file. Use Real-time STT (12) for
+live streaming; use Batch Transcription (13) for many files without a waiting user.
+
+Code path:
+  _endpoint_base() returns configured speech_endpoint or derives regional URL.
+  transcribe() opens the WAV, POSTs multipart with auth Bearer token and JSON
+  definition → r.json()["combinedPhrases"][0]["text"].
+
+What to watch: the printed transcript of conversation.wav. An empty string means
+combinedPhrases was empty — check locale and audio codec. A 404 means the API
+version is wrong; this repo uses 2025-10-15.
+
+Prerequisites / env vars:
+  SPEECH_ENDPOINT — Speech resource endpoint (cognitiveservices.azure.com), OR
+  SPEECH_REGION   — falls back to regional stt.speech.microsoft.com endpoint
 """
 from pathlib import Path
 

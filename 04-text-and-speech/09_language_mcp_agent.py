@@ -1,7 +1,26 @@
-"""Use the Azure Language MCP server as a tool inside a Foundry agent.
+# Run: uv run python 04-text-and-speech/09_language_mcp_agent.py
+"""Attach the Language MCP server to a Foundry Prompt Agent and run a query.
 
-Attach the MCP server URL as an mcp tool on the agent, then let the model
-decide which language tool (PII / NER / language-detect) to invoke per turn.
+Builds on 08_language_mcp_tools.py: instead of listing tools directly, this lesson
+wraps the Language MCP server as an MCPTool on a Foundry agent. The model decides
+which Language capability to invoke (NER, language detect, PII...) based on the
+user's question — no hardcoded routing. Requires a Foundry project connection that
+authorizes Language MCP for agent authentication; the lesson does not create that
+connection.
+
+Code path:
+  project_client() → MCPTool(server_url, server_label) → agents.create_version()
+  with PromptAgentDefinition → project.get_openai_client() → responses.create()
+  with agent_reference → output_text printed.
+
+What to watch: the response should identify Japanese as the language and Sarah Chen
+as a mentioned person, with the agent having called the appropriate MCP tools
+under the hood (check Foundry trace if available).
+
+Prerequisites / env vars:
+  LANGUAGE_MCP_URL — Language MCP endpoint URL
+  PROJECT_ENDPOINT — Foundry project endpoint
+  DEFAULT_MODEL    — deployed chat model
 """
 from azure.ai.projects.models import MCPTool, PromptAgentDefinition
 

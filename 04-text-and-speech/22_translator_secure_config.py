@@ -1,3 +1,4 @@
+# Run: uv run python 04-text-and-speech/22_translator_secure_config.py [--run --text "..." --source en --targets fr,ja]
 """Use Translator Text with keyless Microsoft Entra authentication.
 
 No flags performs a local preflight. `--run` sends the supplied text to the

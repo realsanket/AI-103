@@ -1,3 +1,4 @@
+# Run: uv run python 04-text-and-speech/24_voice_live_audio_flow.py [--run --model <name> --audio <wav> --output <path>.pcm]
 """Stream reviewed PCM WAV audio through Voice Live and save response PCM.
 
 No flags makes no Azure call. `--run` needs a supported mono 16-bit PCM WAV,

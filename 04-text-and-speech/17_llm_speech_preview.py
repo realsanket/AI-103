@@ -1,7 +1,25 @@
-"""MAI-Transcribe preview — file transcription through the LLM Speech API.
+# Run: uv run python 04-text-and-speech/17_llm_speech_preview.py
+"""MAI-Transcribe 1.5 preview — file transcription with phrase-list entity biasing.
 
-`mai-transcribe-1.5` supports phrase-list entity biasing and verbatim output.
-It does not support prompt-tuning or diarization.
+mai-transcribe-1.5 is an LLM-based speech recognition model available through the
+same Fast Transcription REST route. It improves recognition of named entities you
+supply in a phraseList. It does NOT support prompt-tuning, diarization, or
+transcribeStyle configuration (in the checked-in request). A phrase list is NOT the
+same as Custom Speech training — it biases recognition without a model retraining cycle.
+
+Code path:
+  Build definition dict with locales, phraseList.phrases, and enhancedMode enabled
+  with model=mai-transcribe-1.5. POST multipart to
+  /speechtotext/transcriptions:transcribe?api-version=2025-10-15 with Bearer token.
+  Print returned transcript.
+
+What to watch: "Northwind Connect" and other listed phrases should be recognized
+accurately if the audio contains them. A 404 means model or API version mismatch;
+verify regional preview availability.
+
+Prerequisites / env vars:
+  SPEECH_ENDPOINT — Speech resource endpoint (cognitiveservices.azure.com)
+  _shared/sample_data/audio/conversation.wav must exist
 """
 import json
 

@@ -1,11 +1,27 @@
-"""Custom Speech model — use a deployed custom acoustic/language model endpoint.
+# Run: uv run python 04-text-and-speech/19_custom_speech_model.py
+"""Custom Speech model — route SDK STT to a trained and deployed custom model.
 
-After training a Custom Speech model in Speech Studio:
-1. Deploy it → get an endpoint ID (GUID).
-2. Set CUSTOM_SPEECH_ENDPOINT_ID=<guid> in .env.
-3. Pass `endpoint_id` to SpeechConfig so the recognizer routes to your model.
+Custom Speech lets you train an acoustic/language model on your domain vocabulary
+(product names, technical jargon, accented speech). After training in Speech Studio,
+you deploy it and get an endpoint GUID. This lesson shows the consumption step only:
+set speech_config.endpoint_id to the GUID and every other SDK call is identical to
+standard STT (see 11_stt_fast_file.py for the base model path).
 
-Contrast with `11_stt_fast_file.py` which uses the standard base model.
+Note: Batch Transcription (13) can reference a custom model directly in the request
+body — it does NOT need a deployed endpoint GUID. Only real-time and fast transcription
+need the endpoint GUID.
+
+Code path:
+  speech_config() → config.endpoint_id = custom_speech_endpoint_id → SpeechRecognizer
+  with audio file → recognize_once_async().get() → print result.text or no-match reason.
+
+What to watch: the transcript routed through your custom model. This lesson does NOT
+compare accuracy to the base model — you need a held-out test set with word-error-rate
+evaluation to measure improvement.
+
+Prerequisites / env vars:
+  SPEECH_ENDPOINT              — Speech resource endpoint
+  CUSTOM_SPEECH_ENDPOINT_ID    — GUID from Speech Studio → Custom Speech → Deploy model
 """
 import azure.cognitiveservices.speech as speechsdk
 

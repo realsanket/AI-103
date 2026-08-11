@@ -1,3 +1,4 @@
+# Run: uv run python 04-text-and-speech/21_speech_mcp_preflight.py [--run]
 """Discover trusted Azure Speech MCP tools only after explicit opt-in.
 
 Run with no flags for a local preflight. `--run` connects to the configured

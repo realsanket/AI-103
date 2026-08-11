@@ -1,7 +1,28 @@
-"""Batch transcription — async REST. Submit files, poll, then fetch results.
+# Run: uv run python 04-text-and-speech/13_stt_batch.py
+"""Batch Transcription — async REST for many audio files in a Blob container.
 
-Use for backlog / archives / anything with no user waiting. Region processes
-serially — spread submissions across hours, not minutes.
+POST a container SAS URL to /speechtotext/transcriptions and the service processes
+all files asynchronously. Best for call-center archives, weekly processing batches,
+and any scenario where no user is waiting. Unlike Fast Transcription, this runs
+in the background with an explicit submit→poll→fetch→cleanup lifecycle. Jobs can
+queue; spread submissions across hours. The finally block deletes the service job —
+copy results to governed storage before that happens.
+
+Code path:
+  _submit(container_sas_url) → POST to transcriptions API → returns job self-URL.
+  _wait(job_url) → GET job URL until status in {Succeeded, Failed, Cancelled},
+  honoring Retry-After or bounded 60-600s backoff.
+  _print_transcripts(files_url) → GET links.files → filter kind=Transcription →
+  GET each contentUrl → print combinedRecognizedPhrases.
+  finally: DELETE job URL.
+
+What to watch: status=Running polls, then transcript phrases per file. The job
+self-URL is printed on submit — save it externally for reconciliation if the client
+is interrupted before the finally block runs.
+
+Prerequisites / env vars:
+  SPEECH_REGION             — must match the Speech resource location
+  BATCH_STT_CONTAINER_SAS  — Blob container SAS with read + list permissions (runtime-only, not in .env)
 """
 import time
 

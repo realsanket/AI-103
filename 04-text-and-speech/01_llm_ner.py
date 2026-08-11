@@ -1,7 +1,24 @@
+# Run: uv run python 04-text-and-speech/01_llm_ner.py
 """Entity extraction via LLM prompt (generative path).
 
-Compare with `07_language_ner.py` for the discriminative (Azure AI Language)
-path. Both solve the same task differently — exam asks about both.
+Azure Language NER covers fixed categories (Person, Organization, Location...).
+When a ticket contains domain-specific concepts like ticket_id, sla_tier, or
+monetary_amount, those categories don't exist in the prebuilt model. This lesson
+shows the generative alternative: describe the categories you need in a system
+prompt and let the LLM extract them. Compare with 07_language_ner.py which uses
+the prebuilt discriminative path on the same ticket — exam expects you to know both.
+
+Code path:
+  openai_client() → responses.create() with system + user messages → output_text printed.
+  output_text is intended to be JSON; parse it only after schema-validating.
+
+What to watch: entities list should include Sarah Chen (person), Acme Logistics
+(organization), TKT-1042 (ticket_id), Gold (sla_tier), $500 (monetary_amount).
+If the model adds extra commentary, the system prompt's "JSON only" isn't working
+— tighten it or add a response schema.
+
+Prerequisites / env vars:
+  DEFAULT_MODEL — deployed chat model (e.g., gpt-4o)
 """
 from _shared.openai_client import openai_client
 from _shared.config import settings

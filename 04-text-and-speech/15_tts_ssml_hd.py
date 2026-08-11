@@ -1,7 +1,24 @@
-"""SSML + Neural HD voice — pauses, pitch, rate, style tuning.
+# Run: uv run python 04-text-and-speech/15_tts_ssml_hd.py
+"""SSML + Neural HD voice — fine-grained prosody and style control.
 
-Neural HD reads semantic content + emotional cues; SSML lets you nudge
-specific words for pronunciation, break points, or emphasis.
+Neural HD voices (names contain HD: AvaHDNeural, AndrewMultilingualNeural) produce
+higher-quality audio and support expressive styles via SSML. Plain text works with
+Neural HD, but SSML is how you add pauses, control rate/pitch, and apply emotional
+style (friendly, professional, etc.). Builds on 14_tts_neural.py which uses plain
+text with a standard neural voice.
+
+Code path:
+  speak_ssml_async(_SSML).get() → check ResultReason → print OK or cleanup.
+  The SSML document specifies AvaHDNeural, mstts:express-as style=friendly, a 200ms
+  break, and a prosody rate of -5%.
+
+What to watch: "OK — synthesized to .../northwind_hd_announcement.wav". Listen —
+you should hear the pause after "Northwind" and a slightly slower delivery. If it
+sounds flat, the SSML wasn't parsed (bad XML fails silently in some configs).
+
+Prerequisites / env vars:
+  SPEECH_ENDPOINT — Speech resource endpoint; AvaHDNeural must be available in
+  the configured region (check portal before depending on a specific HD voice).
 """
 import azure.cognitiveservices.speech as speechsdk
 
