@@ -1,11 +1,37 @@
-"""Lab 05 — configure a current agent's stable endpoint before distribution.
+# Run: uv run python 08-advanced-agents-other/05_gateway_publishing_preflight.py [--apply --agent-name <name> --agent-version <int>]
+"""Pin an agent's stable endpoint to one reviewed version before distribution.
 
-Run from repository root:
-    uv run python 08-advanced-agents-other/05_gateway_publishing_preflight.py
+AI Gateway uses Azure API Management (APIM v2) to apply governance, quotas,
+token limits, and observability. Enable it in Foundry portal Operate →
+Admin console; confirm both gateway AND target project show `Enabled`.
+Existing projects require explicit addition to a configured gateway.
 
-`--apply` pins the agent's stable endpoint to one reviewed version. It does not
-publish to Microsoft 365 or Teams: current channel publishing is a deliberate
-Foundry portal operation after gateway, RBAC, privacy, and channel review.
+Default preflight prints the pre-distribution checklist without any cloud
+call. `--apply` PATCHes the agent's `agent_endpoint.version_selector` to a
+`FixedRatio` rule routing 100% of stable-endpoint traffic to the specified
+immutable agent version.
+
+Channel publishing (Microsoft 365 Copilot / Teams) is NOT scripted. It's a
+deliberate Foundry portal operation after gateway, RBAC, privacy, and
+channel review. Do NOT use the deprecated Agent Application publishing
+model — this lab targets the current stable-endpoint model.
+
+Code path:
+  project_endpoint() → validate URL. endpoint_patch(version) → JSON with
+  `version_selection_rules: [{"type": "FixedRatio", "agent_version": ...,
+  "traffic_percentage": 100}]`. patch_command() → `az rest --method patch
+  --url <endpoint>/agents/<name>?api-version=v1 --headers Content-Type=
+  application/merge-patch+json --body <json>`.
+
+What to watch. Preflight: gateway + channel-publishing checklist. `--apply`:
+PATCH success + `Stable endpoint pinned. Publish to Microsoft 365 Copilot
+or Teams only through reviewed portal flow.`
+
+Prerequisites / env vars:
+  PROJECT_ENDPOINT     — Foundry project HTTPS URL
+  FOUNDRY_AGENT_NAME   — existing agent (or --agent-name)
+  --agent-version INT  — immutable numeric version (required with --apply)
+  --apply              — pin stable endpoint via PATCH
 """
 import argparse
 import json

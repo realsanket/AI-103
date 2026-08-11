@@ -1,10 +1,40 @@
-"""Lab 03 — configure incoming A2A v1.0 discovery for a current Foundry agent.
+# Run: uv run python 08-advanced-agents-other/03_a2a_agent_card_preflight.py [--apply [--verify] --agent-name <name>]
+"""Configure incoming A2A v1.0 discovery for a Foundry agent.
 
-Run from repository root:
-    uv run python 08-advanced-agents-other/03_a2a_agent_card_preflight.py
+Agent-to-Agent (A2A) is the standard for one agent to call another. New
+callers should target A2A v1.0. The agent card is protected by Entra ID —
+NOT anonymously discoverable. Default preflight prints the two A2A URLs
+without contacting Azure.
 
-`--apply` PATCHes an existing agent. `--apply --verify` then fetches only its
-v1.0 agent card. Both paths use the signed-in Azure identity, never a key.
+`--apply` runs `az rest --method patch` to write the agent card metadata
+(description, skill id + name) and enable both `responses` and `a2a`
+protocols in the agent's endpoint. `--apply --verify` then fetches the v1.0
+card via `az rest --method get` to confirm it's live.
+
+Enabling A2A does NOT grant caller access. Assign `Foundry Agent Consumer`
+to each calling identity on the project or agent scope. Decide on-behalf-of
+vs service-identity authentication deliberately. Test with A2A v1.0 clients
+only for new integrations.
+
+Code path:
+  project_endpoint() → validate URL. a2a_urls() → build base +
+  `/agentCard/v1.0`. patch_body() → JSON with agent_card + agent_endpoint
+  protocol_configuration. patch_command() → `az rest --method patch --url
+  <endpoint>/agents/<name>?api-version=v1 --resource https://ai.azure.com
+  --body <json>`. `--verify`: same URL, GET.
+
+What to watch. Preflight: `A2A v1.0 base endpoint: <url>` + `A2A v1.0 agent
+card: <url>`. `--apply`: PATCH success + `Enabled current Responses and A2A
+protocols. v1.0 card: <url>`. `--verify`: fetched card JSON printed.
+
+Prerequisites / env vars:
+  PROJECT_ENDPOINT      — Foundry project HTTPS URL
+  FOUNDRY_AGENT_NAME    — existing agent name (or --agent-name)
+  --description         — agent-card description (default provided)
+  --skill-id            — skill identifier (default: support-policy-qa)
+  --skill-name          — skill display name (default provided)
+  --apply               — PATCH agent card + protocols
+  --verify              — GET v1.0 card after apply (requires --apply)
 """
 import argparse
 import json

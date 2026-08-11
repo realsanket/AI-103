@@ -1,10 +1,42 @@
-"""Lab 04 — validate, then create a current Foundry routine through azd.
+# Run: uv run python 08-advanced-agents-other/04_routines_preflight.py [--apply [--dispatch] --routine-name <name> --manifest <path>]
+"""Validate, then create a Foundry routine (scheduled agent invocation) via azd.
 
-Run from repository root:
-    uv run python 08-advanced-agents-other/04_routines_preflight.py
+A routine is one trigger + one action. Use for timers, recurring schedules,
+or supported events invoking one agent. Use a workflow (not a routine) for
+branching, approvals, multiple agents, or stateful coordination.
 
-`--apply` creates a named routine. It never passes input on the command line:
-the reviewed manifest owns the prompt. `--dispatch` is an explicit manual run.
+Default preflight validates the manifest: rejects secret markers (comment
+lines are stripped first), asserts required fields (`triggers:`, `type:
+schedule`, `cron_expression:`, `time_zone:`, `action:`), and requires the
+Responses API action type (`invoke_agent_responses_api`). No cloud call.
+
+`--apply` runs `azd ai routine create <name> --file <manifest>
+--project-endpoint <endpoint>`. Never passes prompt input on the command
+line — the reviewed manifest owns it. `--dispatch` invokes one controlled
+run after creation via `azd ai routine dispatch`.
+
+Routines execute unattended — inputs must not include secrets, personal
+access tokens, or delegated user credentials. Use an agent that
+authenticates with its own configured identity; routines cannot delegate an
+end-user identity.
+
+Code path:
+  validate_manifest() → read file, strip comment lines, check secret markers
+  + required fields + action type. routine_command() → azd argv. `--apply`:
+  subprocess.run(cmd). `--dispatch`: additional `azd ai routine dispatch`
+  call.
+
+What to watch. Preflight: `Validated reviewed routine manifest: <path>` +
+inspection guidance. `--apply`: azd stream ending `Created routine <name>.
+Review its manifest state before enabling recurrence.` `--dispatch`:
+`Dispatched once. Review run history before relying on its schedule.`
+
+Prerequisites / env vars:
+  PROJECT_ENDPOINT      — Foundry project HTTPS URL
+  --routine-name        — routine name (default: weekday-support-summary)
+  --manifest PATH       — routine YAML (default: routine.example.yaml)
+  --apply               — create routine via azd
+  --dispatch            — run once after creation (requires --apply)
 """
 import argparse
 import os

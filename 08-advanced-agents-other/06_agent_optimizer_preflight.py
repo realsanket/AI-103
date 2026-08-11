@@ -1,10 +1,41 @@
-"""Lab 06 — run Agent Optimizer only against reviewed hosted-agent source.
+# Run: uv run python 08-advanced-agents-other/06_agent_optimizer_preflight.py [--agent-root <path>] [--apply --optimize-model <name> | --apply --apply-candidate <id>]
+"""Run Agent Optimizer against a Python hosted-agent root; local-only apply.
 
-Run from repository root:
-    uv run python 08-advanced-agents-other/06_agent_optimizer_preflight.py
+Agent Optimizer generates candidate agent configurations from a baseline
+and evaluates them. Targets ONLY Python hosted agents in an azd project.
+Requires `azure.yaml`, `eval.yaml`, and `.agent_configs/baseline/` in the
+agent root. Default preflight fails clearly if any required asset is
+missing rather than generating unreviewed scaffolding.
 
-`--apply` starts an optimization job. `--apply-candidate` changes local source
-only after a candidate is explicitly selected. Neither option deploys.
+`--apply --optimize-model <deployment>` runs `azd ai agent optimize` — this
+starts an optimization job that generates and scores candidates. Monitor
+via `azd ai agent optimize status <op-id> --watch`. `--apply
+--apply-candidate <id>` applies ONE selected candidate to local source
+only — never deploys. Deployment is an intentional separate `azd deploy`
+after diff review.
+
+Neither mode deploys automatically. Review candidate diff, evaluator
+results, safety behavior, tool changes, latency, and cost before promoting.
+
+Code path:
+  validate_hosted_agent_root() → check for azure.yaml, eval.yaml,
+  .agent_configs/baseline/. `--apply --optimize-model`: `azd ai agent
+  optimize --optimize-model <model> [--service <svc>]`. `--apply
+  --apply-candidate <id>`: `azd ai agent optimize apply --candidate <id>
+  [--service <svc>]`.
+
+What to watch. Preflight: `Validated optimizer-ready hosted-agent root:
+<path>` OR missing-asset list. `--apply --optimize-model`: `Optimization
+started. Use azd ai agent optimize status <op-id> --watch.` `--apply
+--apply-candidate`: `Candidate applied locally. Review diff and deploy
+separately.`
+
+Prerequisites / env vars:
+  --agent-root PATH        — hosted-agent root (default: cwd)
+  --optimize-model NAME    — approved optimizer model deployment
+  --service NAME           — optional azd service selector
+  --apply                  — run optimizer OR apply candidate
+  --apply-candidate ID     — apply selected candidate locally (with --apply)
 """
 import argparse
 import os

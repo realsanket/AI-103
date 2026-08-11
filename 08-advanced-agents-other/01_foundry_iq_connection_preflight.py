@@ -1,11 +1,38 @@
-"""Lab 01 — validate, then create a keyless Foundry IQ project connection.
+# Run: uv run python 08-advanced-agents-other/01_foundry_iq_connection_preflight.py [--apply]
+"""Validate, then create a keyless Foundry IQ project connection to a Search knowledge base.
 
-Run from repository root:
-    uv run python 08-advanced-agents-other/01_foundry_iq_connection_preflight.py
+Foundry IQ is a managed knowledge layer on Azure AI Search with agentic
+retrieval. It combines sources, enforces permissions, plans retrieval, and
+returns citations. Connect agents to it via its MCP endpoint, NOT via
+embedded Search credentials. Default preflight validates env identifiers and
+prints the resulting MCP URL — no cloud call.
 
-`--apply` creates or updates a RemoteTool connection. It does not create a
-knowledge base, upload content, or send a query. Authentication uses Azure CLI
-or managed identity through azd; this lab never accepts credentials.
+`--apply` invokes `azd ai connection create <name> --kind remote-tool
+--target <mcp> --auth-type project-managed-identity --audience
+https://search.azure.com/ --project-endpoint <endpoint>`. Creates or updates
+the RemoteTool project connection. Does NOT create the knowledge base or
+upload content — those are separate reviewed Search operations.
+
+Confirm `Search Index Data Reader` is assigned to the project managed
+identity BEFORE apply; add `Search Index Data Contributor` only when writes
+are needed. Never accept API keys — this lab rejects credentials in URLs.
+
+Code path:
+  project_endpoint() → validate HTTPS + `.services.ai.azure.com` +
+  `/api/projects/` + no credentials. knowledge_base_mcp_endpoint() → build
+  `https://<search>/knowledgebases/<kb>/mcp?api-version=2026-05-01-preview`.
+  connection_command() → azd argv list. `--apply`: subprocess.run(cmd).
+
+What to watch. Preflight: `Validated Foundry IQ MCP endpoint: <url>` +
+`Apply command: azd ai connection create ...`. `--apply`: azd stream ending
+`Connection created. Continue with Lab 02 to expose it through a toolbox.`
+
+Prerequisites / env vars:
+  PROJECT_ENDPOINT               — Foundry project HTTPS URL
+  FOUNDRY_IQ_SEARCH_ENDPOINT     — Search resource HTTPS URL
+  FOUNDRY_IQ_KNOWLEDGE_BASE      — knowledge-base name (one segment)
+  FOUNDRY_IQ_CONNECTION_NAME     — connection name (no whitespace)
+  --apply                        — create/update connection via azd
 """
 import argparse
 import os

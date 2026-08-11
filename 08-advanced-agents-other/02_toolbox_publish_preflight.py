@@ -1,10 +1,36 @@
-"""Lab 02 — validate, then create a current Foundry Toolbox version.
+# Run: uv run python 08-advanced-agents-other/02_toolbox_publish_preflight.py [--apply --toolbox-name <name> --manifest <path>]
+"""Validate, then create a Foundry Toolbox and its first immutable version.
 
-Run from repository root:
-    uv run python 08-advanced-agents-other/02_toolbox_publish_preflight.py
+Toolbox centralizes approved tools behind one MCP-compatible endpoint.
+Connections own authentication + token renewal — the manifest must never
+embed credentials. Toolbox versions are immutable; test a version-specific
+developer endpoint before flipping the default consumer endpoint.
 
-`--apply` creates a Toolbox and its first immutable version from a reviewed
-manifest. It never supplies credentials; project connections own authentication.
+Default preflight scans the manifest for secret markers (`client_secret`,
+`api_key`, `authorization=`, `connection_string`, `password:`) and fails if
+any appear. Also asserts the manifest declares at least one of
+`connections:`, `tools:`, `skills:`. Prints both endpoint URL templates.
+
+`--apply` invokes `azd ai toolbox create <name> --from-file <manifest>
+--project-endpoint <endpoint>`. Creates the toolbox and its first version;
+that version becomes the default. After apply, test against the
+version-specific developer endpoint before consumer rollout.
+
+Code path:
+  validate_manifest() → assert file exists, contains no secret markers, has
+  connections/tools/skills. toolbox_endpoint() builds either consumer
+  (`.../mcp?api-version=v1`) or developer (`.../versions/<v>/mcp?...`) URL.
+  create_command() → azd argv. `--apply`: subprocess.run(cmd).
+
+What to watch. Preflight: `Validated credential-free manifest: <path>` +
+endpoint format templates. `--apply`: azd stream ending `Created Toolbox
+<name>. Test its version-specific endpoint before consumer rollout.`
+
+Prerequisites / env vars:
+  PROJECT_ENDPOINT       — Foundry project HTTPS URL
+  FOUNDRY_TOOLBOX_NAME   — toolbox name (or pass --toolbox-name)
+  --manifest PATH        — toolbox manifest (default: toolbox.example.yaml)
+  --apply                — create toolbox + first version via azd
 """
 import argparse
 import os
