@@ -1,4 +1,4 @@
-# Run: uv run python 01-plan-and-manage/25_red_teaming.py
+# Run: uv run python 01-plan-and-manage/24_red_teaming.py
 """Run one bounded AI Red Teaming Agent smoke scan against synthetic output.
 
 Prerequisites: Python 3.10–3.13, `azure-ai-evaluation[redteam]`, a Foundry

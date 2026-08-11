@@ -1,4 +1,4 @@
-# Run: uv run python 01-plan-and-manage/23_continuous_evaluation.py
+# Run: uv run python 01-plan-and-manage/22_continuous_evaluation.py
 """Create a sampled continuous Foundry evaluation rule for an existing agent.
 
 Prerequisites: Python 3.12, `azure-ai-projects`, Foundry project and agent,

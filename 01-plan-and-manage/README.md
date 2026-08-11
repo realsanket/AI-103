@@ -100,7 +100,7 @@ CONTENT_SAFETY_ENDPOINT=https://<content-safety-resource>.cognitiveservices.azur
 AZURE_SUBSCRIPTION_ID=<subscription-id>
 AZURE_RESOURCE_GROUP=<resource-group>
 
-# Optional: lesson 18 manual telemetry export
+# Optional: lesson 26 manual telemetry export
 APPLICATIONINSIGHTS_CONNECTION_STRING=<connection-string>
 
 # Advanced optional labs
@@ -125,13 +125,14 @@ nonproduction deployment; each makes live service calls where stated.
 6. Treat **08** as an access review; use its `--apply`,
 `--assign-principal-id`, and `--role` flags only when intentionally changing access.
 7. Run **15 --apply** only when ready to create a persistent lab blocklist.
-8. Run **18** only after reviewing telemetry destination and data handling.
-9. Run **19–21** with `--run` only after reviewing Content Safety region,
+8. Run **18–20** with `--run` only after reviewing Content Safety region,
 input, and Storage access requirements.
-10. Run **22–25** with `--apply` only in a disposable nonproduction project.
+9. Run **21–24** with `--apply` only in a disposable nonproduction project.
     They can create datasets, evaluations, monitoring rules, telemetry, or scans.
-11. Run **26** first when adopting Foundry-native tracing; it is local preflight
+10. Run **25** first when adopting Foundry-native tracing; it is local preflight
     only and explains the portal-side setup that remains necessary.
+11. Run **26** only after reviewing telemetry destination and data handling;
+    run **25** first so you understand the server-side tracing architecture.
 
 ### Costs and side effects
 
@@ -140,15 +141,15 @@ input, and Storage access requirements.
 | 01, 05, 08 | Live read; 05 needs subscription-level quota visibility. |
 | 02, 12 | Local reference only. |
 | 03 | Creates or updates a deployment; allocation and billing implications. |
-| 04, 06, 07, 09–11, 13–14, 16–18 | Model and/or Content Safety requests; input, output, retries, and selected model affect cost. |
+| 04, 06, 07, 09–11, 13–14, 16–17 | Model and/or Content Safety requests; input, output, retries, and selected model affect cost. |
 | 15 | Creates/updates persistent `northwind-exam-blocklist` and items; matching can take time to propagate. |
-| 18 | May export governed model/token/latency/safety metadata to telemetry; it does not add prompt/output text as span attributes. |
-| 19–20 | Content Safety requests only with `--run`; supported region, role, and input limits apply. |
-| 21 | Async Blob-backed provenance request only with `--run`; service identity needs Blob read access. |
-| 22–23 | Dataset/evaluation/rule creation only with `--apply`; persistent state and evaluator costs. |
-| 24 | Appends feedback telemetry only when application code calls its opt-in helper. |
-| 25 | Red-team scan only with `--apply`; use purple environment and synthetic target. |
-| 26 | Local preflight only; connecting App Insights is an explicit portal/IaC decision. |
+| 18–19 | Content Safety requests only with `--run`; supported region, role, and input limits apply. |
+| 20 | Async Blob-backed provenance request only with `--run`; service identity needs Blob read access. |
+| 21–22 | Dataset/evaluation/rule creation only with `--apply`; persistent state and evaluator costs. |
+| 23 | Appends feedback telemetry only when application code calls its opt-in helper. |
+| 24 | Red-team scan only with `--apply`; use purple environment and synthetic target. |
+| 25 | Local preflight only; connecting App Insights is an explicit portal/IaC decision. |
+| 26 | Model and Content Safety requests; exports governed telemetry; requires `PROJECT_ENDPOINT` and Foundry User. |
 
 Provisioned deployments reserve PTU capacity and incur hourly capacity cost while present, including idle time. A PTU is reserved throughput capacity, **not a prepaid token bucket** and not per-token billing. PTU quota approval does not guarantee capacity in every requested region.
 
@@ -255,17 +256,17 @@ A deployment `capacity` value is not a universal TPM conversion. Standard quota 
 | 15 | [Blocklists](15_blocklists.py) | Create/update and test Content Safety blocklist. | Persistent write; requires `--apply`; propagation delay. |
 | 16 | [Agent basics](16_agent_basics.py) | Code-defined instructions and linked Responses turns. | Live inference; not a Foundry agent resource. |
 | 17 | [Self-critique](17_evaluator_groundedness.py) | Draft, critique, regenerate. | Live inference; not a built-in evaluator/run. |
-| 18 | [Manual tracing](18_agent_tracing.py) | Emit application OpenTelemetry span and metadata. | Live calls; not full Foundry tracing. |
-| 19 | [Protected material](19_protected_material.py) | Detect protected material in synthetic English output. | GA Content Safety API; requires `--run`. |
-| 20 | [Groundedness detection](20_groundedness_detection.py) | Compare synthetic generated text to sources. | Preview Content Safety API; supported region/S0 only; requires `--run`. |
-| 21 | [Provenance detection](21_provenance_detection.py) | Detect C2PA/watermark provenance for Blob media. | Preview async API; Blob identity/SAS prerequisite; requires `--run`. |
-| 22 | [Foundry evaluation](22_foundry_evaluation.py) | Create a dataset-backed Foundry evaluation run. | Preview; persistent/billable; requires `--apply --dataset`. |
-| 23 | [Continuous evaluation](23_continuous_evaluation.py) | Create a sampled monitoring evaluation rule. | Preview; persistent/billable; requires `--apply`. |
-| 24 | [Human feedback](24_human_feedback.py) | Emit correlated end-user feedback to telemetry. | Integration reference; append-only telemetry event. |
-| 25 | [Red teaming](25_red_teaming.py) | Run a safe synthetic RedTeam target. | Preview/billable; purple environment; requires `--apply`. |
-| 26 | [Foundry tracing setup](26_foundry_tracing_setup.py) | Preflight project/App Insights tracing governance. | Local, read-only guidance; portal setup still required. |
+| 18 | [Protected material](18_protected_material.py) | Detect protected material in synthetic English output. | GA Content Safety API; requires `--run`. |
+| 19 | [Groundedness detection](19_groundedness_detection.py) | Compare synthetic generated text to sources. | Preview Content Safety API; supported region/S0 only; requires `--run`. |
+| 20 | [Provenance detection](20_provenance_detection.py) | Detect C2PA/watermark provenance for Blob media. | Preview async API; Blob identity/SAS prerequisite; requires `--run`. |
+| 21 | [Foundry evaluation](21_foundry_evaluation.py) | Create a dataset-backed Foundry evaluation run. | Preview; persistent/billable; requires `--apply --dataset`. |
+| 22 | [Continuous evaluation](22_continuous_evaluation.py) | Create a sampled monitoring evaluation rule. | Preview; persistent/billable; requires `--apply`. |
+| 23 | [Human feedback](23_human_feedback.py) | Emit correlated end-user feedback to telemetry. | Integration reference; append-only telemetry event. |
+| 24 | [Red teaming](24_red_teaming.py) | Run a safe synthetic RedTeam target. | Preview/billable; purple environment; requires `--apply`. |
+| 25 | [Foundry tracing setup](25_foundry_tracing_setup.py) | Preflight project/App Insights tracing governance. | Local, read-only guidance; portal setup still required. |
+| 26 | [Manual tracing](26_agent_tracing.py) | SDK auto-instrumentation + custom parent span; fetch App Insights CS from project. | Live calls; client-side only, not server-side Foundry tracing. |
 
-## Detailed implementation walkthroughs: lessons 01-18
+## Detailed implementation walkthroughs: lessons 01-17
 
 Read a lesson in this order: **background** explains why capability exists; **before code** lists resource/identity prerequisites; **code path** maps significant statements to Azure behavior; **interpretation** explains what the result means and what it does not prove. A successful lab is a narrow observation, not production certification.
 
@@ -926,24 +927,69 @@ Use it when application owns behavior and state requirements are bounded. Do not
 `COMPLETE`/`MISSING` output.
 4. If missing, a second answer call receives an explicit coverage reminder.
 
-Use it for low-risk response refinement with clear source material. Do not use it as a release evaluator, fabricated-claim detector, safety approval, or chain-of-thought store. For production use held-out data, built-in evaluators, human review, thresholds, drift monitoring, and run history--lesson 22.
+Use it for low-risk response refinement with clear source material. Do not use it as a release evaluator, fabricated-claim detector, safety approval, or chain-of-thought store. For production use held-out data, built-in evaluators, human review, thresholds, drift monitoring, and run history--lesson 21.
 
-### 18 - Instrument the application path safely
+### 26 - Add client-side spans to instrument application code
 
-**Background.** A trace is a correlated record of a request and suboperations. Manual instrumentation exists for app-specific work that Foundry cannot see: custom retrieval, policy, tool adapter, cache, queue, or business operation. It complements server-side Foundry tracing; it does not enable it.
+**Background.** Foundry tracing has two modes that beginners often confuse:
+
+```text
+Server-side tracing (automatic, zero code)
+  Connect Application Insights to the Foundry project in the portal.
+  Foundry captures hosted/prompt-agent runs — inputs, outputs, tool calls,
+  latency, token counts — without touching application code.
+  Works for any agent running inside Foundry. This is lesson 25's territory.
+
+Client-side tracing (manual, this lesson)
+  Your application code creates OpenTelemetry spans around its own logic:
+  model calls, custom retrieval, business rules, tool adapters.
+  Complements server-side traces. Does not enable server-side tracing.
+  Setting APPLICATIONINSIGHTS_CONNECTION_STRING here exports your manual
+  spans — it does not connect a project or activate Foundry tracing.
+```
+
+Lesson 26 is client-side only. Think of it as "the application's view of what it did." It teaches you how to attach a span, what attributes to record, and what to leave out.
+
+**What an OpenTelemetry span is (beginner anchor).** A span is a named, timed record of one operation. It has a start time, an end time, and key-value attributes. Nested spans form a tree that shows the full call path. This lesson creates one span around a Responses call and records `model`, `token counts`, `latency`, and `safety severity` as attributes.
+
+**Before code.** `PROJECT_ENDPOINT` and `DEFAULT_MODEL` are required. `CONTENT_SAFETY_ENDPOINT` and `APPLICATIONINSIGHTS_CONNECTION_STRING` are optional: without them the App Insights connection string is fetched from the project telemetry API, and if that also fails, spans print to stdout.
 
 **Code path.**
 
-1. `setup_tracing()` selects Azure Monitor exporter when connection string is
-supplied or console exporter for local learning.
-2. `start_as_current_span()` creates an application span around
-`responses.create`.
-3. Code adds model, token counts, latency, and controlled safety severity
-attributes using GenAI conventions.
-4. Optional `_check_safety()` classifies output; transport errors are recorded
-explicitly rather than hidden as safe output.
+1. `os.environ.setdefault("AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING", "true")` enables
+GenAI instrumentation. Must be set **before** `AIProjectInstrumentor().instrument()`;
+without it, auto-instrumentation is silently a no-op.
+2. `AIProjectInstrumentor().instrument()` (Flow A) hooks into `openai.responses.create`.
+Every subsequent model call automatically gets a `chat <model>` child span with latency
+and token counts — no extra code needed per call.
+3. `resolve_connection_string(client)` tries `client.telemetry.get_application_insights_connection_string()`
+(project API) first, then `APPLICATIONINSIGHTS_CONNECTION_STRING` env var as fallback.
+This is how the lesson avoids hardcoding the connection string.
+4. `setup_tracing_from_connection_string()` selects `AzureMonitorTraceExporter` when a
+connection string is present, or `ConsoleSpanExporter` for local learning.
+5. `tracer.start_as_current_span("northwind-support-response")` (Flow B) creates a manual
+parent span for business-level context. The auto-instrumented model call nests inside it
+as a child span.
+6. Business attributes (`northwind.operation`) and token rollup go on the parent span;
+auto-span handles per-call `gen_ai.*` attributes automatically.
+7. Optional `_check_safety()` classifies the output; per-category `safety.<name>` severity
+goes on the parent span. Transport errors are recorded as span exceptions.
 
-Do not add raw prompt/output attributes by default. Design telemetry schema, retention, protected-table access, PIM/JIT review, release correlation, and incident process before enabling content capture. Lesson 26 explains the zero-code server-side tracing path after connecting Application Insights.
+**What to look for after running.**
+- Console: spans print as JSON — `northwind-support-response` parent with a `chat <model>` child.
+- Azure Monitor → Transaction Search: find `northwind-support-response`; select it to see the child auto-span and all attributes.
+- Foundry portal → Traces tab: traces appear within 2–5 minutes.
+
+**Attributes never to add by default.**
+Prompts and model outputs can contain PII, secrets, and customer content. Do not add them as span attributes unless your telemetry schema, redaction rules, access controls, and retention are reviewed and approved. To enable content recording in development only: set `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true`.
+
+**Common beginner mistakes.**
+- Not setting `AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true` before `AIProjectInstrumentor().instrument()` — auto-instrumentation silently does nothing.
+- Calling `AIProjectInstrumentor().instrument()` after making model calls — it only instruments calls made after it runs.
+- Thinking this lesson enables server-side Foundry tracing — it does not; that requires connecting App Insights to the project in the portal (lesson 25).
+- Adding `span.set_attribute("prompt", raw_text)` — routes sensitive content to standard tables without restricted access.
+
+Design telemetry schema, retention, protected-table access, PIM/JIT review, release correlation, and incident response before enabling content capture. Lesson 25 explains the zero-code server-side tracing path after connecting Application Insights.
 
 ## Lessons 09-15: defense in depth
 
@@ -1119,7 +1165,7 @@ It persists service state. Delete lab-only list/items when finished if they are 
 
 Blocklists fit codenames, competitor names, regulated phrases, and other explicit domain policy. They do not replace semantic moderation or injection defense. Allow for propagation delay after changes. Content Safety blocklist APIs and Foundry deployment custom-blocklist configuration are related concepts with different wiring; configure and test the one your serving path uses.
 
-## Lessons 16–18: agents, evaluation, observability
+## Lessons 16–17: agents and evaluation patterns
 
 ### Agent types and state model
 
@@ -1145,14 +1191,18 @@ Use this pattern for bounded behavior owned and deployed with application code. 
 
 ### Evaluation concepts: rubric versus self-critique
 
+**Beginner framing.** Lesson 17 is a pattern, not a product feature. It teaches how your application code can ask one model call to review another model call's output. That is useful for refinement but it is not the same as running a Foundry evaluation (lesson 21), which creates a dataset, a run record, and repeatable metrics.
+
 | Approach | What it is | What it proves |
 |---|---|---|
-| LLM self-critique | Model reviews draft against prompt checklist | A heuristic application pattern for this one run. |
-| Built-in evaluator | Documented evaluator contract/run with inputs, metrics, and output | Evaluator results for configured dataset/run. |
-| Golden-set CI gate | Repeatable representative test set and threshold | Release evidence, only as good as dataset/threshold. |
-| Human review | Domain expert examines selected/flagged cases | High-value qualitative/regulated review. |
+| LLM self-critique (lesson 17) | Model reviews its own draft against a prompt checklist | A heuristic refinement pattern for this one run. Not an evaluation run. |
+| Built-in evaluator (lesson 21) | Documented evaluator contract with dataset, metrics, and run record | Repeatable scored evidence for a configured run. |
+| Golden-set CI gate | Repeatable representative test set with pass/fail threshold | Release gate evidence, only as good as dataset and threshold design. |
+| Human review (lesson 23) | Domain expert examines selected responses and scores them | High-value qualitative signal; required for high-risk or regulated output. |
 
 Groundedness asks whether response claims are supported by supplied sources. Response Completeness asks whether needed aspects were covered. Neither is identical to safety, tool correctness, or user satisfaction. Preview evaluator requirements can differ; for example, Response Completeness needs its supported evaluation contract such as `ground_truth` and `response`.
+
+**The key distinction beginners miss:** a Foundry evaluation (lesson 21) creates a dataset, an evaluation run, and a portal-visible result you can track over releases. Lesson 17's self-critique produces nothing persistent — it is a one-call application heuristic that disappears with the process.
 
 ### 17 — Self-critique and regeneration
 
@@ -1166,29 +1216,6 @@ The lesson generates a support answer, asks another model call to return `COMPLE
 
 **Limitation:** lesson 17 is **not** a Foundry built-in Groundedness or Response Completeness evaluator, and it does not create an evaluation run. A model can make the same mistake in drafting and reviewing. For production, use held-out examples, documented evaluator contracts, human review where needed, and monitor quality drift rather than trusting a self-approval loop.
 
-### 18 — Manual tracing
-
-**Question answered:** Which runtime attributes should an application record?
-
-```bash
-uv run python 01-plan-and-manage/18_agent_tracing.py
-```
-
-The lesson creates an application-owned OpenTelemetry span around a Responses call. It records model, token metadata, latency, and best-effort safety metadata without adding prompt or output text as span attributes; an optional Application Insights connection string exports telemetry.
-
-**Limitation:** this is manual application instrumentation, **not** automatic Foundry server/client tracing and **not** proof of full Foundry Traces integration. Treat spans as a carefully governed operational dataset: avoid secrets and unnecessary personal data, cap previews, apply access controls, set retention, and correlate traces with deployment version and release ID.
-
-Useful dimensions:
-
-| Dimension | Why record it |
-|---|---|
-| Model/deployment and release version | Compare behavior after routing/model/prompt change. |
-| Input/output/total tokens | Explain capacity and cost changes. |
-| End-to-end latency and error class | Locate SLO degradation. |
-| Retry count and backoff time | Detect saturation/retry amplification. |
-| Safety signal/action | Audit whether detection produced block/escalation. |
-| Trace/correlation ID | Join application, tool, and telemetry events. |
-
 ## Feature status and hard limits
 
 | Feature | Status | Practical boundary |
@@ -1200,14 +1227,14 @@ Useful dimensions:
 | Task Adherence | **Preview** | Explicit API returns signal; app must block/escalate; test actual workflow. |
 | Response Completeness | **Preview** built-in evaluator | Requires supported evaluation run/input contract; lesson 17 does not implement it. |
 | Groundedness | Built-in evaluator | Requires documented evaluation contract; lesson 17 does not implement it. |
-| Lesson 18 span | Application instrumentation | Not automatic Foundry tracing or Foundry Traces integration. |
-| Protected Material text | GA Content Safety API | Lesson 19 checks synthetic English completion only. |
-| Groundedness detection | **Preview** Content Safety API | Lesson 20 is a source-support signal, not a Foundry evaluator run. |
-| Provenance detection | **Preview** async Content Safety API | Lesson 21 requires Blob read access and detects markers, not authenticity. |
-| Evaluation / continuous evaluation | **Preview** | Lessons 22-23 create billable persistent state only with `--apply`. |
-| Human feedback / trace annotations | **Preview** | Lesson 24 shows append-only correlated telemetry path. |
-| AI Red Teaming Agent | **Preview** | Lesson 25 defaults to a safe synthetic callback; use purple environment. |
-| Server-side Foundry tracing | Platform setup | Lesson 26 is read-only preflight; App Insights connection enables tracing. |
+| Protected Material text | GA Content Safety API | Lesson 18 checks synthetic English completion only. |
+| Groundedness detection | **Preview** Content Safety API | Lesson 19 is a source-support signal, not a Foundry evaluator run. |
+| Provenance detection | **Preview** async Content Safety API | Lesson 20 requires Blob read access and detects markers, not authenticity. |
+| Evaluation / continuous evaluation | **Preview** | Lessons 21-22 create billable persistent state only with `--apply`. |
+| Human feedback / trace annotations | **Preview** | Lesson 23 shows append-only correlated telemetry path. |
+| AI Red Teaming Agent | **Preview** | Lesson 24 defaults to a safe synthetic callback; use purple environment. |
+| Server-side Foundry tracing | Platform setup | Lesson 25 is read-only preflight; App Insights connection enables tracing. |
+| Lesson 26 span | Application instrumentation | Not automatic Foundry tracing or Foundry Traces integration. |
 
 ## Troubleshooting guide
 
@@ -1268,9 +1295,9 @@ secrets in repository variables.
 
 Avoid using a single score as a deployment decision. A higher aggregate quality score can hide a critical safety, residency, latency, cost, or tool-action failure. Keep rollback ownership and a known-good configuration.
 
-## Advanced production path: lessons 19-26
+## Lessons 18-26: output safety, evaluation lifecycle, and observability
 
-Lessons 01-18 establish basic planning, safety, and application telemetry. Lessons 19-26 add output safety, groundedness, provenance, evaluations, feedback, red teaming, and Foundry-native observability. Each answers a different operational question; none replaces the others.
+Lessons 01-17 establish planning, deployment, quota, identity, guardrails, and evaluation patterns. Lessons 18-26 add output safety checks, systematic evaluation, security testing, and full observability. Each lesson answers a different operational question; none replaces the others.
 
 ```text
 Application identity
@@ -1285,54 +1312,82 @@ A Foundry project connection is not permission to access Storage, Key Vault, Sea
 
 | Question | Use | Do not confuse with |
 |---|---|---|
-| Is generated output known protected text? | Protected Material API | A copyright ownership decision. |
-| Is an answer supported by supplied sources? | Groundedness detection/evaluator | Harm moderation or factual truth outside sources. |
-| Does media contain a recognized origin marker? | Provenance detection | Proof that unmarked media is human-created or safe. |
-| Did a release meet measurable quality/safety criteria? | Foundry evaluation run | Self-critique of one response. |
-| Did a real user judge one response useful? | Correlated feedback/trace annotation | A detached application log. |
-| What adversarial weaknesses exist? | Red-team scan in purple environment | Production traffic test. |
-| What did Foundry observe end-to-end? | Project-connected App Insights tracing | A manual client span only. |
+| Is generated output known protected text? | Protected Material API (lesson 18) | A copyright ownership decision. |
+| Is an answer supported by supplied sources? | Groundedness detection/evaluator (lesson 19) | Harm moderation or factual truth outside sources. |
+| Does media contain a recognized origin marker? | Provenance detection (lesson 20) | Proof that unmarked media is human-created or safe. |
+| Did a release meet measurable quality/safety criteria? | Foundry evaluation run (lesson 21) | Self-critique of one response. |
+| Did a real user judge one response useful? | Correlated feedback/trace annotation (lesson 23) | A detached application log. |
+| What adversarial weaknesses exist? | Red-team scan in purple environment (lesson 24) | Production traffic test. |
+| What did Foundry observe end-to-end? | Project-connected App Insights tracing (lesson 25) | A manual client span only. |
+| How do I add spans for code Foundry cannot see? | Client-side SDK instrumentation (lesson 26) | Server-side tracing or proof of Foundry Traces integration. |
 
-### 19 - Protected Material detection
+### Lessons 18-20: output safety
+
+Output safety checks run on **generated output** — after the model produces a response. They differ from input-side guardrails (lessons 09-15) because the risk is what the model wrote, not what the user sent.
+
+```text
+Model generates completion
+  ↓
+18: Is the output known protected text?       → Protected Material API
+19: Is the answer supported by sources?       → Groundedness detection
+20: Does a media file carry a known origin marker? → Provenance detection
+  ↓
+Application acts: abstain, attribute, flag, or publish
+```
+
+### 18 - Protected Material detection
 
 **What:** GA Content Safety output check for known protected English text. **Why:** route a completion to abstention, attribution, legal review, or policy handling. **How:** send a model completion to `text:detectProtectedMaterial`; inspect `protectedMaterialAnalysis.detected`. **Use it:** after generation where reproduction risk matters. **Do not use it:** for user prompts, harm classification, short snippets, or legal conclusions.
 
 ```bash
-uv run python 01-plan-and-manage/19_protected_material.py
-uv run python 01-plan-and-manage/19_protected_material.py --run
+uv run python 01-plan-and-manage/18_protected_material.py
+uv run python 01-plan-and-manage/18_protected_material.py --run
 ```
 
 Requires Content Safety, `CONTENT_SAFETY_ENDPOINT`, and `Cognitive Services User`. It accepts 110-10,000 English characters; the lab sends synthetic text and creates no persistent state. Keep real output out of logs unless retention and reviewer access are approved.
 
-### 20 - Groundedness detection
+### 19 - Groundedness detection
 
 **What:** preview Content Safety API for unsupported answer spans. **Why:** a fluent RAG answer can still invent claims. **How:** compare generated `text` to `groundingSources`, then use `ungroundedDetected`, `ungroundedPercentage`, and `ungroundedDetails`. The percentage is a proportion, not confidence. **Use it:** summaries and answers backed by curated content. **Do not use it:** as authorization, citation storage, or universal truth test.
 
 ```bash
-uv run python 01-plan-and-manage/20_groundedness_detection.py
-uv run python 01-plan-and-manage/20_groundedness_detection.py --run
+uv run python 01-plan-and-manage/19_groundedness_detection.py
+uv run python 01-plan-and-manage/19_groundedness_detection.py --run
 ```
 
 Requires S0 Content Safety in a supported region, `Cognitive Services User`, and `CONTENT_SAFETY_ENDPOINT`; F0 is unsupported. The preview API is `2024-09-15-preview`. Text and optional QnA query allow 7,500 characters; sources total 55,000. Reasoning mode additionally needs an eligible GPT-4o deployment and `llmResource`; do not enable it by accident.
 
-### 21 - Provenance detection
+### 20 - Provenance detection
 
 **What:** preview asynchronous detection of C2PA and supported invisible watermark markers in media. **Why:** add an origin signal before trusting or publishing media. **How:** submit `content.uri` to `operations:detect`, poll its operation ID, and handle `ProvenanceDetected`, `NoProvenanceDetected`, or failure. **Use it:** media review workflows. **Do not use it:** as a safety classifier, ownership proof, or authenticity guarantee.
 
 ```bash
-uv run python 01-plan-and-manage/21_provenance_detection.py
-uv run python 01-plan-and-manage/21_provenance_detection.py --run
+uv run python 01-plan-and-manage/20_provenance_detection.py
+uv run python 01-plan-and-manage/20_provenance_detection.py --run
 ```
 
 Requires `PROVENANCE_SOURCE_URL` (HTTPS Blob/SAS URI), `CONTENT_SAFETY_ENDPOINT`, `Cognitive Services User` for caller, and `Storage Blob Data Reader` for Content Safety's managed identity. Prefer managed identity over a long-lived SAS. This uses `2026-07-01-preview`; local docs do not list a fixed region matrix, so verify availability before a production design.
 
-### 22 - Evaluation runs, not self-critique
+### Lessons 21-24: evaluation lifecycle
+
+Evaluation measures quality systematically. Self-critique (lesson 17) is a one-call pattern. Lessons 21-24 create repeatable evidence with datasets, metrics, human review, and adversarial testing.
+
+```text
+17: Self-critique — pattern only, no persistent record
+  ↓
+21: Foundry evaluation — dataset-backed run with portal metrics
+22: Continuous evaluation — sampled post-deployment monitoring rule
+23: Human feedback — expert/user quality signal linked to exact response
+24: Red teaming — adversarial scan for systematic safety weaknesses
+```
+
+### 21 - Evaluation runs, not self-critique
 
 Lesson 17 is draft -> critique -> regenerate. It teaches a pattern, but it does not create a dataset, metric, run, trend, or release gate. A Foundry evaluation is repeatable evidence with a documented input mapping.
 
 ```bash
-uv run python 01-plan-and-manage/22_foundry_evaluation.py
-uv run python 01-plan-and-manage/22_foundry_evaluation.py \
+uv run python 01-plan-and-manage/21_foundry_evaluation.py
+uv run python 01-plan-and-manage/21_foundry_evaluation.py \
   --apply --dataset path/to/tests.jsonl [--rubric reviewed-rubric-name]
 ```
 
@@ -1348,49 +1403,164 @@ The first command is preflight. Applying uploads data, creates an evaluation and
 
 Task Adherence has three surfaces: lesson 14's Content Safety REST signal (`tools` plus conversation messages), Foundry guardrail runtime annotation, and `builtin.task_adherence` evaluator over evaluation data. Choose real-time enforcement, runtime policy, or offline measurement deliberately. Rows are limited to 2 MB; batches to 100,000 rows; evaluator region support varies.
 
-### 23 - Continuous evaluation
+### 22 - Continuous evaluation
 
 **What:** sampled post-deployment evaluation rule. **Why:** catch regression after release. **How:** evaluates completed responses on a bounded schedule. **Use it:** monitored production quality/safety signals. **Do not use it:** as a synchronous safety block or a dump of unrestricted sensitive traffic.
 
 ```bash
-uv run python 01-plan-and-manage/23_continuous_evaluation.py
-uv run python 01-plan-and-manage/23_continuous_evaluation.py --apply
+uv run python 01-plan-and-manage/22_continuous_evaluation.py
+uv run python 01-plan-and-manage/22_continuous_evaluation.py --apply
 ```
 
 Applying creates persistent evaluation/rule state and incurs sampling, evaluator, and telemetry cost. Requires project/agent identifiers, Application Insights, and `Foundry User` for project managed identity. The lesson caps at 10 runs/hour; change only after privacy, cost, alert, owner, and rollback review.
 
-### 24 - Human feedback and HITL
+### 23 - Human feedback and HITL
 
 **What:** structured quality signal linked to an exact response. **Why:** automated metrics cannot replace user/domain-expert judgment. **How:** emit `gen_ai.evaluation.result` while original response span is active; portal annotations are append-only history. **Use it:** approved review and feedback flows. **Do not use it:** for silent sensitive-data capture.
 
 ```bash
-uv run python 01-plan-and-manage/24_human_feedback.py
+uv run python 01-plan-and-manage/23_human_feedback.py
 ```
 
 The lesson prints integration guidance; a handler calls `emit_end_user_feedback(..., apply=True)` with the original span. It requires project-connected Application Insights, tracing packages, and governed retention. Reviewers need `Foundry User` plus Reader; template management needs `Foundry Project Manager`. Human templates are preview; the default binary `task_completion` path must preserve trace/span correlation.
 
-### 25 - AI Red Teaming Agent
+### 24 - AI Red Teaming Agent
 
 **What:** preview adversarial scan with Attack Success Rate evidence. **Why:** find systematic failures before users do. **How:** generate approved attacks against an explicit target. **Use it:** nonproduction purple environment with an incident/mitigation owner. **Do not use it:** against production tools, customer content, or unapproved endpoints.
 
 ```bash
-uv run python 01-plan-and-manage/25_red_teaming.py
+uv run python 01-plan-and-manage/24_red_teaming.py
 AZURE_AI_PROJECT=<project-endpoint> \
-  uv run python 01-plan-and-manage/25_red_teaming.py --apply
+  uv run python 01-plan-and-manage/24_red_teaming.py --apply
 ```
 
 The apply lesson deliberately uses only a fixed safe synthetic callback; no real model, tool, or application receives the generated attacks. It requires Python 3.10-3.13, `azure-ai-evaluation[redteam]`, Entra identity, Foundry project, and `Foundry User` for project managed identity. Scans bill and region support is preview-sensitive; verify it before targeting a real nonproduction system.
 
-### 18 and 26 - manual versus Foundry-native tracing
 
-```bash
-uv run python 01-plan-and-manage/18_agent_tracing.py
-uv run python 01-plan-and-manage/26_foundry_tracing_setup.py
+## Lessons 25-26: observability
+
+Observability is the last layer of the production AI lifecycle. Lessons 25-26 cover Foundry's two tracing modes: server-side (automatic, zero code) and client-side (manual SDK instrumentation).
+
+### Foundry tracing concepts for beginners
+
+Tracing answers "what happened during that request?" — which model was called, how many tokens were used, how long each step took, which tools fired, and whether any errors occurred — in chronological order.
+
+**Two tracing modes work side by side:**
+
+```text
+Server-side tracing                     Client-side tracing
+(zero code, lesson 25)                  (manual instrumentation, lesson 26)
+───────────────────────────             ───────────────────────────────────
+Connect App Insights to project         Set AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true
+Foundry auto-captures hosted/           Call AIProjectInstrumentor().instrument()
+prompt-agent runs: inputs,              Wrap your code in tracer.start_as_current_span()
+outputs, tool calls, latency            Captures spans for your own model calls,
+No app code changes needed              retrieval, custom logic, and business steps
+Works for Foundry-managed agents        Works for any code you write
 ```
 
-Lesson 18 adds application-owned `gen_ai.*` attributes and token counts around a Responses call. `AZURE_OPENAI_ENDPOINT` is required; `CONTENT_SAFETY_ENDPOINT` and `APPLICATIONINSIGHTS_CONNECTION_STRING` are optional. Prompts and outputs are not span attributes. It is not server-side Foundry tracing.
+Server-side tracing is the starting point. Client-side tracing is additive — it gives you visibility into code Foundry cannot see.
 
-Lesson 26 is local/read-only preflight. Foundry-native tracing starts after Application Insights is connected to project; supported prompt/hosted agent and workflow paths then trace automatically. Trace access needs project access and Log Analytics Reader; protected sensitive-content tables also require Privileged Monitoring Data Reader.
+**Key terms (read before lessons 25 and 26):**
+
+| Term | What it is |
+|---|---|
+| **Trace** | One complete request journey: all spans in order, with timing and status. |
+| **Span** | One named operation inside a trace: a model call, a tool execution, a custom step. Spans can nest to show parent-child call hierarchy. |
+| **Attribute** | Key-value metadata on a span: model name, token count, error class. Never add raw prompts or outputs by default. |
+| **Application Insights** | Azure Monitor resource that stores all trace data. Connect it to a Foundry project to enable server-side tracing. |
+| **Log Analytics workspace** | Underlying storage behind Application Insights. Trace tables (`AppDependencies`, `AppTraces`, `AppEvents`, `AppGenAIContent`) live here. |
+| **AppGenAIContent** | Dedicated table for sensitive GenAI attributes (prompts, outputs, tool arguments). Can be set as Protected so only `Privileged Monitoring Data Reader` can read it. |
+
+**Tracing is off by default.** No data is collected until an Application Insights resource is explicitly connected to the project.
+
+### 25 - Foundry-native tracing setup
+
+**What this lesson is.** A local read-only preflight. It makes no Azure calls and changes nothing. It checks whether your environment variables are present, then prints the setup steps you must complete manually in the portal or via IaC before server-side Foundry tracing becomes active.
+
+**Why it runs before you do anything.** Enabling tracing is an explicit decision with cost and privacy implications. Tracing is **off by default** — no data is collected until Application Insights is connected. This lesson helps you review the setup and access implications before enabling.
+
+**What server-side tracing gives you (zero code required):**
+
+```text
+Connect Application Insights to Foundry project
+  ↓
+Foundry automatically captures for hosted and prompt agents:
+  - Inputs and outputs per turn
+  - Tool calls and results
+  - Token counts and latency per span
+  - Errors and retries
+  ↓
+Traces appear in Foundry portal → Traces tab within 2–5 minutes
+Also queryable in Azure Monitor Application Insights
+```
+
+**Actual portal setup steps:**
+1. Foundry portal → your project → **Settings** → **Tracing**.
+2. Connect an existing Application Insights resource or create a new one.
+3. Assign `Log Analytics Reader` on the resource to anyone who needs to view traces. If the Log Analytics tables are [protected](/azure/azure-monitor/logs/protected-tables-configure), also assign `Privileged Monitoring Data Reader`.
+4. Run any hosted or prompt agent. Server-side traces appear in the **Traces** tab.
+
+**Sensitive content protection (preview).** Starting September 30, 2026, sensitive GenAI attributes (prompts, outputs, tool arguments) route only to the `AppGenAIContent` table. To apply this protection now:
+
+```bash
+# Register feature flag on your subscription (requires Owner or equivalent)
+az feature register --namespace Microsoft.Insights --name protectGenAISensitiveData
+```
+
+Then set `AppGenAIContent` as a Protected table in Log Analytics and assign `Privileged Monitoring Data Reader` to authorized identities only. Standard read roles are denied access to that table. This is a subscription-level mutation — review before running.
+
+**What this lesson does NOT do.** It does not connect Application Insights, create Azure resources, or register feature flags. Those are explicit portal or IaC steps. Run this lesson to confirm your `.env` has the right values and understand what setup is needed.
+
+```bash
+uv run python 01-plan-and-manage/25_foundry_tracing_setup.py
+```
+
+### 26 — Manual client-side tracing
+
+**Question answered:** How does an application add spans for code Foundry cannot trace automatically?
+
+```bash
+uv run python 01-plan-and-manage/26_agent_tracing.py
+```
+
+Run lesson 25 first to understand the server-side architecture before adding client-side spans.
+
+This is **client-side (manual) tracing** using the Foundry SDK's `AIProjectInstrumentor`. It is not server-side Foundry tracing — that is enabled by connecting App Insights in the portal (lesson 25). Client-side tracing adds spans for code you own: the model call, custom business logic, and safety checks. It complements server-side traces.
+
+**How lesson 26 works:**
+- Sets `AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true` before instrumenting
+- Calls `AIProjectInstrumentor().instrument()` — auto-instruments `openai.responses.create` calls
+- Gets App Insights connection string from project telemetry API (no hardcoding)
+- Creates a manual parent span (Flow B) around the auto-instrumented call (Flow A)
+- Safety severity attributes go on the parent span; token/latency on the auto child span
+
+**Attributes recorded:** `gen_ai.*` on the auto child span; `northwind.operation`, token rollup, and `safety.*` severity on the parent span. Prompt and output text are deliberately absent.
+
+### 25 and 26 compared
+
+```bash
+uv run python 01-plan-and-manage/25_foundry_tracing_setup.py
+uv run python 01-plan-and-manage/26_agent_tracing.py
+```
+
+These two lessons teach the same topic from opposite angles. Run 25 first, then 26.
+
+| | Lesson 26 (client-side) | Lesson 25 (server-side setup) |
+|---|---|---|
+| **What it does** | SDK auto-instrumentation + manual parent span | Read-only preflight; no Azure calls |
+| **Code required** | Yes — `AIProjectInstrumentor().instrument()` | No — App Insights connection enables it |
+| **What it traces** | Model calls + what your code wraps explicitly | All hosted/prompt-agent runs automatically |
+| **Requires** | `PROJECT_ENDPOINT`; optional `APPLICATIONINSIGHTS_CONNECTION_STRING` | `PROJECT_ENDPOINT`; App Insights connected to project in portal |
+| **Enables Foundry tracing?** | No | Yes (after portal/IaC connection step) |
+| **Span content** | `gen_ai.*` auto-attributes + custom business attributes; no prompts | Full inputs, outputs, tool calls, token counts per span |
+| **Good for** | Custom retrieval, business logic, app-owned steps | Debugging agent runs end-to-end without code changes |
+
+**Start with lesson 25** if you are new to tracing: understand the server-side setup first, then add lesson 26 client-side spans when you need visibility into code Foundry cannot see.
+
+Lesson 26 uses `AIProjectInstrumentor` with `PROJECT_ENDPOINT`. Connection string is fetched from the project telemetry API. Prompts and outputs are not span attributes.
+
+Lesson 25 is local/read-only preflight. Foundry-native tracing starts after Application Insights is connected to the project; supported prompt/hosted agent and workflow paths trace automatically. Trace access needs Log Analytics Reader; protected tables also require Privileged Monitoring Data Reader.
 
 | Operational rule | Why |
 |---|---|
@@ -1443,7 +1613,7 @@ evaluation, bounded red team, human review, governed telemetry, rollout, and rol
 | "Spotlighting replaces Prompt Shields and works with agents." | False. It is additive, preview, Chat Completions only, and no agents. |
 | "Task Adherence blocks tools automatically." | False. It returns preview analysis; application enforces block/HITL. |
 | "Self-critique is a Foundry evaluator run." | False. Lesson 17 is an application pattern, not built-in evaluator execution. |
-| "Manual OpenTelemetry span proves Foundry tracing is configured." | False. Lesson 18 is application instrumentation only. |
+| "Manual OpenTelemetry span proves Foundry tracing is configured." | False. Lesson 26 is application instrumentation only; lesson 25 is local preflight. |
 
 ## Objective coverage and limits
 

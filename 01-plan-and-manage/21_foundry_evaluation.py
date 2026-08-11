@@ -1,4 +1,4 @@
-# Run: uv run python 01-plan-and-manage/22_foundry_evaluation.py --dataset path/to/agent-tests.jsonl
+# Run: uv run python 01-plan-and-manage/21_foundry_evaluation.py --dataset path/to/agent-tests.jsonl
 """Create a Foundry agent evaluation from a reviewed JSONL dataset.
 
 Prerequisites: Python 3.12, `azure-ai-projects`, an existing Foundry project,

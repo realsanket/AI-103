@@ -1,4 +1,4 @@
-# Run: uv run python 01-plan-and-manage/24_human_feedback.py
+# Run: uv run python 01-plan-and-manage/23_human_feedback.py
 """Append consented end-user feedback to an already active agent trace.
 
 Prerequisites: OpenTelemetry instrumentation, Foundry project connected to
