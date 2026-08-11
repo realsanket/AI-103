@@ -1,8 +1,30 @@
-"""Deploy a custom-skill variant of the Search enrichment pipeline.
+# Run: uv run python 05-information-extraction/17_search_custom_skill_deploy.py [--apply] [--run]
+"""Deploy a WebApiSkill into the Search skillset and optionally start the indexer.
 
-The skill endpoint implements lesson 06's WebApiSkill contract. Default mode
-only validates local prerequisites. ``--apply`` creates the skillset and
-retargets the indexer; add ``--run`` to explicitly start that indexer.
+Bridges lesson 06's local custom-skill contract into Search enrichment. Default run
+validates local prerequisites (URL, importability) without any cloud call. `--apply`
+clones the base skillset, inserts a WebApiSkill at the custom endpoint URL, and
+retargets the indexer to the new skillset. `--run` also starts the indexer after
+deployment.
+
+The custom endpoint must: be HTTPS, validate the batch contract from L06, use Entra
+auth (`authResourceId`), and return per-record errors — not crash the whole batch.
+This lesson does NOT deploy an Azure Function or configure inbound authentication.
+
+Code path:
+  Validate SKILL_ENDPOINT_URL. Load skillset.json → clone → insert WebApiSkill →
+  PUT derived skillset. Clone indexer.json → retarget skillset → PUT indexer.
+  With --run: run_indexer(indexer_name).
+
+What to watch. Preflight: env var checks. With --apply: `skillset saved`, `indexer saved`.
+With --run: indexer starts (check execution history in portal for custom-skill errors).
+
+Prerequisites / env vars:
+  SEARCH_ENDPOINT       — https://<service>.search.windows.net
+  SKILL_ENDPOINT_URL    — HTTPS URL to your deployed WebApiSkill function
+  SEARCH_SKILLSET, SEARCH_INDEXER
+  --apply               — create/replace skillset + indexer
+  --run                 — start indexer after --apply
 """
 import argparse
 import copy

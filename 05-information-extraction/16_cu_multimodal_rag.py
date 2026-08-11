@@ -1,8 +1,29 @@
-"""Turn one Content Understanding document, image, or video into bounded RAG records.
+# Run: uv run python 05-information-extraction/16_cu_multimodal_rag.py [--apply --source <url>]
+"""CU multimodal extraction → bounded provenance-safe RAG records (preflight by default).
 
-Run without ``--apply`` for a local preflight. ``--apply`` submits the HTTPS
-Blob source to Content Understanding and prints records ready for an ingestion
-worker; it deliberately does not upload them to Search.
+Selects the right prebuilt CU analyzer by file extension (prebuilt-layout for docs,
+prebuilt-imageSearch for images, prebuilt-videoSearch for video) and converts the
+CU result into bounded records ready for an ingestion worker. Records cap at 20 items
+and 4,000 chars each; SAS query credentials are stripped from source metadata to
+avoid leaking signed URLs in output.
+
+Default run: local preflight (no cloud call). `--apply` submits the HTTPS source URL
+to CU and prints records. This lesson deliberately does NOT upload records to Search —
+add a validated ingestion worker that generates vectors and provenance fields.
+
+Code path:
+  analyzer_for(url) → choose analyzer by extension. source_metadata(url) → strip SAS.
+  With --apply: analyze(analyzer, url) → poll → cap records → print JSON.
+
+What to watch. Preflight: config checks. With --apply: JSON records with chunk, title,
+source, and CU-extracted content. Extension determines analyzer — rename a PDF to .jpg
+to see imageSearch chosen instead.
+
+Prerequisites / env vars:
+  CU_ENDPOINT  — https://<resource>.services.ai.azure.com
+  CU_API_VERSION — 2025-11-01 (GA)
+  --apply      — required for cloud call
+  --source     — HTTPS URL to the document/image/video (required with --apply)
 """
 import argparse
 import json

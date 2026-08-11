@@ -1,7 +1,29 @@
-"""Hybrid + semantic ranking — same query, three modes, side-by-side.
+# Run: uv run python 05-information-extraction/03_search_hybrid_semantic.py
+"""Hybrid + semantic ranking — keyword vs vector vs hybrid+semantic, side-by-side.
 
-Keyword vs vector vs hybrid+semantic. Prints top-3 for each. Real RAG usually
-uses the last one — exact matches AND meaning-based, semantically re-ranked.
+Hybrid search combines BM25 (keyword) and HNSW (vector) candidates via reciprocal
+rank fusion (RRF), then semantic ranker reranks the top RRF results using a
+language model. This is the production RAG baseline: exact matches AND meaning,
+semantically boosted. The semantic ranker does NOT scan the full corpus — it only
+reranks candidates already surfaced by BM25+vector.
+
+Compare the three modes on the same query to see how ranking changes. Semantic
+reranker score (`@search.reranker_score`) is NOT comparable to BM25/vector scores.
+Requires semantic ranker enabled on the Search service (region/SKU dependent).
+
+Code path:
+  Three client.search() calls on the same _QUERY:
+  1. keyword-only: search_text only
+  2. vector-only: VectorizableTextQuery, search_text=None
+  3. hybrid+semantic: both + QueryType.SEMANTIC + semantic_configuration_name="default"
+  _print_top() prints rank, score, title, chunk preview for top-3.
+
+What to watch. Compare which chunks appear and where across three columns. Hybrid
+usually surfaces more relevant results. Semantic score range differs from BM25/vector.
+
+Prerequisites / env vars:
+  SEARCH_ENDPOINT     — https://<service>.search.windows.net
+  SEARCH_INDEX_VECTOR — populated index with semantic config "default" enabled
 """
 from azure.search.documents.models import QueryType, VectorizableTextQuery
 

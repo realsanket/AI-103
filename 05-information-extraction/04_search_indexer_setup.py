@@ -1,4 +1,33 @@
-"""Create/update Blob data source and indexer from REST JSON definitions."""
+# Run: uv run python 05-information-extraction/04_search_indexer_setup.py --run [--wait]
+"""Create/update the Blob data source and indexer, then optionally start ingestion.
+
+The indexer is the job that reads Blob files, runs the skillset (chunking +
+embedding), and writes index documents. It must be created after the index (00)
+and skillset (05). Default run provisions the schema; `--run` also starts the
+indexer; `--wait` polls until the run completes or times out (5 min). A started
+indexer is not necessarily done ingesting — wait for `success` status before querying.
+
+The Search service's system-assigned managed identity must have Storage Blob Data
+Reader on the Blob container and Cognitive Services OpenAI User on the embedding
+deployment. Network reachability between Search, Blob, and OpenAI is separate.
+
+Code path:
+  load_definition(data_source.json) → PUT /datasources; load_definition(indexer.json)
+  → PUT /indexers. With --run: indexer_client().run_indexer(name). With --wait:
+  poll get_indexer_status().last_result until terminal status or timeout.
+
+What to watch. `data source saved`, `indexer saved`. With --run: indexer starts
+and --wait prints status polls until success/failure/timeout. Watch for 403
+(role missing) or network connectivity errors in indexer execution history.
+
+Prerequisites / env vars:
+  SEARCH_ENDPOINT       — https://<service>.search.windows.net
+  SEARCH_INDEXER        — indexer name
+  STORAGE_ACCOUNT, STORAGE_CONTAINER, AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP
+  AZURE_OPENAI_ENDPOINT, EMBEDDING_MODEL
+  --run                 — start indexer after provisioning
+  --wait                — poll until terminal status (max 5 min)
+"""
 import argparse
 import time
 from pathlib import Path

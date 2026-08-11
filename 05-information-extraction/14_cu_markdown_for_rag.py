@@ -1,9 +1,29 @@
-"""CU → Markdown → chunks ready for the Search ingestion pipeline.
+# Run: uv run python 05-information-extraction/14_cu_markdown_for_rag.py
+"""CU prebuilt-layout → Markdown → inspect chunk boundaries for RAG pipelines.
 
-The clean-representation pattern: let Content Understanding produce faithful
-Markdown for each source doc, then use text splitters to inspect chunk
-boundaries. For searchable vectors, upload source files to Blob and run the
-indexer: its skillset creates vectors before writing the Search index.
+Structure-aware chunking: Content Understanding extracts document structure as
+Markdown (headings, tables, figures), then MarkdownHeaderTextSplitter splits on
+headers before a recursive 800-char splitter cuts further. This preserves semantic
+boundaries better than character-only splits.
+
+This lesson prints chunks for inspection only — it does NOT upload, embed, or index
+them. Directly uploading text-only chunks to this repo's index would skip vector
+generation and break vector retrieval. For production: feed original Blob files
+through L04/L05 (integrated embedding skillset) or generate client-side embeddings
+with source/provenance/ACL fields before uploading.
+
+Code path:
+  CU_LAYOUT_SOURCE_URL → analyze("prebuilt-layout") → extract markdown → header split
+  on #/##/### → recursive 800/100-char split → print chunk count + first chunk.
+
+What to watch. Chunk count and first chunk content. Check that tables and headers
+are not split in the middle. If all chunks are similar length, header splitting
+didn't find H1/H2/H3 — try a document with clear heading structure.
+
+Prerequisites / env vars:
+  CU_ENDPOINT           — https://<resource>.services.ai.azure.com
+  CU_API_VERSION        — 2025-11-01 (GA)
+  CU_LAYOUT_SOURCE_URL  — HTTPS URL to a structured document (required)
 """
 import os
 

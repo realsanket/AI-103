@@ -1,8 +1,31 @@
-"""Manual RAG orchestration — retrieve → build prompt → call agent.
+# Run: uv run python 05-information-extraction/08_rag_client_run.py
+"""App-owned manual RAG — hybrid retrieve → prompt → Foundry agent → grounded answer.
 
-Contrast with an agent that has AI Search attached as a first-class tool: this
-file shows the "app owns the retrieval" pattern. Useful when you need custom
-ranking, filtering, or hybrid strategies before the model sees anything.
+The application owns the full retrieval pipeline: it queries Search with a hybrid
+query (BM25 + vector), formats the top-3 chunks as source blocks with title/URL,
+and supplies them in the prompt to the L07 agent. The model answers only from the
+provided sources and cites the URL. Compare with lesson 20's managed Search tool
+where the agent controls retrieval.
+
+This pattern is appropriate when you need custom ranking, ACL filters, deduplication,
+or retrieval audit before the model sees anything. NOT a replacement for ACL enforcement
+— the Search query here has no security filter and should not be used with
+mixed-permission content.
+
+Code path:
+  _retrieve(question) → hybrid query with VectorizableTextQuery → format 3 chunks
+  as "SOURCE [title]: [chunk]\nURL: [source_url]" blocks → project.get_openai_client()
+  → responses.create() with agent_reference (L07 agent) → print output_text.
+
+What to watch. A grounded refund answer or "I don't have that information" refusal.
+The agent should cite a source URL. If it hallucinates a policy, the retrieval
+didn't return relevant chunks — check index population.
+
+Prerequisites / env vars:
+  SEARCH_ENDPOINT     — https://<service>.search.windows.net
+  SEARCH_INDEX_VECTOR — populated index
+  PROJECT_ENDPOINT    — Foundry project with L07 agent created
+  DEFAULT_MODEL       — deployed chat model
 """
 from azure.search.documents.models import VectorizableTextQuery
 

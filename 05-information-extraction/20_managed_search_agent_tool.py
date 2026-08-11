@@ -1,4 +1,38 @@
-"""Create and invoke an opt-in managed Foundry agent with Azure AI Search."""
+# Run: uv run python 05-information-extraction/20_managed_search_agent_tool.py [--enable] [--apply] [--run]
+"""Create and optionally invoke a managed Foundry agent with Azure AI Search tool.
+
+Where lesson 08 manually orchestrates retrieval in application code, this lesson
+attaches `AzureAISearchTool` to a Foundry Prompt Agent — the agent decides when
+to query Search. Requires a Foundry project connection to the Search service.
+
+Three explicit flags needed: `--enable` unlocks mutation/invocation consent;
+`--apply` creates the agent version; `--run` invokes it with a test question.
+The agent uses VECTOR_SEMANTIC_HYBRID query with top_k=3. URL citations are
+returned when the tool result includes source_url fields.
+
+This does NOT replace application-level ACL enforcement. The tool query has no
+security filter — do not use with mixed-permission content without adding OData
+ACL filters to the tool configuration.
+
+Code path:
+  configuration() → env SEARCH_CONNECTION_NAME + SEARCH_INDEX. With --apply:
+  AzureAISearchTool(indexes=[AISearchIndexResource(connection_id, index, HYBRID, top_k=3)])
+  → agents.create_version(). With --run: responses.create() with agent_reference →
+  print output_text and URL citations.
+
+What to watch. With --apply: `agent '<name>' v<version> created.` With --run: answer
+plus cited source URLs from the Search index. If the agent doesn't call Search,
+the system prompt or tool configuration may not be working.
+
+Prerequisites / env vars:
+  PROJECT_ENDPOINT         — Foundry project endpoint
+  DEFAULT_MODEL            — deployed chat model
+  SEARCH_CONNECTION_NAME   — Foundry project connection name for AI Search
+  SEARCH_INDEX             — index name (must have retrievable content + source_url)
+  --enable                 — unlock mutation/invocation
+  --apply                  — create agent version
+  --run                    — invoke agent with test query
+"""
 import argparse
 import os
 

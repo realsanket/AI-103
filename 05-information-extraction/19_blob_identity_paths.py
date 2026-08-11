@@ -1,8 +1,29 @@
-"""Verify Azure Blob data-plane access through DefaultAzureCredential.
+# Run: uv run python 05-information-extraction/19_blob_identity_paths.py [--run]
+"""Verify the operator/runtime Azure Blob data-plane access via DefaultAzureCredential.
 
-This does not use account keys or connection strings. Search indexers use their
-own managed identity when connecting to the ResourceId data source from lesson
-04; ``--run`` only verifies the operator/runtime Blob identity path.
+This lesson proves that the current identity (az login on workstation, or managed
+identity in Azure) has the required Blob Data Reader role on the configured container.
+It does NOT test the Search service's managed identity — those are separate identities
+with separate role assignments. If this passes but the indexer still fails, the Search
+MI lacks its own role.
+
+Default run: local preflight (checks env vars, validates account name format). `--run`
+calls BlobServiceClient with DefaultAzureCredential → get_container_properties() →
+print container name and timestamp. No account key used.
+
+Code path:
+  account_url(STORAGE_ACCOUNT) → validate no slashes/dots → BlobServiceClient with
+  DefaultAzureCredential → get_container_client(STORAGE_CONTAINER) →
+  get_container_properties() → print name and last_modified.
+
+What to watch. Preflight: config checks. With --run: container name and last_modified
+timestamp. A 403 means the current identity lacks Storage Blob Data Reader. A network
+error means the endpoint isn't reachable (check private endpoint/firewall).
+
+Prerequisites / env vars:
+  STORAGE_ACCOUNT   — storage account name (not URL or connection string)
+  STORAGE_CONTAINER — container name
+  --run             — execute the Blob property read
 """
 import argparse
 

@@ -1,4 +1,27 @@
-"""Read Azure AI Search indexer health with an explicit, read-only run."""
+# Run: uv run python 05-information-extraction/18_search_monitoring.py [--run]
+"""Read Azure AI Search indexer health and document count — read-only snapshot.
+
+Default run is a local preflight (checks env vars). `--run` calls
+`get_indexer_status()` and `get_document_count()`, then formats a summary with
+redacted error messages (removes SAS tokens/keys from log strings). This is a
+diagnostic smoke test, not complete observability — production needs alerts on
+failed runs, stale schedules, failed-item ratio, and query latency.
+
+Code path:
+  --run: indexer_client().get_indexer_status(name) → status_summary() → print dict.
+  _SECRET regex redacts any sig=, token=, key=, code= values from error strings.
+  search_client().get_document_count() → print count.
+
+What to watch. `indexer_status: running/succeeded/failed`, `items_processed`,
+`items_failed`. A failed run with no items_failed means the indexer itself failed,
+not individual records. Check portal execution history for detailed diagnostics.
+
+Prerequisites / env vars:
+  SEARCH_ENDPOINT — https://<service>.search.windows.net
+  SEARCH_INDEXER  — indexer name
+  SEARCH_INDEX_VECTOR — index name (for document count)
+  --run           — execute the read-only status check
+"""
 import argparse
 from datetime import datetime
 import re

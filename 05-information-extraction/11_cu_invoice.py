@@ -1,13 +1,30 @@
-"""Content Understanding — domain-specific `prebuilt-invoice` analyzer.
+# Run: uv run python 05-information-extraction/11_cu_invoice.py
+"""Content Understanding `prebuilt-invoice` — extract structured invoice fields.
 
-Beginner note:
-  `prebuilt-invoice` extracts vendor / customer / total / line items /
-  dates from any invoice PDF. Same async pattern as other CU analyzers:
-  submit URL → poll → read `result.contents[0].fields`.
+`prebuilt-invoice` extracts vendor name/address, customer name/address, invoice
+date, due date, invoice total, subtotal, tax, and line items from any invoice PDF.
+Fields come back as a structured dict in `result.contents[0].fields`. Same async
+submit-poll pattern as other CU analyzers.
 
-  IMPORTANT: CU fetches the URL server-side. `file://` URLs won't work.
-  Upload your invoice PDF to Blob Storage, generate a SAS URL, and set
-  `SAMPLE_INVOICE_URL` in your environment.
+This is extraction, not payment approval. A field's presence doesn't prove
+correctness — validate totals/dates against deterministic business rules. Lesson 15
+shows how to pass extracted fields to a model for bounded review.
+
+CU fetches the URL server-side. `file://` paths don't work. Upload your invoice
+PDF to Blob Storage, generate a read-only SAS URL, set SAMPLE_INVOICE_URL.
+
+Code path:
+  SAMPLE_INVOICE_URL → validate (no file://) → analyze("prebuilt-invoice") → poll →
+  print status and contents[0].fields.
+
+What to watch. A dict with VendorName, InvoiceTotal, InvoiceDate, Items, etc.
+Confidence scores appear per field when configured. Missing fields mean the layout
+couldn't extract them — inspect the source PDF.
+
+Prerequisites / env vars:
+  CU_ENDPOINT        — https://<resource>.services.ai.azure.com
+  CU_API_VERSION     — 2025-11-01 (GA)
+  SAMPLE_INVOICE_URL — HTTPS Blob SAS URL to an invoice PDF (required)
 """
 import os
 

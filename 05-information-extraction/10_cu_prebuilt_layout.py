@@ -1,6 +1,27 @@
-"""Content Understanding `prebuilt-layout` — tables + figures + sections + reading order.
+# Run: uv run python 05-information-extraction/10_cu_prebuilt_layout.py
+"""Content Understanding `prebuilt-layout` — structure-preserving extraction to Markdown.
 
-Preserves document structure so downstream RAG chunks stay semantically clean.
+`prebuilt-layout` extracts pages, tables, figures, sections, and reading order into
+Markdown. Use it when document structure matters for RAG chunks — tables become
+Markdown tables, headings become header markers, figures are referenced. This is
+better evidence than flattened OCR (prebuilt-read, L09) for documents with tables.
+Does NOT extract domain-specific fields like invoice totals — use prebuilt-invoice (L11).
+
+Requires CU_LAYOUT_SOURCE_URL set to an HTTPS URL. Upload your document to Blob
+and generate a short-lived read-only SAS URL. A document with tables and figures
+best demonstrates the layout output.
+
+Code path:
+  analyze("prebuilt-layout", CU_LAYOUT_SOURCE_URL) → poll → print pages, tables,
+  figures, sections counts and first 800 chars of markdown.
+
+What to watch. Table count > 0 and Markdown includes `| col | col |` table syntax.
+If counts are all 0, the document has no detectable structure. Compare with L09.
+
+Prerequisites / env vars:
+  CU_ENDPOINT           — https://<resource>.services.ai.azure.com
+  CU_API_VERSION        — 2025-11-01 (GA)
+  CU_LAYOUT_SOURCE_URL  — HTTPS URL to a document with tables/figures (required)
 """
 import os
 

@@ -1,7 +1,26 @@
-"""Content Understanding `prebuilt-read` — basic OCR: words + paragraphs.
+# Run: uv run python 05-information-extraction/09_cu_prebuilt_read.py
+"""Content Understanding `prebuilt-read` — basic OCR extraction to Markdown.
 
-Lightweight starting point. No tables / figures / sections — use `prebuilt-layout`
-for that. Formulas and barcodes come back too when present.
+`prebuilt-read` extracts words, paragraphs, and formulas into Markdown. It has
+no table, figure, or section hierarchy — use `prebuilt-layout` (lesson 10) when
+document structure matters for RAG chunking. Good baseline for plain text documents.
+
+CU's async pattern: submit URL → 202 + Operation-Location → poll until succeeded →
+consume result.contents[0].markdown. CU fetches the URL server-side; `file://`
+paths are not reachable. The default URL is a public Azure sample PDF — replace
+with CU_READ_SOURCE_URL for your own document.
+
+Code path:
+  analyze("prebuilt-read", src) → poll → print status and first 500 chars of markdown.
+
+What to watch. `status: succeeded` and a Markdown text preview. Tables/figures
+absent from output — that's expected for prebuilt-read. Use prebuilt-layout (L10)
+to get those.
+
+Prerequisites / env vars:
+  CU_ENDPOINT        — https://<resource>.services.ai.azure.com
+  CU_API_VERSION     — 2025-11-01 (GA)
+  CU_READ_SOURCE_URL — optional; overrides public sample URL
 """
 import os
 

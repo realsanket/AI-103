@@ -1,13 +1,31 @@
-"""Agent grounded in Content Understanding output.
+# Run: uv run python 05-information-extraction/15_cu_content_agent.py
+"""CU invoice extraction → ephemeral Foundry agent → bounded business review.
 
-Beginner note:
-  Pipeline: invoice PDF → CU `prebuilt-invoice` extracts fields → an
-  ephemeral agent reasons over those fields → business-friendly review.
+Two-stage pipeline: (1) CU `prebuilt-invoice` extracts structured fields from
+an invoice PDF, (2) an ephemeral Foundry agent with inline instructions reasons
+over those fields to produce a business-friendly summary, approval status, issues
+found, and recommended next step. The agent is created inline — no pre-created
+agent from lesson 07 needed.
 
-  Two things fixed vs the older version:
-  1. Agent is ephemeral (`instructions=` inline) — no missing agent lookup.
-  2. Invoice URL comes from `SAMPLE_INVOICE_URL` env var — no `file://`
-     (CU cannot fetch local files; upload to Blob and use a SAS URL).
+This separates extraction from reasoning. CU does extraction; the model does bounded
+business analysis. Model output is a proposed review, NOT an automated approval —
+validate extracted fields against deterministic rules and require human approval
+for consequential actions.
+
+Code path:
+  _extract_fields() → analyze("prebuilt-invoice") → format fields as prompt text.
+  project_client() → create_version(PromptAgentDefinition with inline instructions) →
+  responses.create() with formatted invoice fields → print output_text.
+
+What to watch. Business summary, approval status (e.g., "Approved / Issues found"),
+any discrepancies flagged, and next step. If the agent invents values not in the
+fields, the instructions aren't working — tighten them.
+
+Prerequisites / env vars:
+  CU_ENDPOINT        — https://<resource>.services.ai.azure.com
+  PROJECT_ENDPOINT   — Foundry project endpoint
+  DEFAULT_MODEL      — deployed chat model
+  SAMPLE_INVOICE_URL — HTTPS Blob SAS URL to an invoice PDF (required)
 """
 import os
 

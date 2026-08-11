@@ -1,7 +1,27 @@
-"""Custom Content Understanding analyzer via `baseAnalyzerId: prebuilt-document`.
+# Run: uv run python 05-information-extraction/12_cu_custom_analyzer.py
+"""Custom Content Understanding analyzer — domain-specific field schema on prebuilt-document.
 
-Defines a Northwind-specific schema (ticket_id, sla_tier, breach_penalty)
-and applies it to a scanned support notice.
+A custom analyzer combines a `baseAnalyzerId` (prebuilt-document) with a `fieldSchema`
+you define: extract strings/numbers, classify into an enum (sla_tier), or generate a
+summary. This lesson creates the `northwind-support-notice` analyzer and optionally
+analyzes a document. The analyzer persists in the CU resource — creating it requires
+Cognitive Services Content Understanding Contributor.
+
+Three field methods: `extract` (pull value from doc), `classify` (map to enum),
+`generate` (LLM produces a value). `generate` is model output, not source truth.
+
+Code path:
+  create_analyzer(ANALYZER_ID, _DEFINITION) → PUT analyzer. If URL env var set:
+  analyze(ANALYZER_ID, src) → poll → print contents[0].fields.
+
+What to watch. Analyzer creation: `analyzer '<id>' ready.` Field output: ticket_id,
+customer_name, sla_tier (classified into enum), breach_penalty_usd (extracted number),
+summary (generated). A missing field means CU couldn't extract it — inspect source doc.
+
+Prerequisites / env vars:
+  CU_ENDPOINT            — https://<resource>.services.ai.azure.com
+  CU_API_VERSION         — 2025-11-01 (GA)
+  CU_CUSTOM_SOURCE_URL   — optional HTTPS URL to a support notice PDF to analyze
 """
 import os
 
