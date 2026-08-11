@@ -1,5 +1,29 @@
 # Run: uv run python 06-model-customization-other/11_priority_processing.py --model <deployment> --apply
-"""Send one priority-tier Responses request only with explicit opt-in."""
+"""Send one priority-tier Responses request only with explicit opt-in.
+
+Priority processing charges a premium per token to lower latency on supported
+Global Standard or US Data Zone Standard deployments. Shares quota with
+Standard. Under ramp/peak/long-context conditions requests can fall back to
+Standard tier — inspect `service_tier` in the response to confirm.
+
+Priority is not the dedicated-capacity choice — PTU is. Use Priority when a
+supported online workload needs lower latency without a capacity commitment.
+Do not assume priority is a hard SLA guarantee.
+
+Code path:
+  --apply: openai_client().responses.create(model=deployment, input=text,
+  service_tier="priority") → print response.model, service_tier, output_text.
+
+What to watch. `Service tier: priority` in response — confirms tier honored.
+Falls back to `standard` under contention. Monitor via Azure Monitor request
+latency + service_tier dimensions to see rate of fallback.
+
+Prerequisites / env vars:
+  --model  — supported Global/Data Zone Standard deployment name (required)
+  --input  — prompt text (default provided)
+  --apply  — send billable request
+  AZURE_OPENAI_ENDPOINT
+"""
 from __future__ import annotations
 
 import argparse

@@ -1,5 +1,34 @@
 # Run: uv run python 06-model-customization-other/08_evaluate_candidate.py --dataset eval.jsonl --candidate ft-deployment --apply
-"""Compare a candidate against optional baseline on held-out JSONL."""
+"""Compare a candidate against optional baseline on held-out JSONL.
+
+Small transparent evaluator: exact-match scoring against a held-out set. Row
+schema is `{"query": str, "expected": str}`. Default validates rows; `--apply`
+sends one Responses call per model per row and prints a single score. This is
+NOT a Foundry evaluation object — no dataset, run, portal record, or built-in
+evaluator is created.
+
+Exact match is only meaningful when there really is one correct string
+(single-token classification, extraction). For open-ended quality use domain
+5's Foundry evaluators or lesson 21 in domain 01. Always audit representative
+outputs, subgroups, safety failures, latency, tokens, and cost alongside the
+aggregate score before promoting a candidate.
+
+Code path:
+  validate_eval(path) → rows with nonempty query+expected. With --apply:
+  score(model, rows) → per row: responses.create(model, input=query) →
+  .output_text.strip().casefold() vs expected.casefold(). Print
+  `<label>: matches/total (pct%)` per model.
+
+What to watch. `candidate: 42/50 exact matches (84.0%)`. Baseline optional
+but strongly recommended — a candidate that beats no baseline proves nothing.
+
+Prerequisites / env vars:
+  --dataset    — held-out JSONL (required)
+  --candidate  — deployment name to test (required)
+  --baseline   — deployment name to compare against (optional)
+  --apply      — send inference requests
+  AZURE_OPENAI_ENDPOINT
+"""
 from __future__ import annotations
 
 import argparse

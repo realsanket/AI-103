@@ -1,5 +1,34 @@
 # Run: uv run python 06-model-customization-other/12_router_instant.py --mode router --model model-router --apply
-"""Exercise deployed model router or supported instant model only with --apply."""
+"""Exercise deployed model router or supported instant model only with --apply.
+
+Two delivery patterns in one lab. `--mode router` calls a deployed
+model-router alias; router picks between allowed models per request. `--mode
+instant` calls a supported preview model name directly with no deployment —
+Instant Access uses global quota, currently requires a West US 3 project,
+Foundry User access, and a supported instant model.
+
+Both modes make ONE billable request under --apply and print requested vs
+handled-by model. Router is for mixed prompt complexity where hard-coding
+one model wastes cost or quality. Instant is for preview prototyping when
+you don't want to create a deployment. Neither replaces PTU for dedicated
+capacity or custom filters/residency requirements.
+
+Code path:
+  --apply: openai_client().responses.create(model=name, input=text) →
+  print "Requested: <name>" and "Handled by: <response.model>". For router
+  the two often differ (the point).
+
+What to watch. Router: `Handled by:` shows the router's per-request
+selection. Instant: same client/API works with no deployment. Pin an instant
+model version when stability matters.
+
+Prerequisites / env vars:
+  --mode router|instant — pattern (required)
+  --model NAME          — router deployment or instant model name (required)
+  --input TEXT          — prompt (default provided)
+  --apply               — send billable request
+  AZURE_OPENAI_ENDPOINT
+"""
 from __future__ import annotations
 
 import argparse

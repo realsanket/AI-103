@@ -1,5 +1,38 @@
 # Run: uv run python 06-model-customization-other/07_deploy_checkpoint.py --model-id ftchkpt-... --name northwind-ft --apply
-"""Deploy a chosen fine-tuned model or checkpoint only with --apply."""
+"""Deploy a chosen fine-tuned model or checkpoint only with --apply.
+
+Control-plane operation via `CognitiveServicesManagementClient` — creates or
+updates one deployment for the supplied `--model-id` (fine-tuned model or
+ftchkpt-...). Default preflight prints intended payload; `--apply` actually
+mutates state.
+
+`--apply` can replace an existing deployment of the same name and begins
+hosting charges immediately. Fine-tuned deployments support Standard, Global
+Standard preview, and Provisioned Throughput preview only where currently
+listed for the base model in the target region. Preflight portal/catalog
+first — this lab does not query availability.
+
+Code path:
+  settings() + foundry_account_name() derive account. --apply:
+  CognitiveServicesManagementClient(DefaultAzureCredential, sub).
+  deployments.begin_create_or_update(rg, account, name, Deployment(
+    sku=Sku(name=args.sku, capacity=args.capacity),
+    properties=DeploymentProperties(model=DeploymentModel(format="OpenAI",
+      name=model_id, version="1"))
+  )).result().
+
+What to watch. Preflight: `Would create/update deployment <name>`. With
+--apply: `Deployment: <name>` and `State: Succeeded`. Errors: unsupported
+SKU for model, no capacity in region, missing management-plane role.
+
+Prerequisites / env vars:
+  --model-id     — ftchkpt-... or ft:... (required)
+  --name         — new deployment name (required)
+  --sku          — target SKU (default Standard)
+  --capacity     — SKU units (default 1)
+  --apply        — create/update deployment
+  AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP, FOUNDRY_ENDPOINT
+"""
 from __future__ import annotations
 
 import argparse

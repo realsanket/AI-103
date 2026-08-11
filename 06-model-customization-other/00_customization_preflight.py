@@ -1,5 +1,28 @@
 # Run: uv run python 06-model-customization-other/00_customization_preflight.py
-"""Local readiness check for Microsoft Foundry customization labs."""
+"""Local readiness check for Microsoft Foundry customization labs.
+
+Confirms the env vars every lesson in this domain reads. Runs no cloud call.
+Prints which of AZURE_OPENAI_ENDPOINT, FOUNDRY_ENDPOINT, AZURE_SUBSCRIPTION_ID,
+AZURE_RESOURCE_GROUP, and DEFAULT_MODEL are set. Only proves configuration is
+present — not that the caller has permissions, that models exist, or that
+quota is available in the target region.
+
+Run before any lesson to catch missing config early. Never use `--apply`
+elsewhere until this passes cleanly.
+
+Code path:
+  settings() → dict of five boolean checks → print each as configured/missing.
+
+What to watch. Every check should print `configured`. `missing` items must be
+fixed in .env before running lessons 05, 07, 09, 10, 11, or 12 with --apply.
+
+Prerequisites / env vars:
+  AZURE_OPENAI_ENDPOINT   — https://<resource>.openai.azure.com
+  FOUNDRY_ENDPOINT        — https://<resource>.services.ai.azure.com
+  AZURE_SUBSCRIPTION_ID   — sub containing the Foundry resource
+  AZURE_RESOURCE_GROUP    — RG for management-plane calls
+  DEFAULT_MODEL           — base deployment name for inference labs
+"""
 from __future__ import annotations
 
 from _shared.config import settings

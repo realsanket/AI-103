@@ -1,5 +1,41 @@
 # Run: uv run python 06-model-customization-other/05_submit_training.py --kind sft --train train.jsonl --model <base> --apply
-"""Upload reviewed data and submit SFT, DPO, or RFT only with --apply."""
+"""Upload reviewed data and submit SFT, DPO, or RFT only with --apply.
+
+One entrypoint for all three customization methods. Reuses the dataset
+validators from lessons 01/02/03 before submission — a job with bad data
+fails after upload cost is incurred. Default run validates locally and prints
+the intended submission plan. `--apply` uploads each file with purpose
+`fine-tune` and submits exactly one job.
+
+Every job is persistent and billable. SFT can omit `--validation` for the
+API, but a validation set is strongly recommended for early-stopping and
+checkpoint selection. RFT requires `--validation` and `--grader`.
+`--training-type` (Standard / GlobalStandard / Developer) is opt-in because
+availability depends on model, region, and residency policy.
+
+Code path:
+  validators(kind) → per-row check. With --apply: files.create(purpose=
+  "fine-tune") for train + validation → fine_tuning.jobs.create(model=,
+  training_file=, validation_file=, suffix=, method={"type": ..., ...}).
+  DPO adds beta+l2_multiplier; RFT adds grader source. training_type routes
+  via extra_body={"trainingType": ...}.
+
+What to watch. Preflight: `Validated <KIND> input locally.` With --apply:
+`Uploaded training file: file-...` then `Submitted <KIND> job: ftjob-... (<state>)`.
+Record both IDs — lessons 06 (monitor) and 07 (deploy) need them.
+
+Prerequisites / env vars:
+  --kind sft|dpo|rft         — training method (required)
+  --train PATH               — training JSONL (required)
+  --validation PATH          — validation JSONL (required for RFT)
+  --grader PATH              — Python grader (required for RFT)
+  --model NAME               — supported base model + version (required)
+  --suffix NAME              — custom model suffix
+  --training-type            — GlobalStandard | Standard | Developer
+  --beta / --l2-multiplier   — DPO hyperparameters (default 0.1/0.1)
+  --apply                    — upload files + submit job
+  AZURE_OPENAI_ENDPOINT      — control-plane endpoint
+"""
 from __future__ import annotations
 
 import argparse

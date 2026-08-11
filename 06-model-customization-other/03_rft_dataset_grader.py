@@ -1,5 +1,29 @@
 # Run: uv run python 06-model-customization-other/03_rft_dataset_grader.py --dataset rft.jsonl --grader grader.py
-"""Validate reinforcement fine-tuning prompts and Python grader source locally."""
+"""Validate reinforcement fine-tuning prompts and Python grader source locally.
+
+RFT improves reasoning by rewarding correct answers. Each JSONL row ends in a
+`user` message (not assistant — the model produces the answer during training)
+plus fields your grader consumes. The grader defines `grade(sample, item) →
+numeric score`; the service runs it in a sandbox, this lab compiles it
+locally to check syntax but never executes.
+
+Only use RFT for tasks with a verifiable outcome (math, extraction, code). A
+rising train reward with a flat validation reward is reward hacking, not
+progress. Current RFT service has a $5,000 safety stop for training + grading
+— that is a stop, not a budget.
+
+Code path:
+  jsonl_rows(path) → assert last message role == "user"; grader.read_text()
+  → assert `def grade(sample, item):` present → compile() checks syntax
+  without running.
+
+What to watch. `Validated N RFT prompt(s) and compiled <grader>`. Errors name
+missing `grade` signature or Python compile errors in grader.
+
+Prerequisites / env vars:
+  --dataset  — RFT JSONL path (required)
+  --grader   — Python grader file path (required)
+"""
 from __future__ import annotations
 
 import argparse

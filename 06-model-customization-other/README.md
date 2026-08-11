@@ -1,12 +1,97 @@
 # Domain 6: Model customization and delivery
 
-> Supplemental current Microsoft Foundry labs. Run commands from repository root with `uv run python 06-model-customization-other/<lesson>.py`. Every remote operation is opt-in with `--apply`; default commands validate local inputs or print a preflight. A successful request proves only that request. It does not prove model quality, safety, data governance, capacity, availability, or production readiness.
+> Runnable labs for Foundry model customization (SFT, DPO, RFT, distillation) plus delivery-side choices (Standard, Priority, Global Batch, PTU, Instant Access, Model Router) and cost review. Run commands from repository root: `uv run python 06-model-customization-other/<lesson>.py`.
+>
+> Every cloud operation is opt-in via `--apply`. Default commands validate local input or print a preflight. A successful request proves only that request under its current identity, region, quota, and preview status. It does not prove model quality, safety, data governance, capacity, availability, or production readiness.
 
-This domain covers model customization and current delivery choices that affect its operational result: supervised fine-tuning (SFT), Direct Preference Optimization (DPO), reinforcement fine-tuning (RFT), distillation, datasets, graders, training, deployment, evaluation, quota, PTU, priority processing, Global Batch, instant access, model router, and cost.
+## What this domain teaches
 
-## Start safely
+A customization + delivery decision is a chain of independent gates, not one API call:
 
-Install project dependencies, authenticate, and configure existing endpoints:
+```text
+Baseline: prompt + RAG + structured output enough?
+        ↓ no
+Pick method: SFT (skill/format) · DPO (preference) · RFT (verifiable reward) · Distillation (teacher→student)
+        ↓
+Prepare + validate reviewed data (train / validation / held-out split)
+        ↓
+Submit ONE training job (persistent, billable)
+        ↓
+Monitor job + pick checkpoint against held-out set (not "newest")
+        ↓
+Deploy candidate to a disposable evaluation deployment
+        ↓
+Evaluate vs baseline; audit safety/subgroup/latency/cost — not just aggregate
+        ↓
+Choose delivery: Standard · Priority · Global Batch · PTU · Instant · Router
+        ↓
+Cost review + tag + monitor + retire idle deployments
+```
+
+Lessons follow that chain in six stages. They do not build a production customization pipeline or prove every training-type/region/model combination.
+
+## Foundry customization + delivery mental model
+
+### Customization methods
+
+| Method | Data contract | Best for | Do not use for |
+|---|---|---|---|
+| **SFT** (Supervised Fine-Tuning) | JSONL rows of `messages` ending in `assistant` | Reproducing a format, extraction, or reliable answer | Ambiguous preference where no output is objectively best |
+| **DPO** (Direct Preference Optimization) | `input` + `preferred_output` + `non_preferred_output` | Tone, style, safety preference over paired alternatives | Teaching a new skill (needs SFT) |
+| **RFT** (Reinforcement Fine-Tuning) | Prompts ending in `user` + validation set + Python `grade()` grader | Reasoning tasks with a verifiable numeric reward | Tasks whose quality cannot be reliably graded |
+| **Distillation** | Reviewed seed prompts → teacher-generated SFT candidates | Bootstrapping SFT data from a stronger teacher | Automatic trust of synthetic output (must review) |
+
+### Delivery choices
+
+| Choice | Residency | Billing | Best for | Watch out for |
+|---|---|---|---|---|
+| **Standard** | Regional / Data Zone / Global | Pay-per-token | Variable traffic, dev/test | Shared capacity; 429 under load |
+| **Priority processing** | Global Standard or US Data Zone Standard | Priority per-token premium | Latency-sensitive online w/o commitment | Can fall back to Standard; not a hard SLA |
+| **Global Batch** | Global / Data Zone | ~50% discount, async | Deferred bulk inference | No fine-tuned models; billable past 24h |
+| **PTU** (Provisioned Throughput) | Regional / Data Zone / Global | Reserved hourly capacity | High predictable volume, latency-sensitive | Bills while idle; quota ≠ capacity |
+| **Instant Access** (preview) | West US 3 project currently | Pay-per-token, global quota | Preview prototyping, no deployment | Preview scope; version pin for stability |
+| **Model Router** | Follows deployment | Pay per selected model | Mixed prompt complexity | Router deploy + policy configuration required |
+
+### Two Azure planes
+
+```text
+Control plane (CognitiveServicesManagementClient)
+  Create/replace deployments, read quota/usages, get resource metadata
+  Roles: Cognitive Services Contributor / Owner + subscription Reader for usages
+
+Data plane (openai_client with AZURE_OPENAI_ENDPOINT)
+  files.create · fine_tuning.jobs.create · batches.create · responses.create
+  Role: Cognitive Services OpenAI User (data actions on the resource)
+```
+
+Lessons 05, 06, 08, 09, 11, 12 use the data plane. Lessons 07 and 10 use the control plane. A data-plane role does not deploy models; a control-plane role does not send inference.
+
+## Glossary
+
+| Term | Definition |
+|---|---|
+| **Base model** | Foundation model available in the catalog (e.g. `gpt-4o-mini-2024-07-18`) used as the starting point for fine-tuning. |
+| **Custom model** | Fine-tuned artifact produced by a training job: `ft:<base>:<org>::<id>`. |
+| **Checkpoint** | Intermediate custom model snapshot during training: `ftchkpt-...`. Can be deployed instead of final. |
+| **SFT** | Supervised Fine-Tuning: model learns to reproduce reviewed input→output pairs. |
+| **DPO** | Direct Preference Optimization: model shifts toward preferred over non-preferred paired responses. |
+| **RFT** | Reinforcement Fine-Tuning: model rewarded for correct answers by a Python grader function. |
+| **Grader** | Python function `grade(sample, item) → float` executed by the RFT service in a sandbox. |
+| **Distillation** | Using a stronger teacher model to generate candidate SFT training data for a smaller student. |
+| **Training type** | Standard (regional), GlobalStandard (global capacity), or Developer (idle capacity, no SLA). |
+| **PTU** | Provisioned Throughput Unit: reserved hourly capacity, not a prepaid token bucket. |
+| **Global Batch** | Asynchronous bulk inference at ~50% discount, targets 24h completion, separate quota. |
+| **Priority processing** | Premium per-token tier with lower latency on supported Standard deployments. |
+| **Instant Access** | Preview: call a supported model name without creating a deployment; global quota. |
+| **Model Router** | Deployed alias that picks among allowed models per request (Balanced/Quality/Cost mode). |
+| **Reward hacking** | Rising train reward with flat/falling validation reward — model gamed the grader. |
+| **Held-out set** | Evaluation data never seen during training or checkpoint selection; used for release decisions. |
+
+## Setup
+
+### Environment variables
+
+From repository root:
 
 ```bash
 uv sync
@@ -15,200 +100,374 @@ az login
 uv run python 06-model-customization-other/00_customization_preflight.py
 ```
 
-The labs use `_shared.openai_client.openai_client()`: an OpenAI v1 client against `AZURE_OPENAI_ENDPOINT` with `DefaultAzureCredential` and scope `https://ai.azure.com/.default`. Do not use a Foundry project endpoint as this client's base URL. Use deployment names for deployed models. A model-router deployment is also a deployment name. Instant access uses a supported model name, not a deployment.
-
-Set existing root settings before an opt-in operation:
+Use a nonproduction Foundry resource for every `--apply`. Never commit `.env`, keys, dataset files with personal data, or fine-tuned model IDs pointing to customer content.
 
 ```dotenv
+# Foundry resource endpoints
 AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
 FOUNDRY_ENDPOINT=https://<resource>.services.ai.azure.com
+
+# Management plane context
 AZURE_SUBSCRIPTION_ID=<subscription-id>
 AZURE_RESOURCE_GROUP=<resource-group>
+
+# Base deployment for lessons 04, 11, 12 (existing pre-fine-tuning deployment)
+DEFAULT_MODEL=<deployment-name>
 ```
 
-Pass model names, deployment names, dataset paths, job IDs, and output paths as command arguments. This keeps data-bearing or experiment-specific values out of `.env.example`. Never put an API key, access token, customer data, SAS URL, or connection string in source control.
+`DefaultAzureCredential` picks up `az login` locally or managed/workload identity in Azure. Data-plane calls request scope `https://ai.azure.com/.default`; the custom subdomain on the Foundry resource is required for token auth.
 
-### Roles, boundaries, and preflight
+### Safe run order
 
-Start with `Foundry User` to use project/model data-plane features. Training and model deployment require current permissions for the target resource; a deployment generally needs `Microsoft.CognitiveServices/accounts/deployments/write` or an equivalent role. `10_quota_ptu_preflight.py --apply` also needs management-plane read access. Confirm exact roles in the target tenant before an apply operation.
+1. Run **00** first: local env-var check, no cloud call.
+2. Prepare data. Validate with **01** (SFT), **02** (DPO), or **03** (RFT + grader). All local.
+3. If bootstrapping training data: **04 --apply** calls a teacher once per prompt and writes candidates. Review, filter, split before uploading.
+4. **05 --apply** uploads reviewed data and submits ONE training job. Persistent + billable.
+5. **06 --apply** reads job state + 10 recent events. Re-run to poll.
+6. **08 --apply** with `--dataset held-out.jsonl --baseline <base> --candidate <ftmodel>` (from step 5) — exact-match score only; deploy first with a temp deployment.
+7. **07 --apply** creates a deployment for a chosen `ftchkpt-...` or fine-tuned model. Use a disposable eval deployment name.
+8. Choose delivery: **10** for quota/PTU planning; **11 --apply** for priority test; **12 --apply** for router or instant.
+9. **09 --apply** submits a Global Batch job (async, separate quota, no fine-tuned models).
+10. **13** for local PTU cost arithmetic; verify hourly rate in current pricing page.
 
-Before every `--apply`:
+### Costs and side effects
 
-1. Use a disposable, nonproduction resource and a least-privilege identity.
-1. Verify current model, method, region, tier, quota, and capacity support in
-the Foundry portal/model catalog. Do not infer availability from this repo.
-1. Remove secrets, personal data, protected content, and unlicensed material
-from datasets. Confirm retention, residency, and training-use approval.
-1. Establish a held-out evaluation baseline and a threshold before training.
-1. Estimate training, grading, inference, hosting, evaluation, storage,
-monitoring, and network cost. Set Azure budgets and tags outside this repo.
-1. Review every output and persistent effect printed by the preflight.
+| Lesson(s) | Side effect or cost |
+|---|---|
+| 00, 01, 02, 03, 13 | Local only; no cloud call ever. |
+| 04 | Local by default. `--apply` calls teacher once per row (inference cost) + writes new JSONL file. |
+| 05 | Local by default. `--apply` uploads files + creates one training job. Training tokens billable per method + tier. |
+| 06 | Local by default. `--apply` reads one job + 10 events (read-only). |
+| 07 | Local by default. `--apply` creates/replaces one deployment — hosting charges start immediately. |
+| 08 | Local by default. `--apply` sends 1–2 Responses calls per row (candidate + optional baseline). |
+| 09 | Local by default. `--apply` uploads file + creates 24h Global Batch job. Billable per token; completed work stays billable after cancel. |
+| 10 | Local by default. `--apply` reads resource, deployments, quota (control-plane read). |
+| 11 | Local by default. `--apply` sends one priority-tier Responses request. |
+| 12 | Local by default. `--apply` sends one router or instant-model Responses request. |
 
-`--apply` is never a confirmation prompt. It performs the named operation immediately. Read-only Azure inspection is also opt-in so a default run makes no cloud request.
+Fine-tuned model deployments bill by hour while present. Global Batch enqueued-token quota is separate from Standard. PTU quota is a policy limit; capacity is separate — check both before committing.
 
-## Learning path
+## Decision tables
 
-| Lesson | Default action | `--apply` effect |
+### When to fine-tune (vs prompt/RAG)
+
+```text
+Task well-defined + baseline measured?
+  No  → Fix task definition + measure baseline first.
+  Yes → Baseline passes bar?
+          Yes → Ship prompt/RAG.
+          No  → Baseline consistently misses in a specific way?
+                  No  → Try structured output + few-shot + RAG improvements.
+                  Yes → Fine-tune (pick method below).
+```
+
+### Pick a customization method
+
+| Failure mode of baseline | Method | Data you need |
 |---|---|---|
-| `00_customization_preflight.py` | Reads local settings. | No `--apply`; remains local. |
-| `01_sft_dataset.py` | Validates SFT JSONL. | Not applicable; remains local. |
-| `02_dpo_dataset.py` | Validates DPO JSONL. | Not applicable; remains local. |
-| `03_rft_dataset_grader.py` | Validates RFT JSONL and compiles grader source without running it. | Not applicable; remains local. |
-| `04_distillation_dataset.py` | Validates teacher prompts and prints output plan. | Calls teacher once per row and creates a new local JSONL candidate file. |
-| `05_submit_training.py` | Validates selected data and submission plan. | Uploads files and submits exactly one SFT, DPO, or RFT job. |
-| `06_training_monitor.py` | Prints read plan. | Reads one job and its ten newest events. |
-| `07_deploy_checkpoint.py` | Prints deployment payload plan. | Creates or updates one deployment. |
-| `08_evaluate_candidate.py` | Validates held-out exact-match rows. | Calls candidate and optional baseline once per row. |
-| `09_batch_inference.py` | Validates Global Batch Responses JSONL. | Uploads input and creates one asynchronous Global Batch job. |
-| `10_quota_ptu_preflight.py` | Explains delivery-choice preflight. | Reads resource region, deployments, and quota usage. |
-| `11_priority_processing.py` | Prints one priority request plan. | Sends one priority-tier Responses request. |
-| `12_router_instant.py` | Prints router or instant-access plan. | Sends one router or instant model request. |
-| `13_cost_review.py` | Calculates a local PTU arithmetic estimate. | Not applicable; remains local. |
+| Doesn't follow exact format | **SFT** | 100+ reviewed input/output pairs |
+| Wrong tone/style/safety choice between two acceptable answers | **DPO** | Preference pairs annotated by reviewer |
+| Wrong reasoning steps in tasks with verifiable answer | **RFT** | Prompts + validation + calibrated grader |
+| Not enough SFT data for target task | **Distillation** first, then SFT | Seed prompts + a stronger teacher deployment |
 
-## Choose customization method
+### Pick a delivery tier
 
-| Need | Method | Data contract | Do not use it for |
-|---|---|---|---|
-| Teach reliable answers, a format, extraction, or tool behavior | SFT | High-quality `messages` input-output examples | An ambiguous preference where no output is objectively best. |
-| Prefer tone, style, safety, or another subjective answer over a paired alternative | DPO | One input plus preferred and non-preferred outputs | Teaching a new skill without contrasting preference pairs. |
-| Improve reasoning with a measurable reward | RFT | Prompts, validation set, and one calibrated grader | Tasks whose quality cannot be reliably graded. |
-| Create candidate examples from a stronger teacher | Distillation | Reviewed seed prompts, then teacher output | Automatic trust of synthetic output. |
+```text
+Async bulk (>1M requests, latency OK ~24h)?
+  Yes → Global Batch (not fine-tuned models).
+  No  → Sustained high volume + latency SLO?
+          Yes → PTU (verify capacity + budget for idle).
+          No  → Need lower latency spikes without commitment?
+                  Yes → Priority processing (Global/DZ Standard only).
+                  No  → Mixed prompt complexity?
+                          Yes → Model Router deployment.
+                          No  → Standard.
 
-Fine-tuning changes weights. It does not retrieve current facts, replace authorization, repair a poor task definition, or eliminate a need for prompting and evaluation. Start with prompt/structured-output/RAG baselines. Fine-tune only when a task remains stable and a measured baseline justifies the data, operation, and lifecycle cost.
-
-### SFT data
-
-SFT uses UTF-8 JSONL. Each record has a nonempty `messages` array that ends with an `assistant` message:
-
-```jsonl
-{"messages":[{"role":"system","content":"Extract invoice status as JSON."},{"role":"user","content":"Invoice 100 is paid."},{"role":"assistant","content":"{\"invoice\":\"100\",\"status\":\"paid\"}"}]}
+Preview prototyping without deployment overhead?
+  Yes → Instant Access (West US 3, supported model list, pin version).
 ```
 
-Validate before upload:
+## Lesson map
+
+| # | Lesson | Runnable objective | Status / limitation |
+|---:|---|---|---|
+| 00 | [Customization preflight](00_customization_preflight.py) | Verify env vars for domain 6. | Local; no cloud call. |
+| 01 | [SFT dataset](01_sft_dataset.py) | Validate SFT JSONL structure. | Local; no upload. |
+| 02 | [DPO dataset](02_dpo_dataset.py) | Validate DPO preference-pair JSONL. | Local; no upload. |
+| 03 | [RFT dataset + grader](03_rft_dataset_grader.py) | Validate RFT JSONL + grader syntax. | Local; grader not executed. |
+| 04 | [Distillation dataset](04_distillation_dataset.py) | Generate teacher candidates from seeds. | `--apply` calls teacher per row + writes JSONL. |
+| 05 | [Submit training](05_submit_training.py) | Upload + submit SFT/DPO/RFT job. | `--apply` creates one persistent billable job. |
+| 06 | [Training monitor](06_training_monitor.py) | Read one job + 10 events. | `--apply` read-only; not continuous. |
+| 07 | [Deploy checkpoint](07_deploy_checkpoint.py) | Create deployment for fine-tuned model/checkpoint. | `--apply` replaces existing name; hosting bill starts. |
+| 08 | [Evaluate candidate](08_evaluate_candidate.py) | Exact-match candidate vs baseline. | `--apply` 1-2 inference calls per row; no eval object. |
+| 09 | [Global Batch](09_batch_inference.py) | Submit 24h Global Batch Responses job. | `--apply` async job; no fine-tuned models. |
+| 10 | [Quota + PTU preflight](10_quota_ptu_preflight.py) | Read region, deployments, quota. | `--apply` control-plane read only. |
+| 11 | [Priority processing](11_priority_processing.py) | One priority-tier Responses request. | `--apply` billable; can fall back to Standard. |
+| 12 | [Router + Instant](12_router_instant.py) | Router deployment or Instant model call. | `--apply` one billable request per invocation. |
+| 13 | [Cost review](13_cost_review.py) | Local PTU × rate × hours arithmetic. | Local; not a bill or forecast. |
+
+---
+
+## Stage 1 — Preflight and data validation (lessons 00–03)
+
+Start here. Every training job downstream depends on reviewed data. These four lessons make zero cloud calls and cannot cost money. They exist so a bad row does not survive until upload.
+
+### 00 — Customization preflight
+
+**Question answered:** Are the env vars for this domain configured?
+
+**Background.** Every lesson from 04 onward reads at least one of `AZURE_OPENAI_ENDPOINT`, `FOUNDRY_ENDPOINT`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, or `DEFAULT_MODEL`. This lesson checks all five in one place. It proves configuration is present — not that permissions, quota, or capacity exist.
+
+```bash
+uv run python 06-model-customization-other/00_customization_preflight.py
+```
+
+**Code path.**
+1. `settings()` reads `.env` via the shared config helper.
+2. Print each of the five keys as `configured` or `missing`.
+3. Print reminder about nonproduction resource + model/method/region/quota + data governance review before any `--apply`.
+
+**What to watch.** All five should print `configured`. Any `missing` must be filled in `.env` before running lessons 05, 07, 09, 10, 11, or 12 with `--apply`.
+
+**Study points.**
+- The check is naive: it does NOT verify the endpoint responds, that the identity has any role, or that `DEFAULT_MODEL` maps to a real deployment.
+- `az login` is a separate step — this lesson doesn't test the token.
+
+**References:** [Fine-tuning considerations](https://learn.microsoft.com/azure/foundry/openai/concepts/fine-tuning-considerations) · [Authentication and authorization](https://learn.microsoft.com/azure/foundry/concepts/authentication-authorization-foundry)
+
+### 01 — Validate SFT JSONL
+
+**Question answered:** Does my SFT dataset conform to the API contract before I upload it?
+
+**Background.** SFT teaches a model to reproduce reviewed input→output pairs. Each JSONL row is `{"messages": [...]}` where the array is nonempty and ends with an `assistant` message. Bad rows only surface after upload — this lab catches them locally.
 
 ```bash
 uv run python 06-model-customization-other/01_sft_dataset.py --dataset train.jsonl
 ```
 
-Split source examples before training: train for fitting, validation for training-time selection, and held-out evaluation for the release decision. Near duplicates across splits leak answers. Preserve task diversity and edge/failure cases. Prefer accurate, representative examples over bulk collection.
+**Code path.**
+1. `jsonl_rows()` reads nonblank lines, parses each as an object.
+2. Per row: `messages()` asserts nonempty list with string roles.
+3. Assert last message role == `"assistant"`.
+4. Print validated count.
 
-### DPO data
+**What to watch.** `Validated N SFT record(s)`. A `ValueError` names the failing row (e.g. `row 42 must end with an assistant message for SFT.`).
 
-DPO uses preference pairs, not SFT `messages` rows. Each row has `input`, `preferred_output`, and `non_preferred_output`; outputs include at least one assistant message:
+**Data hygiene.**
+- Split into train/validation/held-out BEFORE running this. Near duplicates across splits leak answers.
+- Preserve edge and failure cases; prefer accurate, representative examples over bulk.
+- Remove secrets, personal data, protected content, and unlicensed material before validation.
 
-```jsonl
-{"input":{"messages":[{"role":"system","content":"Respond briefly."},{"role":"user","content":"Explain a retry."}]},"preferred_output":[{"role":"assistant","content":"Retry bounded transient failures with backoff and jitter."}],"non_preferred_output":[{"role":"assistant","content":"Retry forever immediately."}]}
-```
+**References:** [Fine-tuning](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning) · [Fine-tuning considerations](https://learn.microsoft.com/azure/foundry/openai/concepts/fine-tuning-considerations)
+
+### 02 — Validate DPO JSONL
+
+**Question answered:** Does my preference-pair dataset match the DPO contract?
+
+**Background.** DPO shifts a model toward a preferred response over a rejected alternative. Row shape: `{"input": {"messages": [...]}, "preferred_output": [...], "non_preferred_output": [...]}` where each output list contains at least one assistant message. DPO teaches subjective preference (tone, style, safety), NOT new capability.
 
 ```bash
 uv run python 06-model-customization-other/02_dpo_dataset.py --dataset preferences.jsonl
 ```
 
-Keep alternatives comparable: same user intent, one intentionally preferred response, and a documented annotation rule. Do not encode hidden discrimination, policy conflicts, or accidental style bias as preference. The submission lab exposes documented DPO `beta` and `l2_multiplier` parameters. Start with defaults unless controlled experiments show a reason to change them.
+**Code path.**
+1. Per row: assert `input` is object with valid `messages`.
+2. Assert `preferred_output` and `non_preferred_output` are valid message arrays.
+3. Assert at least one assistant message in each output.
 
-### RFT data and graders
+**What to watch.** `Validated N DPO preference pair(s)`. Errors name row + field.
 
-RFT suits reasoning tasks with a verifiable result. Its JSONL records end in a `user` message and can include fields consumed by the grader:
+**Preference design rules.**
+- Same user intent in both outputs, one intentional difference.
+- Do not encode hidden discrimination or accidental style bias as preference.
+- Documented annotation rule per reviewer.
+- Start with default `beta=0.1` and `l2_multiplier=0.1` in lesson 05 unless a controlled experiment justifies a change.
 
-```jsonl
-{"messages":[{"role":"developer","content":"Return only the arithmetic result."},{"role":"user","content":"2 + 3"}],"answer":"5"}
-```
+**References:** [DPO](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-direct-preference-optimization) · [Fine-tuning considerations](https://learn.microsoft.com/azure/foundry/openai/concepts/fine-tuning-considerations)
 
-The lab checks grader syntax, but never executes it locally:
+### 03 — Validate RFT dataset + grader
+
+**Question answered:** Does my RFT data end in a user message, and does my grader compile?
+
+**Background.** RFT rewards correct answers on tasks with a verifiable outcome. JSONL rows end in a `user` message (the model generates the answer during training). Extra fields feed the grader. The Python grader defines `grade(sample, item) → float`. Foundry runs it sandboxed; this lab only compiles the source locally.
 
 ```bash
 uv run python 06-model-customization-other/03_rft_dataset_grader.py \
   --dataset rft-train.jsonl --grader grader.py
 ```
 
-An RFT Python grader defines `grade(sample, item)` and returns a numeric score. Keep it deterministic where possible, bounded, adversarially tested, and independent of accidental answer shortcuts. The service executes it in a constrained environment; do not rely on network access. Use a single grader, or an explicit multigrader when one reward requires combined checks.
+**Code path.**
+1. Per row: assert last message role == `"user"`.
+2. `grader.read_text()` → assert `def grade(sample, item):` substring present.
+3. `compile(source, path, "exec")` — syntax check only, does not execute.
 
-RFT requires training and validation data. Calibrate the grader against baseline responses before training. Monitor train and validation reward, reasoning-token behavior, and failure cases. A rising training reward with a weak validation reward is not success; it can signal reward hacking. The current RFT service has a cost stop at $5,000 for training plus grading; resuming continues billing. Do not treat that safety stop as a budget.
+**What to watch.** `Validated N RFT prompt(s) and compiled <grader>`.
 
-### Distillation and synthetic data
+**Reward-hacking discipline.**
+- Rising train reward + flat validation reward = reward hacking, not progress.
+- Keep grader deterministic, bounded, adversarially tested.
+- No network calls in grader (sandbox blocks it).
+- Current RFT $5,000 safety stop is a stop, not a budget.
+- Calibrate grader on baseline responses BEFORE training.
 
-`04_distillation_dataset.py` is a deliberately narrow, inspectable teacher-generation lab. Input rows contain only `messages`; with `--apply`, it calls the named teacher once per row and writes a new SFT-shaped JSONL:
+**References:** [Reinforcement fine-tuning](https://learn.microsoft.com/azure/foundry/openai/how-to/reinforcement-fine-tuning) · [Azure OpenAI graders](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/azure-openai-graders)
+
+---
+
+## Stage 2 — Bootstrap training data (lesson 04)
+
+When you have seed prompts but not enough labelled outputs, use a stronger teacher to generate candidate outputs. This is the one lesson in stages 1–3 that can cost money by default.
+
+### 04 — Distillation dataset from teacher model
+
+**Question answered:** How do I generate SFT candidates from a stronger teacher?
+
+**Background.** Distillation uses a teacher model to create input→output pairs a smaller student can be fine-tuned on. Default validates source rows locally. `--apply` sends each row's messages to the teacher and writes an SFT-shaped JSONL. Output path must not exist — this prevents overwriting reviewed data.
 
 ```bash
+# preflight: local validation only
+uv run python 06-model-customization-other/04_distillation_dataset.py \
+  --source prompts.jsonl --output distilled-candidates.jsonl
+
+# apply: teacher inference per row + write output file
 uv run python 06-model-customization-other/04_distillation_dataset.py \
   --source prompts.jsonl --output distilled-candidates.jsonl \
   --teacher <teacher-deployment> --apply
 ```
 
-The output file must not exist, preventing overwrite. Generated output is a candidate dataset, not approved training data. Sample and grade it, remove duplicates and unsupported claims, red-team safety behavior, split it from the prompts used to create it, and retain lineage to seed, teacher, model version, time, and review decision.
+**Code path.**
+1. `validate_source()` — jsonl_rows + messages check per row.
+2. If `--apply`: refuse if output exists; `openai_client().responses.create(model=teacher, input=messages)` per row.
+3. Append `{"role": "assistant", "content": response.output_text}` to each row, write as SFT JSONL line.
 
-Foundry's current synthetic-data preview is a portal workflow. It supports Simple Q&A from one PDF/Markdown/text reference file or Tool use from one OpenAPI 3.0.x/3.1.x JSON file, each under 20 MB. It supports 50–1,000 samples and an optional 80/20 train-validation split. It is preview, has region limits, and automatically deploying a generator can create cost. Use it only after reviewing its current portal availability and data rules.
+**What to watch.** Preflight: `Validated N distillation prompt(s)`. With `--apply`: `Created <output> from N teacher response(s)`.
 
-## Submit, monitor, deploy, and evaluate
+**Never trust the output as training data.** It is a candidate dataset. Before training:
+- Sample and grade a representative fraction.
+- Remove duplicates and hallucinated claims.
+- Red-team safety behavior.
+- Split from the seed prompts used to generate it.
+- Retain lineage (seed source, teacher name + version, timestamp, reviewer).
 
-### Submit a job
+Foundry also has a portal-only synthetic-data preview supporting one PDF/Markdown/text file or one OpenAPI 3.x JSON file under 20 MB, 50–1,000 samples, optional 80/20 split. Check its current region availability before using.
 
-Validate data first, then explicitly submit. SFT can omit `--validation` for the API, but a validation set is strongly recommended. RFT requires it.
+**References:** [Data generation](https://learn.microsoft.com/azure/foundry/fine-tuning/data-generation) · [Fine-tuning](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning)
+
+---
+
+## Stage 3 — Submit, monitor, deploy, evaluate (lessons 05–08)
+
+The training lifecycle in four lessons. Each is opt-in — no default run costs money. Never `--apply` without reviewing datasets, region, quota, capacity, and the disposable deployment name you'll target.
+
+### 05 — Submit one SFT / DPO / RFT job
+
+**Question answered:** How do I upload reviewed data and submit exactly one training job?
+
+**Background.** Single entrypoint for all three methods. Reuses validators from lessons 01/02/03 so bad data is caught before upload. `--apply` uploads each file with purpose `fine-tune` and submits one job.
 
 ```bash
-# Preview only: validates local data; no upload or job.
+# SFT — preflight
 uv run python 06-model-customization-other/05_submit_training.py \
   --kind sft --train train.jsonl --validation validation.jsonl \
   --model <supported-base-model>
 
-# Uploads each file and submits one persistent, billable job.
+# SFT — apply, GlobalStandard training type
 uv run python 06-model-customization-other/05_submit_training.py \
   --kind sft --train train.jsonl --validation validation.jsonl \
   --model <supported-base-model> --suffix northwind-v1 \
   --training-type GlobalStandard --apply
-```
 
-`--training-type` is intentionally opt-in. Current SFT training choices have different residency, queueing, and price behavior:
-
-| Training type | Intended trade-off |
-|---|---|
-| `Standard` | Regional processing and data-residency guarantees, when supported. |
-| `GlobalStandard` | Uses global capacity; lower cost/faster queueing can require data and weights outside resource region. |
-| `Developer` | Idle-capacity savings for experiments; no latency/SLA or residency guarantee, and a job can preempt/resume. |
-
-Model/method/tier availability changes. Verify current catalog support before submission; the lab does not choose an unsupported combination for you.
-
-```bash
-# DPO
+# DPO — requires preference-pair JSONL
 uv run python 06-model-customization-other/05_submit_training.py \
   --kind dpo --train dpo-train.jsonl --validation dpo-validation.jsonl \
-  --model <dpo-model-version> --apply
+  --model <dpo-supported-base> --apply
 
-# RFT
+# RFT — requires validation + grader
 uv run python 06-model-customization-other/05_submit_training.py \
   --kind rft --train rft-train.jsonl --validation rft-validation.jsonl \
-  --grader grader.py --model <rft-model-version> --apply
+  --grader grader.py --model <rft-supported-base> --apply
 ```
 
-The apply path uploads supplied data with purpose `fine-tune`, then submits one job. It does not poll, deploy, or delete uploaded files. Record job and file IDs in your experiment system. Delete data and unused custom models under your approved retention process.
+**Code path.**
+1. Validate all files per method (SFT last=assistant, DPO pair contract, RFT last=user + grader compiles).
+2. If `--apply`: `files.create(file=..., purpose="fine-tune")` for train + optional validation.
+3. `fine_tuning.jobs.create(model=, training_file=, validation_file=, suffix=, method={...})`.
+4. Method payload: `{"type": "supervised"}` for SFT; `{"type": "dpo", "dpo": {"beta", "l2_multiplier"}}` for DPO; `{"type": "reinforcement", "reinforcement": {"grader": {"type": "python", "name": ..., "source": ...}}}` for RFT.
+5. `--training-type` sent via `extra_body={"trainingType": value}`.
 
-### Monitor and choose a checkpoint
+**Training type trade-offs.**
+
+| Type | Trade-off |
+|---|---|
+| `Standard` | Regional processing + data-residency guarantees where supported. |
+| `GlobalStandard` | Global capacity; lower cost, faster queue; data + weights may leave resource region. |
+| `Developer` | Idle-capacity savings for experiments; no SLA/residency; job can preempt/resume. |
+
+**What to watch.** Preflight: `Validated <KIND> input locally.` With `--apply`: `Uploaded training file: file-...` and `Submitted <KIND> job: ftjob-... (validating)`. Record both IDs.
+
+**Study points.**
+- SFT can omit `--validation` for the API, but you should always supply one.
+- RFT requires both `--validation` and `--grader`.
+- Model + method + tier availability changes; verify catalog before submission.
+
+**References:** [Fine-tuning](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning) · [DPO](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-direct-preference-optimization) · [Reinforcement fine-tuning](https://learn.microsoft.com/azure/foundry/openai/how-to/reinforcement-fine-tuning)
+
+### 06 — Monitor one training job
+
+**Question answered:** What is the state of my running job and its recent events?
+
+**Background.** Read-only diagnostic. `--apply` retrieves one job + 10 most-recent events. Snapshot only — re-run to refresh. Does not select checkpoints, resume, or cancel.
 
 ```bash
 uv run python 06-model-customization-other/06_training_monitor.py --job-id ftjob-... --apply
 ```
 
-This is read-only and prints job state plus ten recent events. It does not poll continuously, select a checkpoint, or resume/cancel a job. Compare checkpoints and final model on the untouched held-out set. Select a candidate because it meets predeclared quality, safety, latency, and cost thresholds, not because it is newest.
+**Code path.**
+1. `fine_tuning.jobs.retrieve(job_id)` → print id, status, `fine_tuned_model`.
+2. `fine_tuning.jobs.list_events(fine_tuning_job_id=..., limit=10)` → print `- <created_at>: <message>` per event.
 
-### Deploy one candidate
+**What to watch.** `Status: succeeded` with `Fine-tuned model: ft:...` — model is ready for lesson 07 deployment. Event stream shows checkpoints (`ftchkpt-...`), validation metrics, warnings.
+
+**Checkpoint selection rule.** Never pick "newest." Pick because a candidate meets predeclared quality, safety, latency, and cost thresholds on the untouched held-out set. Compare all `ftchkpt-...` values against baseline in lesson 08 before deploying.
+
+**References:** [Fine-tuning](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning)
+
+### 07 — Deploy a chosen candidate
+
+**Question answered:** How do I put a fine-tuned model or checkpoint behind an inference endpoint?
+
+**Background.** Control-plane operation via `CognitiveServicesManagementClient`. Default preflight prints intended payload; `--apply` creates or replaces one deployment. Hosting bill starts immediately.
 
 ```bash
+# preflight
 uv run python 06-model-customization-other/07_deploy_checkpoint.py \
   --model-id ftchkpt-... --name northwind-ft-eval --sku Standard --capacity 1
 
+# apply
 uv run python 06-model-customization-other/07_deploy_checkpoint.py \
   --model-id ftchkpt-... --name northwind-ft-eval --sku Standard --capacity 1 --apply
 ```
 
-`--apply` creates or updates the named deployment. That can replace an existing deployment and begins hosting charges. Preflight model/SKU support, quota, and capacity in the target region first. Fine-tuned models can use Standard, Global Standard preview, or Provisioned Throughput preview only where currently supported. Use a separate evaluation deployment, tag it, and delete it after the decision.
+**Code path.**
+1. `settings()` + `foundry_account_name()` derive account name from endpoint.
+2. `CognitiveServicesManagementClient(DefaultAzureCredential, sub).deployments.begin_create_or_update(rg, account, name, Deployment(sku=Sku(name, capacity), properties=DeploymentProperties(model=DeploymentModel(format="OpenAI", name=model_id, version="1")))).result()`.
+3. Print result name + provisioning state.
 
-### Evaluate candidate versus baseline
+**What to watch.** Preflight: `Would create/update deployment <name>`. With `--apply`: `Deployment: <name>` and `State: Succeeded`. Errors: unsupported SKU for model, no capacity in region, missing control-plane role.
 
-`08_evaluate_candidate.py` makes a small, transparent exact-match comparison for tasks that really have one exact answer:
+**Production discipline.**
+- Use a separate evaluation deployment name (`northwind-ft-eval`); do not overwrite production.
+- Tag deployment for cost attribution.
+- Delete after evaluation decision; fine-tuned deployments bill by hour while present.
+- Fine-tuned deployments support Standard, Global Standard preview, and Provisioned Throughput preview only where currently supported for the base model.
 
-```jsonl
-{"query":"2 + 3","expected":"5"}
-```
+**References:** [Fine-tuning deployment](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-deploy) · [Fine-tuning cost management](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-cost-management)
+
+### 08 — Evaluate candidate vs baseline
+
+**Question answered:** Does my candidate actually beat the baseline on my held-out set?
+
+**Background.** Small transparent exact-match scorer. Row schema: `{"query": str, "expected": str}`. Default validates rows; `--apply` sends one Responses call per model per row and prints a single score. NOT a Foundry evaluation object — no dataset, run, or portal record is created.
 
 ```bash
 uv run python 06-model-customization-other/08_evaluate_candidate.py \
@@ -216,98 +475,338 @@ uv run python 06-model-customization-other/08_evaluate_candidate.py \
   --baseline <base-deployment> --apply
 ```
 
-It makes one Responses call per model per row, prints score only, and creates no cloud evaluation object. Exact match is unsuitable for open-ended quality. For those tasks, define an evaluation dataset and use a reviewed deterministic, similarity, label, score, or safety grader. Keep task graders separate from the RFT reward when measuring release quality. Audit representative outputs, subgroups, safety failures, latency, tokens, and cost alongside aggregate scores.
+**Code path.**
+1. Per row: assert `query` and `expected` are nonempty strings.
+2. `score(model, rows)` → per row: `responses.create(model, input=query).output_text.strip().casefold()` vs `expected.strip().casefold()`.
+3. Print `<label>: matches/total (pct%)` per model.
 
-## Delivery and cost labs
+**What to watch.** `candidate: 42/50 exact matches (84.0%)`. Compare candidate and baseline lines.
 
-### Global Batch
+**Exact-match is narrow.** Only meaningful for single-token classification, extraction, or arithmetic. For open-ended quality use:
+- Foundry cloud evaluation (see domain 01 lesson 21).
+- Reviewed deterministic, similarity, label, score, or safety graders.
+- Human audit of representative outputs.
+- Subgroup + safety failure + latency + token + cost review.
 
-Global Batch is for asynchronous bulk work, not low-latency inference. It uses a Global Batch deployment and separate enqueued-token quota. It targets 24-hour processing but jobs can run longer until cancelled; completed work is still billable. Current documentation states that Batch does not support fine-tuned models.
+Never treat one aggregate score as a release decision.
 
-Each JSONL row must have a unique `custom_id`, `POST`, `/v1/responses`, and the same Global Batch deployment in `body.model`:
+**References:** [Azure OpenAI graders](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/azure-openai-graders) · [Fine-tuning safety evaluation](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-safety-evaluation)
+
+---
+
+## Stage 4 — Delivery choices (lessons 09–12)
+
+Once a candidate is deployed, decide how requests reach it. Four delivery patterns each with a different trade-off between cost, latency, capacity guarantee, and preview scope.
+
+### 09 — Global Batch
+
+**Question answered:** How do I submit an async bulk inference job?
+
+**Background.** Global Batch is async, discounted (~50%), targets 24h completion, uses a separate enqueued-token quota. Each JSONL row is a self-contained request. Batch does NOT support fine-tuned models per current docs.
+
+```bash
+# preflight
+uv run python 06-model-customization-other/09_batch_inference.py --input batch.jsonl
+
+# apply
+uv run python 06-model-customization-other/09_batch_inference.py --input batch.jsonl --apply
+```
+
+Row shape:
 
 ```jsonl
 {"custom_id":"case-1","method":"POST","url":"/v1/responses","body":{"model":"<global-batch-deployment>","input":"Classify: paid invoice"}}
 ```
 
+**Code path.**
+1. Per row: `method==POST`, `url==/v1/responses`, unique `custom_id`, `body.model` is string.
+2. Assert all rows target the same deployment (batch scope).
+3. If `--apply`: `files.create(purpose="batch")` → `batches.create(input_file_id=, endpoint="/v1/responses", completion_window="24h")`.
+
+**What to watch.** Preflight: `Validated N Global Batch request(s)`. With `--apply`: `Batch: batch-... (validating|in_progress)`. Retrieve results later with `batches.retrieve()` + `files.content(output_file_id)` (not in this lab).
+
+**Batch operational rules.**
+- Not for fine-tuned models — use Standard/PTU deployment instead.
+- Completed work billable after cancellation.
+- Include file expiry + output retention in production automation.
+- Separate quota from Standard — check `10_quota_ptu_preflight.py` for current enqueued-token allocation.
+
+**References:** [Batch](https://learn.microsoft.com/azure/foundry/openai/how-to/batch) · [Deployment types](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types)
+
+### 10 — Quota + PTU preflight
+
+**Question answered:** Which quota is available and which deployments already exist in this region?
+
+**Background.** Default is a local decision aid comparing Standard vs Priority vs Batch vs PTU vs Instant. `--apply` performs control-plane reads: resource region, deployments, and location quota usage. Inspection only, no writes.
+
 ```bash
-uv run python 06-model-customization-other/09_batch_inference.py --input batch.jsonl
-uv run python 06-model-customization-other/09_batch_inference.py --input batch.jsonl --apply
-```
-
-Apply uploads a file with purpose `batch` and creates one `24h` Batch job. It does not poll results, read output/error files, or cancel the job. Include file expiry and output retention in production automation.
-
-### Quota, PTU, and capacity
-
-```bash
+# local decision aid
 uv run python 06-model-customization-other/10_quota_ptu_preflight.py
+
+# read cloud state
 uv run python 06-model-customization-other/10_quota_ptu_preflight.py --apply
 ```
 
-The default command is a local decision aid. Apply reads resource location, deployments, and quota usage only. It does not query live PTU model capacity, request quota, create a deployment, or guarantee a SKU/model is available.
+**Code path.**
+1. `--apply`: `CognitiveServicesManagementClient.accounts.get(rg, account)` → region.
+2. `deployments.list(rg, account)` → per deployment print name + model + sku + capacity.
+3. `usages.list(location)` → per bucket print name + current/limit/unit (skip zero entries).
 
-Quota is a policy limit; capacity is currently deployable supply. PTU quota and capacity are both region and deployment-type scoped, and quota does not reserve capacity. Check capacity in the current Foundry deployment experience or model capacities API immediately before deployment. PTU sizing depends on request rate, input/output shape, cache rate, model-specific parameters, and minimum size. Use the Foundry PTU calculator/current sizing guidance rather than a fixed TPM conversion.
+**What to watch.** Region, per-deployment SKU + capacity, per-quota-bucket usage. A limit close to `current_value` signals imminent 429s.
 
-| Delivery choice | Use it when | Cost/operational constraint |
-|---|---|---|
-| Standard | Traffic varies or you are developing/testing. | Pay per token; shared capacity. |
-| Priority processing | A supported online workload needs lower latency without commitment. | Priority per-token price; can fall back to Standard. |
-| Provisioned Throughput | High, predictable, latency-sensitive production volume. | PTU hourly/reservation cost even when idle; capacity must exist. |
-| Global Batch | Large deferred processing. | Asynchronous; separate quota; no fine-tuned model support. |
-| Instant access | Preview prototyping with a supported model. | Current preview scope, global quota, and model list apply. |
-| Model router | Model selection can trade quality/cost/latency per prompt. | Deploy and monitor router policy; inspect selected model. |
+**Quota vs capacity.** Two separate things:
+- **Quota** is a policy limit assigned per subscription + region + model + type.
+- **Capacity** is currently deployable supply.
+- PTU quota does NOT reserve capacity. Verify capacity in Foundry portal or Model Capacities API immediately before deployment.
+- PTU sizing depends on request rate, I/O shape, cache rate, model params, minimum size — use the PTU calculator, not a fixed TPM conversion.
 
-### Priority processing
+**References:** [Provisioned throughput](https://learn.microsoft.com/azure/foundry/openai/concepts/provisioned-throughput) · [Provisioned throughput sizing](https://learn.microsoft.com/azure/foundry/openai/how-to/provisioned-throughput-sizing) · [Provisioned throughput billing](https://learn.microsoft.com/azure/foundry/openai/concepts/provisioned-throughput-billing)
+
+### 11 — Priority processing
+
+**Question answered:** How do I opt one request into the priority tier and confirm it was honored?
+
+**Background.** Priority charges a per-token premium for lower latency on supported Global Standard or US Data Zone Standard deployments. Shares quota with Standard. Under ramp/peak/long-context conditions requests can fall back to Standard tier — always inspect returned `service_tier`.
 
 ```bash
+# preflight
 uv run python 06-model-customization-other/11_priority_processing.py --model <deployment>
+
+# apply
 uv run python 06-model-customization-other/11_priority_processing.py --model <deployment> --apply
 ```
 
-Apply sends exactly one billable Responses request with `service_tier="priority"`. Priority processing currently applies to supported Global Standard and US Data Zone Standard deployment configurations, shares quota with Standard, and can return a Standard-tier response under documented ramp/peak/long-context conditions. Inspect returned `service_tier`, Azure Monitor request/latency/usage metrics, and Cost Management tags. Do not assume priority is a hard guarantee; PTU is the dedicated-capacity choice.
+**Code path.**
+1. `--apply`: `responses.create(model=deployment, input=text, service_tier="priority")`.
+2. Print response model, `service_tier`, `output_text`.
 
-### Model router and instant access
+**What to watch.** `Service tier: priority` confirms tier honored. Falls back to `standard` under contention.
+
+**Priority ≠ PTU.**
+- Priority = premium per-token for latency; can fall back.
+- PTU = reserved hourly capacity; dedicated but bills while idle.
+- For a hard latency SLA, PTU is the choice. Priority is for latency-sensitive workloads that don't need capacity guarantee.
+- Monitor via Azure Monitor request latency + service_tier dimensions to see fallback rate.
+
+**References:** [Priority processing](https://learn.microsoft.com/azure/foundry/openai/concepts/priority-processing) · [Provisioned throughput](https://learn.microsoft.com/azure/foundry/openai/concepts/provisioned-throughput)
+
+### 12 — Model Router + Instant Access
+
+**Question answered:** How do I call a deployed router or a supported instant model?
+
+**Background.** Two patterns in one lab. Router picks between allowed models per request (Balanced/Quality/Cost mode configured on the deployment). Instant Access calls a supported preview model name directly with no deployment — uses global quota, currently requires West US 3 project + Foundry User + supported instant model.
 
 ```bash
-# Existing model-router deployment
+# router — call deployed alias
 uv run python 06-model-customization-other/12_router_instant.py \
   --mode router --model model-router --apply
 
-# Current supported instant model name, not a deployment
+# instant — call supported model name (no deployment)
 uv run python 06-model-customization-other/12_router_instant.py \
   --mode instant --model <instant-model-name> --apply
 ```
 
-Router apply calls its deployed alias and prints requested versus returned model. Router routing modes are Balanced, Quality, and Cost; select mode and model subset in deployment configuration, then validate quality, safety, latency, selected-model distribution, and cost with your workload.
+**Code path.**
+1. `--apply`: `openai_client().responses.create(model=name, input=text)`.
+2. Print `Requested: <name>` and `Handled by: <response.model>`.
 
-Instant access is current preview behavior, not a replacement for deployments. At this repository's documentation snapshot it requires a West US 3 project, Foundry User access, a supported instant model, and global quota. It uses the same client/API but requires no deployment. Pin a version when stability matters. Use a deployment for fine-tuned models, PTU, custom content filters, data residency, endpoint-specific policy, or team quota partitioning.
+**What to watch.** Router: `Handled by:` shows per-request selection (often differs from `Requested:`). Instant: same client/API but no deployment created.
 
-### Cost review
+**When each fits.**
+- **Router** — mixed prompt complexity where hard-coding one model wastes cost or quality. Configure allowed subset in deployment.
+- **Instant** — preview prototyping without deployment overhead. Pin version when stability matters.
+- **Neither** — replaces PTU for dedicated capacity, custom filters, data-residency requirements, endpoint-specific policy, or team quota partitioning. Use a deployment for those.
+
+**References:** [Model router](https://learn.microsoft.com/azure/foundry/openai/concepts/model-router) · [Model router how it works](https://learn.microsoft.com/azure/foundry/openai/concepts/model-router-how-it-works) · [Instant models](https://learn.microsoft.com/azure/foundry/concepts/instant-models)
+
+---
+
+## Stage 5 — Cost planning (lesson 13)
+
+Local arithmetic for PTU commitment planning. Zero cloud calls.
+
+### 13 — PTU cost review
+
+**Question answered:** What is a lower-bound monthly cost estimate for N PTUs at rate R?
+
+**Background.** Pure arithmetic: `PTU × hourly_rate × hours` (default 730 h/month). Supply your verified current price from the Foundry pricing page for the exact model + region + SKU. Not a bill and not a forecast.
 
 ```bash
 uv run python 06-model-customization-other/13_cost_review.py \
   --ptu 50 --hourly-rate <current-price-per-ptu-hour>
 ```
 
-This local calculator performs only `PTU × current hourly rate × hours`. It does not fetch prices or report Azure charges. Supply a current price verified for target model/SKU/region and compare estimates with actual Cost Management data. Include training tokens, RFT grading, distillation teacher calls, deployment hosting, candidate evaluation, priority/batch price, storage, monitoring, egress, and reservation terms. Delete idle evaluation deployments and expired datasets under your retention policy.
+**Code path.**
+1. `ptu_monthly_cost(ptu, hourly_rate, hours=730)` → validate positive → return product.
+2. Print formula and result.
 
-## Local official documentation used
+**What to watch.** `PTU hourly estimate: 50 × 1.23 × 730 = 44895.00`.
 
-This domain uses current material in `.context/azure-ai-docs/`; it does not reproduce retired SDK samples or legacy endpoint workflows. Recheck these local files before changing a lab:
+**Not included in the estimate.** Training tokens, RFT grader calls, distillation teacher calls, evaluation deployment hosting, Priority premium, Global Batch spend, storage, monitoring, network egress, reservation terms. Result is a lower bound — add these categories from current pricing.
 
-| Topic | Local official source |
+**Cost discipline.**
+- Compare estimate against actual Cost Management data with resource + deployment tags.
+- Delete idle evaluation deployments and expired datasets under retention policy.
+- Re-verify hourly rate in current pricing page before commitment.
+
+**References:** [Fine-tuning cost management](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-cost-management) · [Provisioned throughput billing](https://learn.microsoft.com/azure/foundry/openai/concepts/provisioned-throughput-billing)
+
+---
+
+## Feature status and hard limits
+
+| Feature | Status | Practical boundary |
+|---|---|---|
+| SFT | GA for supported base models | JSONL last message = assistant; verify base model + region + tier support. |
+| DPO | Supported for listed models | Preference-pair contract; supported model list narrower than SFT. |
+| RFT | Available for listed models | $5,000 safety stop on training + grading; grader sandboxed (no network). |
+| Distillation via lab 04 | Local pattern | Not a Foundry preview service; teacher choice is manual. |
+| Synthetic data generation | **Preview** portal | 1 PDF/MD/text or 1 OpenAPI 3.x JSON <20 MB; 50–1,000 samples; region-limited. |
+| Global Batch | GA | No fine-tuned models; separate enqueued-token quota; 24h completion target. |
+| Priority processing | GA on supported Global/DZ Standard | Falls back to Standard under contention; premium per-token. |
+| PTU | GA for listed models | Quota ≠ capacity; hourly billing while present including idle. |
+| Instant Access | **Preview** | Currently West US 3 project + supported models + global quota. |
+| Model Router | Supported | Deployed alias required; router mode + allowed subset configured on deployment. |
+| Fine-tuned model deployments | GA for Standard; Global Standard + PTU **preview** where supported | Availability model + region dependent; hosting bills hourly. |
+
+## Troubleshooting
+
+| Symptom | Likely cause | Resolution |
+|---|---|---|
+| `ValueError: row N must end with an assistant message` (SFT) | Row has trailing user or system message | Fix that row before upload; lesson 05 refuses to submit. |
+| `ValueError: row N needs an assistant message` (DPO) | preferred_output or non_preferred_output missing assistant role | Add assistant message to that output list. |
+| `RFT Python grader must define def grade(sample, item):` | Grader missing required signature | Add exact signature; other functions can exist alongside. |
+| `--output already exists` (lesson 04) | Trying to overwrite distillation output | Rename output or delete prior file after review. |
+| Training job `failed` with data error | Row failed API validation post-upload | Compare failing row against SDK validator output; re-run lesson 01/02/03. |
+| Job status stuck `validating` for hours | Queue depth for chosen tier | Try `--training-type GlobalStandard` for faster queue; verify tier availability. |
+| Reward hacking (train high, val flat) | Grader gameable | Re-calibrate grader; add adversarial cases; consider multi-grader. |
+| Deployment fails: `SKU not available for model` | Fine-tuned deployment SKU + model + region combination unsupported | Check current base-model support matrix; try different region or SKU. |
+| Deployment succeeds but inference returns 404 | Deployment name mismatch or propagation delay | Verify deployment name in Foundry portal; wait a few minutes. |
+| Batch job `failed` on all rows | Wrong deployment name in row bodies, or targeting fine-tuned model | Batch does not support fine-tuned models; use base Global Batch deployment. |
+| Priority request returns `service_tier: standard` | Fallback under contention or unsupported deployment | Check current supported deployment types; monitor fallback rate. |
+| Router returns same model every time | Router policy misconfigured or single model in allowed subset | Reconfigure router policy in Foundry portal. |
+| PTU deployment fails despite quota approved | Capacity not currently deployable in region | Quota ≠ capacity; check Model Capacities API immediately before deployment. |
+| Instant Access `403` or `not found` | Wrong region or unsupported model name | Confirm current supported regions + model list; Instant currently requires West US 3. |
+| Cost estimate wildly off | Missing categories | Result is lower bound; add training tokens, grader calls, evaluation, batch, storage, monitoring separately. |
+
+## CI/CD and operational release
+
+Treat customization as a release system: reviewed datasets, one training job at a time, evaluated candidate, staged deployment, monitored production.
+
+```text
+Reviewed dataset (pinned + versioned)
+  → lesson 01/02/03 local validation in CI
+  → lesson 05 --apply in nonprod (record job + file IDs)
+  → lesson 06 --apply to observe until Succeeded
+  → lesson 07 --apply to disposable eval deployment
+  → lesson 08 --apply for exact-match vs baseline
+  → domain 01 lesson 21 cloud evaluation for open-ended quality
+  → human audit of representative outputs + subgroups + safety
+  → approval gate: quality + safety + latency + cost thresholds
+  → lesson 07 --apply to production deployment name (staged)
+  → canary traffic where supported; monitor via Azure Monitor + Cost Management
+  → delete disposable eval deployment
+```
+
+### What to version
+
+- Dataset content + splits (train/validation/held-out) as immutable artifacts with SHAs.
+- Base model + version pin + method + training-type + hyperparameters.
+- Grader source + calibration notes for RFT.
+- Deployment name + SKU + capacity + region as IaC.
+- Evaluation dataset + thresholds + human-review sign-off.
+- Cost budget + tags for training, distillation, hosting, evaluation.
+
+### Release gates
+
+| Change | Minimum gate |
 |---|---|
-| SFT workflow, JSONL, tiers, checkpoints | `.context/azure-ai-docs/articles/foundry/openai/how-to/fine-tuning.md` and `includes/fine-tuning-oai-sdk.md` |
-| DPO format and supported models | `.context/azure-ai-docs/articles/foundry/openai/how-to/fine-tuning-direct-preference-optimization.md` and its includes |
-| RFT, rewards, graders, metrics | `.context/azure-ai-docs/articles/foundry/openai/how-to/reinforcement-fine-tuning.md` and its include |
-| Synthetic data generation | `.context/azure-ai-docs/articles/foundry/fine-tuning/data-generation.md` |
-| Fine-tuned deployment | `.context/azure-ai-docs/articles/foundry/openai/how-to/fine-tuning-deploy.md` |
-| Evaluation graders | `.context/azure-ai-docs/articles/foundry/concepts/evaluation-evaluators/azure-openai-graders.md` |
-| Global Batch | `.context/azure-ai-docs/articles/foundry/openai/how-to/batch.md` and `includes/how-to-batch-content.md` |
-| PTU | `.context/azure-ai-docs/articles/foundry/openai/concepts/provisioned-throughput.md` |
-| Priority | `.context/azure-ai-docs/articles/foundry/openai/concepts/priority-processing.md` |
-| Router | `.context/azure-ai-docs/articles/foundry/openai/concepts/model-router.md` |
-| Instant access | `.context/azure-ai-docs/articles/foundry/concepts/instant-models.md` |
-| Fine-tuning cost | `.context/azure-ai-docs/articles/foundry/openai/how-to/fine-tuning-cost-management.md` |
+| New dataset | Lesson 01/02/03 pass; reviewer sign-off; PII/protected-content sweep. |
+| New training job | Job succeeded; validation metrics acceptable; held-out score beats baseline. |
+| New deployment (fine-tuned) | SKU + region supported; capacity available; hosting budget approved; retention plan set. |
+| Delivery tier change (Standard→Priority/PTU/Batch) | Cost delta + latency benefit measured; fallback behavior confirmed. |
+| Router policy change | Selected-model distribution + cost + quality regression review. |
+| Instant Access adoption | Preview scope acknowledged; version pinned; fallback plan if preview scope changes. |
 
-Feature, model, region, quota, capacity, pricing, API, and preview status change independently. Local documentation supports this curriculum; the target subscription and current Microsoft Learn documentation decide whether an opt-in operation is available.
+Avoid using one aggregate quality score as a release decision. A higher score can hide safety, subgroup, latency, cost, or fallback failures.
+
+## Security, networking, and IaC
+
+| Decision | Recommendation | Common pitfall |
+|---|---|---|
+| Identity for training | Least-privilege service principal or managed identity with data-plane role only; separate control-plane identity for deployments | Owner-on-subscription for training scripts blurs blast radius. |
+| Dataset storage | Blob with private endpoint + customer-managed key; retention + purge policy | Datasets in repo or unversioned bucket = uncontrolled training input. |
+| Fine-tuned model access | Endpoint-only role (`Cognitive Services OpenAI User` scoped to deployment) | Broad account-level access grants inference on every deployment. |
+| PTU commitment | Verify capacity in target region + budget for idle + tag for cost attribution | Committing quota without capacity → deployment fails at scale time. |
+| Global Batch data | File retention + output cleanup automation; separate quota accounting | Files linger after job completes; enqueued-token quota surprises. |
+| Distillation teacher IP | Confirm teacher licensing permits generating training data | Teacher terms may restrict downstream student training. |
+| IaC | Bicep/Terraform for deployments + role assignments; keep training jobs procedural | Portal + IaC + CLI as competing sources of truth for deployment state. |
+
+## Common exam traps
+
+| Claim | Correct interpretation |
+|---|---|
+| "Fine-tuning teaches the model facts." | False. Fine-tuning changes weights for behavior/format/preference. RAG teaches facts. |
+| "DPO can teach a new task." | False. DPO refines preference between two acceptable answers. Use SFT for new skills. |
+| "RFT rising train reward means training works." | False. Only rising VALIDATION reward with train matters — otherwise reward hacking. |
+| "Global Batch is a fast serving tier." | False. Async 24h target; not for latency-sensitive traffic. |
+| "Global Batch supports fine-tuned models." | False per current docs. Use Standard/PTU deployment. |
+| "PTU quota reserves capacity." | False. Quota is policy limit; capacity is separate supply. Verify both. |
+| "Priority processing is guaranteed low latency." | False. Falls back to Standard under contention. PTU is the guarantee. |
+| "Instant Access replaces deployments." | False. Preview convenience; use deployments for fine-tuned models, PTU, custom filters, residency, endpoint policy. |
+| "Model Router optimizes cost automatically." | Partly. Router picks per-request from allowed models per configured mode; you configure and validate. |
+| "Distillation output is training data." | False. It is a candidate dataset. Review, filter, split, red-team first. |
+| "Newest checkpoint = best checkpoint." | False. Pick against held-out thresholds. |
+| "GlobalStandard training keeps my data regional." | False. Data + weights may leave resource region for global capacity. Use Standard for regional residency. |
+| "RFT $5,000 cost stop is my budget." | False. It's a safety stop. Resuming continues billing. Set your own budget. |
+| "Exact-match evaluation covers open-ended tasks." | False. Only for single-token classification/extraction. Use graders + human audit for open-ended. |
+| "Fine-tuned deployment behaves same as base." | False. Behavior + safety + latency + token count can differ. Re-run safety evaluation. |
+
+## Objective coverage and limits
+
+Runnable evidence in this folder covers dataset validation for SFT/DPO/RFT, distillation candidate generation, single training job submission per method, job monitoring, fine-tuned model deployment, exact-match evaluation, Global Batch submission, control-plane quota reads, priority-tier request, router + Instant Access invocation, and local PTU cost arithmetic.
+
+It does **not** prove production readiness, current region/model availability, complete safety evaluation of a fine-tuned candidate, capacity guarantees for PTU/Batch/Instant, correctness of an RFT grader against adversarial inputs, or cost accuracy beyond a lower-bound PTU arithmetic. Preview features (Instant Access, RFT scope, fine-tuned PTU/Global Standard) can change independently.
+
+## References
+
+### Fine-tuning methods
+
+- [Fine-tuning (SFT overview)](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning)
+- [Direct Preference Optimization](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-direct-preference-optimization)
+- [Reinforcement fine-tuning](https://learn.microsoft.com/azure/foundry/openai/how-to/reinforcement-fine-tuning)
+- [Fine-tuning considerations](https://learn.microsoft.com/azure/foundry/openai/concepts/fine-tuning-considerations)
+- [Fine-tuning safety evaluation](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-safety-evaluation)
+- [Fine-tuning functions](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-functions)
+- [Fine-tuning vision](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-vision)
+
+### Data + graders
+
+- [Data generation (preview synthetic data)](https://learn.microsoft.com/azure/foundry/fine-tuning/data-generation)
+- [Azure OpenAI graders](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/azure-openai-graders)
+- [Fine-tune CLI](https://learn.microsoft.com/azure/foundry/fine-tuning/fine-tune-cli)
+
+### Deployment + cost
+
+- [Fine-tuning deployment](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-deploy)
+- [Fine-tuning cost management](https://learn.microsoft.com/azure/foundry/openai/how-to/fine-tuning-cost-management)
+- [Deployment types](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types)
+- [Automate quota and deployments](https://learn.microsoft.com/azure/foundry/openai/how-to/automate-quota-deployments)
+
+### Delivery tiers
+
+- [Global Batch](https://learn.microsoft.com/azure/foundry/openai/how-to/batch)
+- [Priority processing](https://learn.microsoft.com/azure/foundry/openai/concepts/priority-processing)
+- [Provisioned throughput](https://learn.microsoft.com/azure/foundry/openai/concepts/provisioned-throughput)
+- [Provisioned throughput sizing](https://learn.microsoft.com/azure/foundry/openai/how-to/provisioned-throughput-sizing)
+- [Provisioned throughput billing](https://learn.microsoft.com/azure/foundry/openai/concepts/provisioned-throughput-billing)
+- [Provisioned get started](https://learn.microsoft.com/azure/foundry/openai/how-to/provisioned-get-started)
+- [Model router](https://learn.microsoft.com/azure/foundry/openai/concepts/model-router)
+- [Model router how it works](https://learn.microsoft.com/azure/foundry/openai/concepts/model-router-how-it-works)
+- [Model router policy](https://learn.microsoft.com/azure/foundry/how-to/model-router-policy)
+- [Instant models](https://learn.microsoft.com/azure/foundry/concepts/instant-models)
+
+### Related domains
+
+- [Domain 1: Plan and manage Foundry](../01-plan-and-manage/README.md)
+- [Domain 2: Generative AI and agents](../02-generative-ai-and-agents/README.md)

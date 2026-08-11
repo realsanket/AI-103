@@ -1,5 +1,33 @@
 # Run: uv run python 06-model-customization-other/09_batch_inference.py --input batch.jsonl --apply
-"""Validate and submit a Global Batch Responses job only with --apply."""
+"""Validate and submit a Global Batch Responses job only with --apply.
+
+Global Batch is for asynchronous bulk inference, not low-latency serving.
+Each JSONL row is a self-contained request with unique `custom_id`, `POST`,
+`/v1/responses`, and body targeting the same Global Batch deployment. Default
+validates the file; `--apply` uploads with purpose `batch` and creates one
+job with a 24h completion window.
+
+Batch does not support fine-tuned models per current docs — use Standard/PTU
+deployment for fine-tuned inference. Enqueued-token quota is separate from
+Standard quota. Jobs can run past 24h until cancelled; completed work is
+still billable after cancellation. This lab does not poll results, read
+output/error files, or cancel.
+
+Code path:
+  validate_batch(path) → per row: method==POST, url==/v1/responses, unique
+  custom_id, body.model string. Assert all rows target same deployment.
+  With --apply: files.create(purpose="batch") → batches.create(
+  input_file_id=, endpoint="/v1/responses", completion_window="24h").
+
+What to watch. Preflight: `Validated N Global Batch request(s) for deployment
+<name>`. With --apply: `Batch: batch-... (validating|in_progress)`. Retrieve
+results later via SDK batches.retrieve() + files.content() (not in this lab).
+
+Prerequisites / env vars:
+  --input  — batch JSONL (required)
+  --apply  — upload + create job
+  AZURE_OPENAI_ENDPOINT
+"""
 from __future__ import annotations
 
 import argparse

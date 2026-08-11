@@ -1,5 +1,31 @@
 # Run: uv run python 06-model-customization-other/10_quota_ptu_preflight.py
-"""Plan Standard, Priority, Batch, and PTU delivery without a cloud call by default."""
+"""Plan Standard, Priority, Batch, and PTU delivery without a cloud call by default.
+
+Two-mode lesson. Default prints a delivery-choice decision aid (Standard vs
+Priority vs Batch vs PTU vs Instant) with no cloud call. `--apply` reads the
+resource region, its deployments, and location quota usage via
+management-plane APIs — inspection only, no writes.
+
+Quota ≠ capacity. Quota is a policy limit assigned per subscription/region/
+model/type. Capacity is currently deployable supply. PTU quota does not
+reserve capacity; verify capacity in Foundry portal or the model capacities
+API immediately before deployment. PTU sizing depends on request rate, I/O
+shape, cache rate, model params, and minimum size — use the PTU calculator,
+not a fixed TPM conversion.
+
+Code path:
+  --apply: CognitiveServicesManagementClient(cred, sub).accounts.get(rg,
+  account) → print region. .deployments.list(rg, account) → per deployment:
+  name, model, sku, capacity. .usages.list(location) → per bucket:
+  name.value, current_value/limit, unit (skip zero entries).
+
+What to watch. Region name, per-deployment SKU + capacity, per-quota-bucket
+current_value/limit. A limit close to current_value signals imminent 429s.
+
+Prerequisites / env vars:
+  --apply  — read resource, deployments, quota (control-plane role required)
+  AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP, FOUNDRY_ENDPOINT
+"""
 from __future__ import annotations
 
 import argparse

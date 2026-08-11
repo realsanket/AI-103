@@ -1,5 +1,33 @@
 # Run: uv run python 06-model-customization-other/04_distillation_dataset.py --source prompts.jsonl --output distilled.jsonl
-"""Generate reviewed SFT candidates from a teacher model only with --apply."""
+"""Generate reviewed SFT candidates from a teacher model only with --apply.
+
+Distillation uses a stronger teacher to produce training data for a smaller
+student. Default run validates source `messages` rows without any Azure call.
+`--apply` calls the teacher deployment once per prompt and writes a new SFT
+JSONL to `--output`. Output path must not exist — prevents overwriting a
+reviewed dataset.
+
+Teacher output is a candidate, never approved training data. Sample and
+grade every row, remove duplicates and hallucinated claims, red-team safety
+behavior, and split from the seed prompts used to generate it. Track lineage
+(seed, teacher, model version, timestamp, reviewer).
+
+Code path:
+  validate_source() → jsonl_rows + messages check. With --apply:
+  openai_client().responses.create(model=teacher, input=messages) per row →
+  append assistant response → write SFT-shaped JSONL line.
+
+What to watch. Preflight: `Validated N distillation prompt(s)`. With --apply:
+`Created <output> from N teacher response(s).` Errors: pre-existing output
+file, missing --teacher.
+
+Prerequisites / env vars:
+  --source   — JSONL of message arrays (required)
+  --output   — new file path, must not exist (required)
+  --teacher  — teacher deployment/model name (required with --apply)
+  --apply    — call teacher and write output
+  AZURE_OPENAI_ENDPOINT — teacher endpoint (via openai_client)
+"""
 from __future__ import annotations
 
 import argparse

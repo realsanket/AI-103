@@ -1,5 +1,29 @@
 # Run: uv run python 06-model-customization-other/06_training_monitor.py --job-id ftjob-... --apply
-"""Inspect one fine-tuning job only with explicit opt-in."""
+"""Inspect one fine-tuning job only with explicit opt-in.
+
+Read-only diagnostic. `--apply` retrieves one job by ID and prints its state,
+final `fine_tuned_model` (once complete), and the ten most recent events.
+This is a snapshot, not continuous polling — re-run to refresh. It does not
+select a checkpoint, resume, or cancel.
+
+Compare candidate quality against the held-out set from lesson 08 before
+deploying (lesson 07). Choose a checkpoint because it meets predeclared
+quality/safety/latency/cost thresholds, not because it's the newest.
+
+Code path:
+  --apply: fine_tuning.jobs.retrieve(job_id) → print status + fine_tuned_model.
+  fine_tuning.jobs.list_events(fine_tuning_job_id=..., limit=10) → print
+  each as `- <created_at>: <message>`.
+
+What to watch. `Status: <succeeded|running|failed|cancelled>`. Event stream
+shows checkpoints, validation metrics, warnings. A `succeeded` status with
+`fine_tuned_model: ft:...` means the model is ready for lesson 07 deployment.
+
+Prerequisites / env vars:
+  --job-id  — ftjob-... from lesson 05 (required)
+  --apply   — perform the read
+  AZURE_OPENAI_ENDPOINT — control-plane endpoint
+"""
 from __future__ import annotations
 
 import argparse

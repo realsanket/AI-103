@@ -1,5 +1,28 @@
 # Run: uv run python 06-model-customization-other/02_dpo_dataset.py --dataset preferences.jsonl
-"""Validate Direct Preference Optimization JSONL locally."""
+"""Validate Direct Preference Optimization JSONL locally.
+
+DPO shifts model behavior toward a preferred response over a rejected
+alternative. Each row holds one `input` (with messages), one
+`preferred_output`, and one `non_preferred_output`; each output list must
+contain at least one assistant message. Unlike SFT this teaches subjective
+preference — tone, style, safety choice — not a new capability.
+
+Use DPO when the "right" answer is a preference judgment. Do not use it for
+teaching a new skill (SFT), or when the two alternatives differ on multiple
+axes (leaks noise into the preference signal). Reviewed alternatives must
+share user intent and one intentional difference.
+
+Code path:
+  jsonl_rows(path) → per row: input.messages validated; preferred_output and
+  non_preferred_output each pass messages() check and contain an assistant
+  role. Prints validated count.
+
+What to watch. `Validated N DPO preference pair(s)`. Errors name row + field
+(e.g. `row 7.preferred_output needs an assistant message`).
+
+Prerequisites / env vars:
+  --dataset  — path to DPO preference-pair JSONL (required)
+"""
 from __future__ import annotations
 
 import argparse
