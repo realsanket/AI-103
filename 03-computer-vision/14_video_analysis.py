@@ -1,4 +1,5 @@
-"""Content Understanding video analysis with `prebuilt-videoSearch`.
+# Run: uv run python 03-computer-vision/14_video_analysis.py
+"""Content Understanding video analysis via `prebuilt-videoSearch` — requires `SAMPLE_VIDEO_URL`.
 
 Beginner note:
   `prebuilt-videoSearch` returns analyzer contents for video segments. This

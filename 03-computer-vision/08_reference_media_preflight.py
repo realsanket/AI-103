@@ -1,4 +1,5 @@
-"""Opt-in Sora 2 reference-image video generation.
+# Run: uv run python 03-computer-vision/08_reference_media_preflight.py
+"""Opt-in Sora 2 reference-image video generation — preflight + explicit `--apply`.
 
 Run without flags for a local preflight. To submit a job, pass an owned,
 consented reference image and `--apply`. Sora 2 accepts one JPEG, PNG, or

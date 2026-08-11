@@ -2,731 +2,715 @@
 
 # Domain 3: Computer vision
 
-Runnable AI-103 study guide for image understanding, image/video generation, content safety, provenance, and Content Understanding (CU). Run every command from repository root:
+> Runnable labs for image understanding, alt text, image moderation, image/video generation, visual safety, provenance detection, and Content Understanding (CU). Run every numbered lesson from repository root: `uv run python 03-computer-vision/<lesson>.py`
+>
+> Code proves one narrow request path per lesson. It is not a production deployment, rights clearance, accessibility conformance, or policy approval.
 
-```bash
-uv run python 03-computer-vision/<lesson>.py
-```
-
-A successful lab proves one narrow request path. It does **not** prove output accuracy, accessibility, rights clearance, production readiness, or policy compliance.
-
-## Outcomes and learning order
-
-| Stage | Lessons | Learn | Do not infer |
-|---|---|---|---|
-| Understand | 01, 07 | Multimodal image input and accessibility drafts | OCR, object regions, fact verification, or accessibility conformance |
-| Generate and edit | 02–04 | Image output, prompt editing, mask intent | Deterministic pixels or preservation outside mask |
-| Generate video | 05, 10, 11 | Asynchronous Sora job, reference preflight, remix boundary | General video editing or automatic rights clearance |
-| Control media risk | 06, 12, 13 | Harm signals, provenance signals, indirect-injection boundary | Universal approval, ownership proof, or complete attack prevention |
-| Analyze hosted media | 08, 09, 14, 15 | CU analyzer, Blob SAS preflight, bounded handoff | Uploading, indexing, long-term storage, or a complete ingestion platform |
-
-Recommended order: **01 → 07 → 06 → 02 → 03 → 04 → 05 → 10 → 11 → 12 → 13 → 14 → 08 → 09 → 15**. Run no billable `--apply`/`--run` lesson until its no-cloud preflight and access checks pass.
-
-## Architecture and service decisions
+## What this domain teaches
 
 ```text
-local image ──data URL──> Azure OpenAI Responses ──> answer/draft
-prompt ─────────────────> Azure OpenAI Images    ──> PNG
-prompt ─────────────────> Sora video job         ──> poll ──> MP4
-
-local image ──bytes─────> Content Safety          ──> category signals
-Blob URL + read SAS ────> Content Understanding   ──> async analyzer result
-OCR text ───────────────> Prompt Shields          ──> attack signal
-Blob URL + read SAS ────> Provenance detection    ──> C2PA/watermark signal
+Visual understanding (multimodal Q&A, alt text, moderation signals)
+    → Image generation and editing (text-to-image, prompt edit, mask edit)
+    → Video generation (Sora text-to-video, reference media, video remix)
+    → Visual safety and provenance (C2PA detection, OCR injection defense)
+    → Content Understanding (Blob preflight, image analysis, video analysis, handoff)
 ```
 
-### Endpoint, SDK, and authentication matrix
+Domain 3 covers the full lifecycle of visual media in an AI application: reading images for understanding, generating new pixels, moderating content, detecting provenance signals, and extracting structured information from hosted media. Each stage builds on the previous — start with lessons 01–03 to validate your visual pipeline before committing to generation or hosted-media workflows.
 
-| Surface | Code setting / client | Endpoint shape | Auth | Lessons |
-|---|---|---|---|---|
-| Azure OpenAI SDK data plane | `AZURE_OPENAI_ENDPOINT`, `openai_client()` | `https://<resource>.openai.azure.com/openai/v1` | `DefaultAzureCredential`, `https://ai.azure.com/.default` | 01–04, 07, 10–11 |
-| Sora direct REST | `AZURE_OPENAI_ENDPOINT`, `05_video_generation.py` | `https://<resource>.openai.azure.com/openai/v1` | Current request headers contain a redacted placeholder, not `_token()` output | 05 |
-| Foundry project data plane | `PROJECT_ENDPOINT`, `project_client()` | `https://<resource>.services.ai.azure.com/api/projects/<project>` | `DefaultAzureCredential` | 06 model path |
-| Azure AI Content Safety | `CONTENT_SAFETY_ENDPOINT`, `content_safety_client()` | `https://<resource>.cognitiveservices.azure.com` | `DefaultAzureCredential` | 06 direct path, 12, 13 |
-| Content Understanding REST | `CU_ENDPOINT`, `_shared/cu_client.py` | `https://<resource>.services.ai.azure.com/contentunderstanding` | Current request headers contain a redacted placeholder, not a credential token | 08, 09, 15 |
-| Azure Blob Storage | no cloud storage client in this domain | `https://<account>.blob.core.windows.net/<container>/<blob>` | SAS for CU/provenance fetch; Entra ID for application storage work | 08, 09, 12, 14, 15 |
+## Visual services mental model
 
-Do not substitute a Foundry project endpoint for an Azure OpenAI endpoint. Obtaining an Entra token proves identity authentication, not data-plane RBAC authorization.
+```text
+Local image bytes ──data URL──> Azure OpenAI Responses  ──> text answer / alt text
+Prompt ─────────────────────> Azure OpenAI Images       ──> PNG (generated / edited)
+Prompt ─────────────────────> Sora video job            ──> poll ──> MP4
 
-### Decision table
+Local image bytes ──────────> Content Safety            ──> 4-category severity signals
+HTTPS Blob URL + SAS ───────> Content Safety Provenance ──> C2PA/watermark signal
+OCR text (from image) ──────> Prompt Shields            ──> injection attack signal
+HTTPS Blob URL + SAS ───────> Content Understanding     ──> async analyzer result
+```
 
-| Need | Use | Why | Do not use when |
+### Endpoint and client map
+
+| Surface | Setting | Client | Lessons |
 |---|---|---|---|
-| Question about one or more images | Multimodal Responses | Flexible language grounded on supplied image | You require fixed schema, coordinates, verified OCR, or deterministic extraction |
-| New or changed pixels | Image generation/edit | Produces image bytes | You need pixel-perfect compositing or source preservation |
-| Short generated video | Sora job | Explicit asynchronous video contract | You need synchronous response, a durable media store, or broad-region GA support |
-| Four-category image harm signal | Direct Content Safety | Application decides before downstream model call | You need a complete business policy or legal decision |
-| Origin/transparency signal | Provenance detection | Detects supported C2PA/Microsoft signals | You need proof of ownership, truth, safety, or human origin |
-| Repeatable image/video analyzer result | CU prebuilt analyzer | Async, analyzer-shaped output for hosted media | Your source cannot be service-reachable or output must be permanent schema |
-| Defend OCR/document text from instruction attacks | Prompt Shields plus application policy | Scans untrusted document content | You expect one detection call to make untrusted text safe |
+| Azure OpenAI data plane | `AZURE_OPENAI_ENDPOINT` | `openai_client()` | 01–06 |
+| Sora direct REST | `AZURE_OPENAI_ENDPOINT` | `httpx` + bearer token | 07–09 |
+| Foundry project (guardrail path) | `PROJECT_ENDPOINT` | `project_client()` | 03 (flow 2) |
+| Azure AI Content Safety | `CONTENT_SAFETY_ENDPOINT` | `content_safety_client()` | 03 (flow 1), 10, 11 |
+| Content Understanding REST | `CU_ENDPOINT` | `_shared/cu_client.py` | 13, 14, 15 |
+| CU preflight (local) | `STORAGE_ACCOUNT`, `CU_ENDPOINT` | none — local only | 12 |
 
-## Before running
+Do not substitute a project endpoint for an Azure OpenAI endpoint. Both may contain the same resource name but use different SDK routes, API contracts, and RBAC scopes.
 
-### Install, identity, and configuration
+---
 
-```bash
-uv sync
-cp .env.example .env
-az login
-```
+## Glossary
 
-Use a nonproduction subscription, approved non-sensitive samples, and a least-privilege identity. On a developer machine `DefaultAzureCredential` usually reaches Azure CLI credentials after `az login`; deployed workloads should use managed identity or workload identity. Confirm effective principal, tenant, endpoint, deployment, region, and role before changing application code for a `401`, `403`, or `404`.
+| Term | Study definition |
+|---|---|
+| **Data URL** | `data:<mime>;base64,...` — image bytes embedded inline in an API request; no storage needed |
+| **Blob SAS URL** | HTTPS Blob URL with a signed query string delegating time-limited read access |
+| **Content Safety severity** | Integer score 0, 2, 4, or 6 for image harm categories (NOT 0–7) |
+| **Provenance signal** | Detected C2PA metadata or Microsoft watermark — an origin indicator, not proof of truth or ownership |
+| **Prompt Shields** | Content Safety API that scans text for indirect prompt injection attacks (jailbreak / document) |
+| **CU** | Content Understanding — async REST service that fetches a hosted URL and returns analyzer results |
+| **Prebuilt analyzer** | CU's built-in analyzer for image, video, or document: `prebuilt-imageSearch`, `prebuilt-videoSearch` |
+| **Sora** | Azure OpenAI video generation model; uses async job lifecycle: submit → poll → download |
+| **Masked edit** | `images.edit` with an alpha-channel mask; transparent pixels mark intended editable region |
+| **Human review** | Required approval step for generated/AI-processed visual content before publication |
+
+---
+
+## Setup
+
+### Environment variables
 
 ```dotenv
-# Direct Azure OpenAI: deployment aliases, not model-family labels.
+# Azure OpenAI — deployment aliases, NOT model-family labels
 AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
-DEFAULT_MODEL=<multimodal-deployment>
-IMAGE_MODEL=<gpt-image-deployment>
-VIDEO_MODEL=<sora-2-deployment>
+DEFAULT_MODEL=<visual-capable-chat-deployment>       # gpt-4.1, gpt-4o
+IMAGE_MODEL=<image-generation-deployment>            # gpt-image-1
+VIDEO_MODEL=<sora-deployment>                        # sora-2
 
-# Lesson 06 project-scoped model path.
-PROJECT_ENDPOINT=https://<resource>.services.ai.azure.com/api/projects/<project-name>
+# Lesson 03 guardrail path
+PROJECT_ENDPOINT=https://<resource>.services.ai.azure.com/api/projects/<project>
 
-# Content Safety: lessons 06, 12, 13.
+# Content Safety — lessons 03, 10, 11
 CONTENT_SAFETY_ENDPOINT=https://<resource>.cognitiveservices.azure.com
 
-# Content Understanding: lessons 08, 09, 15.
+# Content Understanding — lessons 12–15
 CU_ENDPOINT=https://<resource>.services.ai.azure.com
 CU_API_VERSION=2025-11-01
 
-# CU source preflight and a production storage design.
+# CU source media (lessons 12–15)
 STORAGE_ACCOUNT=<account>
 STORAGE_CONTAINER=<container>
 SAMPLE_IMAGE_URL=<https-blob-url-with-read-sas>
 SAMPLE_VIDEO_URL=<https-blob-url-with-read-sas>
 ```
 
-`SAMPLE_IMAGE_URL` and `SAMPLE_VIDEO_URL` are read directly from environment by lessons 08–09; add them to local `.env` even if older `.env.example` templates omit them. `STORAGE_CONNECTION_STRING` exists in shared settings, but no Domain 3 lesson uses it. Do not add account keys or connection strings to source code.
+All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use managed identity in Azure. A successful credential chain proves identity, not correct RBAC scope. Never commit `.env`, SAS URLs, or connection strings to source.
 
-### Resource, region, quota, and cost decisions
+### Safe run order
 
-1. In **Foundry portal**, check model deployment capability, Sora preview
-availability, supported region, quota, and pricing before a design commits to a model or video workflow.
-2. In **Azure portal**, create/select Content Safety, CU, Storage, and
-monitoring resources in approved regions. CU, Sora, and provenance preview availability are service/region/version dependent.
-3. Use **Azure CLI** for repeatable discovery and role review, for example:
+| Stage | Run | Gate |
+|---|---|---|
+| Visual understanding | 01, 02, 03 | 03 needs both `AZURE_OPENAI_ENDPOINT` and `CONTENT_SAFETY_ENDPOINT` |
+| Image generation/editing | 04, 05, 06 | 05–06 need `product_photo.png`; 06 also needs `mask.png` |
+| Video generation | 07, 08 (preflight), 09 (preflight) | 07 needs Sora preview access + region support; 08–09 use `--apply` for billable jobs |
+| Visual safety and provenance | 10 (preflight), 11 (preflight) | 10 needs `--run` for cloud call; 11 needs `--run` + local OCR file |
+| Content Understanding | 12 (preflight), 13, 14, 15 | Run 12 first to validate Blob/SAS config; 13–15 need `SAMPLE_IMAGE_URL`/`SAMPLE_VIDEO_URL` |
 
-```bash az account show --query "{subscription:id,tenant:tenantId,user:user.name}" -o json az role assignment list --assignee <principal-object-id> --all -o table az cognitiveservices account list -g <resource-group> -o table ```
+### Costs and side effects
 
-These commands discover state; they do not create a deployment or grant a role. Avoid putting SAS URLs in terminal history or command arguments.
-4. Use **IaC** (Bicep/ARM/Terraform) for resource kind, region, public/private
-network policy, diagnostic settings, private endpoints, role assignments, tags, and approved model deployments. This domain contains no IaC template, and none of its scripts provisions infrastructure. Keep model/deployment availability checks in release gates because IaC cannot make an unsupported model available in a region.
+| Lesson | What it writes / costs |
+|---|---|
+| 01 | Inference tokens (visual model) |
+| 02 | Two inference calls (visual model) |
+| 03 | Content Safety image analysis + visual model inference |
+| 04 | Image generation call + local PNG written |
+| 05 | Image edit call + local PNG written |
+| 06 | Image edit call (with mask) + local PNG written |
+| 07 | Billable Sora video job + local MP4 downloaded |
+| 08 | **Read-only** until `--apply` (then: billable Sora reference-image job, no download) |
+| 09 | **Read-only** until `--apply` (then: billable Sora remix job, no download) |
+| 10 | **Read-only** until `--run` (then: Content Safety Provenance API call) |
+| 11 | **Read-only** until `--run` (then: Prompt Shields document scan) |
+| 12 | Local only — no cloud calls |
+| 13 | CU async analyzer operation (requires `SAMPLE_IMAGE_URL`) |
+| 14 | CU async analyzer operation (requires `SAMPLE_VIDEO_URL`) |
+| 15 | **Read-only** until `--apply` (then: CU async analyzer operation) |
 
-Budget for image tokens/output, image-generation calls, Sora generated seconds, Content Safety requests, CU operations/media processing, Blob storage and egress, private-link/DNS operations, and Log Analytics/Application Insights ingestion. Set budget alerts and per-environment quotas. Never use unbounded retry to solve quota exhaustion.
+---
 
-### Media transport and prerequisites
+## Decision tables
 
-| Transport | Lessons | Prerequisite | Security boundary |
-|---|---|---|---|
-| Base64 data URL | 01, 06, 07 | Readable local PNG/JPEG/WebP | Bytes enter model request; never log request body |
-| Multipart local file | 03, 04, 10 | Valid source; mask/reference constraints | Local validation is not rights or safety validation |
-| HTTPS Blob URL with short read SAS | 08, 09, 12, 14, 15 | CU/service can resolve and fetch URL before expiry | SAS delegates access; redact query string everywhere |
-| Existing Sora video ID | 11 | Completed, authorized Sora output | ID is not a local file and does not establish ownership |
+### When to use which visual approach
 
-For image editing, shared `validate_edit_inputs` checks readable source format (PNG/JPEG/WebP); with a mask it also checks PNG, matching dimensions, alpha channel, and at least one transparent pixel. It does **not** enforce all remote API size/model constraints or assess desired visual quality.
+| Need | Use | Do not use when |
+|---|---|---|
+| Open-ended question about an image | Multimodal Responses API (01, 02) | Need fixed schema, coordinates, or verified OCR |
+| Accessibility draft (alt text) | Multimodal Responses with labeled prompts (02) | Publishing without human review and contextual approval |
+| Image harm signals before model | Content Safety `analyze_image` (03 flow 1) | Treating severity alone as policy decision |
+| Model deployment guardrail | Multimodal Responses (03 flow 2) | Expecting guardrail to replace business policy |
+| New pixels from a prompt | `images.generate` (04) | Need pixel-perfect reproduction or rights-cleared output |
+| Restyle existing image (full-frame) | `images.edit` no mask (05) | Need exact preservation of logos, text, product identity |
+| Bounded region edit | `images.edit` with mask (06) | Need deterministic compositing or exact outside-mask preservation |
+| Short generated video | Sora `job` (07) | Need synchronous response, GA availability, or durable media store |
+| First-frame video anchor | Sora reference media (08) | Input contains human faces, unlicensed assets, or wrong dimensions |
+| Change existing Sora video | Sora remix (09) | Input is a local video file (only completed Sora ID accepted) |
+| Origin signal for media | Provenance detection (10) | Treating detected/absent marker as proof of ownership or safety |
+| OCR text before model | Prompt Shields document scan (11) | Expecting one scan to make untrusted text safe |
+| Structured image extraction | CU `prebuilt-imageSearch` (13) | Source can't be reached by CU server, or output must be permanent schema |
+| Video segment summaries | CU `prebuilt-videoSearch` (14) | Need guaranteed keyframes, full transcript, or durable search index |
+| Bounded normalized handoff | CU visual handoff (15) | Need complete CU archive or raw result forwarding |
 
-CU’s shared helper defaults to `CU_API_VERSION=2025-11-01`, accepts exactly one HTTPS source URL, validates a partially specified Blob SAS, validates that `Operation-Location` remains on configured CU host, and has a 300-second polling deadline. Configure a supported version for resource; do not revive older documentation’s `2025-11-15-preview` default.
+### Media transport comparison
+
+| Transport | Lessons | When to use |
+|---|---|---|
+| Base64 data URL | 01, 02, 03 | Small local images; no storage setup; bytes enter model request |
+| Multipart local file | 04, 05, 06, 08 | Image generation/edit API; local file sent as multipart form data |
+| HTTPS Blob URL + short SAS | 13, 14, 15 | CU service fetches URL server-side; local paths not supported |
+| Completed Sora video ID | 09 | Sora remix; requires previously completed job, not a local file |
+
+---
 
 ## Lesson map
 
-| # | Lesson | Primary dependency | Cloud side effect |
-|---:|---|---|---|
-| 01 | [Multimodal understanding](01_multimodal_understanding.py) | Multimodal deployment | Inference |
-| 02 | [Image generation](02_image_generation.py) | Image deployment | Generated PNG and inference |
-| 03 | [Prompt image edit](03_image_prompt_edit.py) | Image deployment | Generated PNG and inference |
-| 04 | [Masked image edit](04_image_masked_edit.py) | Image deployment + valid mask | Generated PNG and inference |
-| 05 | [Sora text-to-video](05_video_generation.py) | Sora preview deployment/region | Billable job and MP4 |
-| 06 | [Image moderation](06_image_moderation.py) | Content Safety + project endpoint | Two data-plane calls |
-| 07 | [Alt text and captions](07_alt_text_captions.py) | Multimodal deployment | Two inference calls |
-| 08 | [CU image analysis](08_content_understanding_image.py) | CU + reachable image URL | Async analyzer operation |
-| 09 | [CU video analysis](09_video_analysis.py) | CU + reachable video URL | Async analyzer operation |
-| 10 | [Reference-media preflight](10_reference_media_preflight.py) | Optional Sora deployment | None unless `--apply` |
-| 11 | [Video remix](11_video_remix.py) | Completed Sora video ID | None unless `--apply` |
-| 12 | [Visual provenance policy](12_visual_provenance_policy.py) | Content Safety + Blob URL | None unless `--run` |
-| 13 | [OCR injection safety](13_ocr_image_injection_safety.py) | Content Safety + local OCR text | None unless `--run` |
-| 14 | [CU Blob preflight](14_cu_blob_preflight.py) | Optional storage/CU settings | None |
-| 15 | [CU visual handoff](15_cu_visual_handoff.py) | CU + reachable source URL | None unless `--apply` |
+| # | File | Runnable objective | Default side effect |
+|---|---|---|---|
+| 01 | `01_multimodal_understanding.py` | Ask a question about `sales_data.png` via Responses API | Inference tokens |
+| 02 | `02_alt_text_captions.py` | Generate alt text + extended description + multi-image caption | Inference tokens |
+| 03 | `03_image_moderation.py` | Direct Content Safety + model guardrail for `support.png` | CS call + inference tokens |
+| 04 | `04_image_generation.py` | Generate `training_image.png` from prompt | Image generation + local PNG |
+| 05 | `05_image_prompt_edit.py` | Full-frame prompt edit of `product_photo.png` | Image edit + local PNG |
+| 06 | `06_image_masked_edit.py` | Mask-bounded edit of `product_photo.png` | Image edit + local PNG |
+| 07 | `07_video_generation.py` | Submit Sora text-to-video job, poll, download MP4 | Billable Sora job + local MP4 |
+| 08 | `08_reference_media_preflight.py` | Preflight; `--apply` submits reference-image Sora job | **Read-only** until `--apply` |
+| 09 | `09_video_remix.py` | Preflight; `--apply` submits Sora remix for completed video ID | **Read-only** until `--apply` |
+| 10 | `10_visual_provenance_policy.py` | Preflight; `--run` detects C2PA/watermark signals in Blob URL | **Read-only** until `--run` |
+| 11 | `11_ocr_image_injection_safety.py` | Preflight; `--run` scans local OCR file via Prompt Shields | **Read-only** until `--run` |
+| 12 | `12_cu_blob_preflight.py` | Local Blob/SAS/identity config check — no cloud calls | None |
+| 13 | `13_content_understanding_image.py` | CU `prebuilt-imageSearch` on `SAMPLE_IMAGE_URL` | CU async operation |
+| 14 | `14_video_analysis.py` | CU `prebuilt-videoSearch` on `SAMPLE_VIDEO_URL` | CU async operation |
+| 15 | `15_cu_visual_handoff.py` | Bounded CU handoff; `--apply` submits and normalizes result | **Read-only** until `--apply` |
 
-## Detailed implementation walkthroughs
+---
 
-Each walkthrough states **what**, **why**, **how/architecture**, **prereqs and dependencies**, **code path**, **output**, **use / do not use**, **best practice**, **pitfalls**, and **takeaway**. “Production” describes work the lesson does not claim to implement.
+## Stage 1 — Visual understanding (lessons 01–03)
+
+These three lessons use only local images and the Azure OpenAI Responses API (lesson 03 adds Content Safety). No Blob Storage, no CU service, no Sora. Run them first to validate your visual deployment and credential chain.
 
 ### 01 — Multimodal understanding
 
-Run:
+**Question answered:** How do you ask a question about a local image using the Responses API?
+
+**Background.** The Responses API accepts `input_image` content items alongside text. The `_shared/vision_inputs.py` helper encodes a local PNG as `data:<mime>;base64,...` — no Azure Storage or CU service needed. This is the simplest visual input path and the foundation for all other image-to-text lessons.
 
 ```bash
 uv run python 03-computer-vision/01_multimodal_understanding.py
 ```
 
-**What.** Answers an open-ended question about local `sales_data.png`.
+**Code path.**
+1. `image_data_url(image_path)` → encodes `sales_data.png` as base64 data URL
+2. `openai_client()` → direct Azure OpenAI SDK client via `AZURE_OPENAI_ENDPOINT`
+3. `client.responses.create(model=DEFAULT_MODEL, input=[{role, content: [input_text, input_image]}])`
+4. Prints `r.output_text`
 
-**Why.** A multimodal model combines task language with visual evidence; this is simpler than designing an analyzer when result need is prose.
+**What to watch in the output.** Free-form prose summary of the sales chart. Model may misread small numbers or axis labels — treat as unreviewed draft. If output is empty or error, check `DEFAULT_MODEL` is a visual-capable deployment.
 
-**Prereqs and dependencies.** `AZURE_OPENAI_ENDPOINT`, a visual-capable `DEFAULT_MODEL`, Entra data-plane access, `_shared/sample_data/images/sales_data.png`, and `_shared/vision_inputs.py`.
+**What this proves / does NOT prove.** Proves data URL + visual model + credential chain work. Does NOT prove structured extraction, reliable OCR, object coordinates, or factual accuracy.
 
-**How / architecture.** Local image bytes become `data:<mime>;base64,...`; Responses receives one `input_text` and one `input_image`, then returns text.
+**References:** [GPT with vision how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-with-vision) · [Responses API quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api)
 
-**Code path.** `image_data_url()` validates/encodes image → `openai_client()` uses direct Azure OpenAI endpoint → `responses.create(model=DEFAULT_MODEL)` → `r.output_text`.
+---
 
-**Output.** Variable summary text printed to stdout.
+### 02 — Alt text and captions
 
-**Use.** Chart/screenshot explanations, assisted visual Q&A, or a reviewed caption draft. **Do not use.** Fixed field extraction, reliable numeric OCR, coordinates, object detection, or high-stakes factual decision.
+**Question answered:** How can a multimodal model generate accessibility drafts for images?
 
-**Best practice.** Ask narrow observable questions (“state unreadable text, do not guess”), constrain output schema where downstream code needs it, and evaluate representative images.
-
-**Pitfalls.** A text-only deployment, malformed data URL, unknown MIME, large payload, or image-embedded instructions can fail or mislead. Treat all visual and OCR-like text as untrusted data, never as system instructions.
-
-**Takeaway.** Data URL is inline request transport; model prose is not a structured or verified computer-vision contract.
-
-### 02 — Image generation
-
-Run:
+**Background.** AI-generated alt text can accelerate accessibility authoring but requires human review for every output. The model generates text from pixels without knowing the page context, decorative vs informative intent, or how a screen-reader user will experience surrounding content. This lesson enforces structural constraints — 125-char ALT ceiling, required `ALT:` and `DESCRIPTION:` labels — to make the draft more actionable.
 
 ```bash
-uv run python 03-computer-vision/02_image_generation.py
+uv run python 03-computer-vision/02_alt_text_captions.py
 ```
 
-**What.** Generates one training-image PNG from an explicit prompt.
+**Code path.**
+1. Flow A: `_alt_text_and_extended(image_url)` → model returns `ALT:` + `DESCRIPTION:` blocks; `_accessibility_draft()` checks 125-char ceiling and labels, appends `REVIEW:` warning if violated
+2. Flow B: `_multi_image_caption([url1, url2])` → model returns single narrative caption for both images
 
-**Why.** Image generation makes pixels for creative work; it is different from recognizing source-image facts.
+**What to watch in the output.** `ALT:` line under 125 characters, `DESCRIPTION:` paragraph. If `REVIEW:` appears, the draft needs human editing. The caption is for visual description, not as a replacement for actual text content.
 
-**Prereqs and dependencies.** `AZURE_OPENAI_ENDPOINT`, deployed `IMAGE_MODEL`, direct Azure OpenAI role/access, and writable `_shared/sample_data/generated/`.
+**Exam cues.** AI alt text is a draft, not WCAG conformance. Caption is visible prose; alt text is a non-visual alternative. Never auto-publish without human review and contextual approval.
 
-**How / architecture.** Prompt → `images.generate` → base64 image response → validated bytes → local PNG.
+**References:** [GPT with vision how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-with-vision) · [OCR transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/computer-vision/ocr-transparency-note)
 
-**Code path.** `openai_client()` → `images.generate(model, prompt, n=1, size="1024x1024", quality="medium", output_format="png")` → `save_generated_image()` decodes and verifies returned image bytes → writes `training_image.png`.
+---
 
-**Output.** `saved: .../training_image.png`; open it for visual review.
+### 03 — Image moderation
 
-**Use.** Draft creative assets, controlled design exploration, and prompt experiments. **Do not use.** Brand-approved production collateral, evidence, or content requiring factual/rights certainty without review.
+**Question answered:** What does direct Content Safety image analysis return, and how does it compare to deployment guardrails?
 
-**Best practice.** Version prompt, deployment, parameters, reviewer decision, and approved asset ID. Change one visible requirement per experiment; apply human/policy review before distribution.
-
-**Pitfalls.** Deployment alias is not model-family name; output overwrites a previous lab file; successful bytes can be inaccurate, unsafe, or unsuitable. Higher quality/size can affect latency/cost and rate limits.
-
-**Takeaway.** Generation success means image bytes arrived, not acceptance.
-
-### 03 — Prompt-driven image edit
-
-Run:
+**Background.** Two complementary moderation paths exist: (1) Direct — call Content Safety `analyze_image` before any model sees the image; returns 0/2/4/6 severity per category. (2) Guardrail — send the image to a multimodal model; the deployment's content filter evaluates both the prompt and response. Neither is a complete business policy alone; they are complementary signals.
 
 ```bash
-uv run python 03-computer-vision/03_image_prompt_edit.py
+uv run python 03-computer-vision/03_image_moderation.py
 ```
 
-**What.** Edits `product_photo.png` with a full-frame preservation request.
+**Code path.**
+1. Flow 1: `content_safety_client().analyze_image(AnalyzeImageOptions(image=ImageData(content=image_bytes)))` → prints severity for Hate / SelfHarm / Sexual / Violence
+2. Flow 2: `project_client().get_openai_client().responses.create(model=DEFAULT_MODEL, …)` → ephemeral agent call; prints optional `model_extra.content_filters` guardrail metadata
 
-**Why.** Prompt-only editing is appropriate when desired change is broad and exact editable region is unnecessary.
+**What to watch in the output.** Direct path: four category severity lines (0, 2, 4, or 6). Guardrail path: support answer or filter metadata. Filter metadata may be absent — its presence/absence depends on SDK and service version.
 
-**Prereqs and dependencies.** Same direct image deployment as 02, source image, and `validate_edit_inputs(src)`.
+**Exam cues.** Image severity values are **0, 2, 4, 6** — NOT 0–7 like text. A severity alone is not a policy decision. Guardrail behavior varies by deployment; it does not replace explicit application policy.
 
-**How / architecture.** Valid local file → multipart `images.edit` prompt → base64 output → validated PNG on disk.
+**References:** [Content Safety image quickstart](https://learn.microsoft.com/azure/ai-services/content-safety/quickstart-image) · [Harm categories](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/harm-categories)
 
-**Code path.** Input helper verifies source readability/format → script opens source binary → `images.edit(... image=image_file, prompt, size, n, quality)` → `save_generated_image()` writes `edited_product_photo.png`.
+---
 
-**Output.** One `saved:` line and generated edit.
+## Stage 2 — Image generation and editing (lessons 04–06)
 
-**Use.** Creative restyling, lighting/background concepts, and reviewed marketing drafts. **Do not use.** Product photography requiring exact text, logos, legal evidence, or pixel stability.
+These lessons use `images.generate` and `images.edit` via the Azure OpenAI data plane. Generated images are stored locally in `_shared/sample_data/generated/`. All generation is non-deterministic — run twice to observe variance.
 
-**Best practice.** Define visual acceptance checks for product identity, logos, text, edges, background, and unintended changes; retain source/edit prompt/reviewer lineage.
+### 04 — Image generation
 
-**Pitfalls.** “Keep unchanged” is intent, not a preservation guarantee. The helper does not compare output to source or enforce every remote API limit.
+**Question answered:** How do you generate a new image from a text prompt?
 
-**Takeaway.** Prompt-only edit is generative full-frame transformation.
-
-### 04 — Masked image edit
-
-Run:
+**Background.** `images.generate` makes new pixels from a prompt description. It is creative output, not factual reproduction — the model has no access to real brand assets or product photos. Generated images require human review and policy approval before distribution.
 
 ```bash
-uv run python 03-computer-vision/04_image_masked_edit.py
+uv run python 03-computer-vision/04_image_generation.py
 ```
 
-**What.** Requests a wall display only in transparent area of `mask.png`.
+**Code path.**
+1. `openai_client().images.generate(model=IMAGE_MODEL, prompt=_PROMPT, n=1, size="1024x1024", quality="medium", output_format="png")`
+2. `save_generated_image(r, out)` → decodes base64 bytes, validates, writes `training_image.png`
 
-**Why.** Mask bounds intended edit region better than prose alone.
+**What to watch in the output.** "saved: .../training_image.png" — open the file for visual review. Re-run to see generation variance. `IMAGE_MODEL` must be a deployed image-capable alias, not a model-family name.
 
-**Prereqs and dependencies.** Requirements from 03 plus source/mask same dimensions; mask must be PNG with alpha and at least one transparent pixel.
+**Exam cues.** Deployment alias ≠ model-family name. Each run overwrites the previous output. Generation success means bytes arrived, not visual acceptance or rights clearance.
 
-**How / architecture.** Source + alpha mask + prompt → `images.edit` → PNG. Transparent (alpha `0`) mask pixels are intended editable pixels; nontransparent pixels are intended outside edit.
+**References:** [Image generation how-to (DALL-E)](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e) · [Video generation concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/video-generation)
 
-**Code path.** `validate_edit_inputs(src, mask)` validates source/mask contract → both handles passed as `image`/`mask` → response verified → writes `masked_edit_product_photo.png`.
+---
 
-**Output.** One `saved:` line and output image to inspect alongside source and mask.
+### 05 — Prompt-driven image edit
 
-**Use.** Bounded inpainting where review can tolerate generative variance. **Do not use.** Deterministic compositing, compliance redaction, or any workflow requiring exact preservation outside mask.
+**Question answered:** How do you transform an existing image with a prompt, without specifying a region?
 
-**Best practice.** Keep source/mask/output trio, inspect boundary artifacts, and add pixel-difference/business acceptance tests when outside-mask stability matters.
+**Background.** `images.edit` takes a source image and a natural-language prompt describing the desired change. Without a mask, the API applies a full-frame interpretation — "keep the product unchanged" is intent, not a pixel-level preservation guarantee. Logos, text, and product identity can change even with preservation language. For bounded edits, use lesson 06.
 
-**Pitfalls.** Mask validation only proves local format geometry/alpha. It does not prove semantic placement, output quality, or exact preservation.
-
-**Takeaway.** A mask constrains requested change; it is not a pixel lock.
-
-### 05 — Sora 2 text-to-video
-
-Run only after preview, region, quota, policy, and cost checks:
+**Before code.** Ensure `product_photo.png` exists in `_shared/sample_data/images/`. The helper validates format before making an API call.
 
 ```bash
-uv run python 03-computer-vision/05_video_generation.py
+uv run python 03-computer-vision/05_image_prompt_edit.py
 ```
 
-**What.** Creates a text-only 1280×720 five-second video through asynchronous Sora API, polls it, and downloads first generated MP4.
+**Code path.**
+1. `validate_edit_inputs(src)` → checks readable PNG/JPEG/WebP
+2. `images.edit(model=IMAGE_MODEL, image=image_file, prompt=_PROMPT, size="1024x1024", n=1, quality="medium")`
+3. `save_generated_image(r, dst)` → writes `edited_product_photo.png`
 
-**Why.** Video work lasts longer than an HTTP request; job state separates submission, observation, and download.
+**What to watch in the output.** Compare `edited_product_photo.png` to source. Note what changed vs what didn't. Logos, text, and small details often change despite "keep unchanged" instructions.
 
-**Prereqs and dependencies.** `AZURE_OPENAI_ENDPOINT`, supported Sora `VIDEO_MODEL`, Entra role/access, Sora preview availability in selected region, and writable generated directory.
+**Exam cues.** Prompt-only edit is full-frame generative transformation. `validate_edit_inputs` checks local format but not all remote API constraints (e.g., size limits, additional format requirements).
 
-**How / architecture.**
+**References:** [Image generation how-to (DALL-E)](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e)
 
-```text
-POST job → job ID → GET status until terminal → first generation ID → GET video bytes → MP4
-```
+---
 
-**Code path.** Direct REST defines `_token()` but current submit/poll/download headers use a literal redacted placeholder → request attempt → `_wait_for_job()` polls every five seconds with 300-second deadline → raises on failed/canceled state with service detail → downloads first generation to `northwind_video.mp4`.
+### 06 — Masked image edit
 
-**Output after an authenticated successful request.**
+**Question answered:** How do you constrain an image edit to a specific region using an alpha-channel mask?
 
-```text
-submitted job: <id>
-  status: <state>
-saved: .../northwind_video.mp4
-```
+**Background.** A mask PNG with an alpha channel tells the API which pixels are intended to be editable (transparent = editable; opaque = preserve). The constraint is intent, not a pixel lock — generation remains non-deterministic and outside-mask content can still vary slightly. The local validator ensures the mask has the right format before making any API call.
 
-**Use.** Reviewed short-video prototyping and a reference for job lifecycle. **Do not use.** Synchronous UI request path, durable media library, automatic retry/recovery system, or reference/remix workflow.
-
-**Best practice.** Persist job ID/owner/idempotency key, bound polling with jitter/backoff, expose cancel/resume, verify downloaded content, apply retention/deletion policy, and review output before publication.
-
-**Pitfalls.** A timeout does not cancel remote job; no cancellation, resume, variant selection, or cleanup is sent. First generation selection is not a quality choice. Preview/model availability and policy outcomes vary by region.
-
-**Takeaway.** Submit/poll/download is required asynchronous lifecycle, not a single “generate MP4” call. As written, L05 needs a real token header before it can complete that lifecycle.
-
-### 06 — Image moderation and guardrails
-
-Run:
+**Before code.** `mask.png` must be the same dimensions as `product_photo.png`, must be PNG with alpha channel, and must have at least one transparent pixel.
 
 ```bash
-uv run python 03-computer-vision/06_image_moderation.py
+uv run python 03-computer-vision/06_image_masked_edit.py
 ```
 
-**What.** Compares explicit Content Safety image classification with deployment/model guardrail behavior for same support screenshot.
+**Code path.**
+1. `validate_edit_inputs(src, mask)` → checks both source and mask: same dimensions, PNG with alpha, at least one transparent pixel
+2. `images.edit(model=IMAGE_MODEL, image=image_file, mask=mask_file, prompt=_PROMPT, …)`
+3. `save_generated_image(r, dst)` → writes `masked_edit_product_photo.png`
 
-**Why.** Direct moderation gives application an explicit decision point; deployment safety behavior protects a model call but does not implement business policy.
+**What to watch in the output.** Inspect source, mask, and output together. The generated content should appear in the transparent region of the mask. Check for boundary artifacts and any changes outside the mask area.
 
-**Prereqs and dependencies.** `CONTENT_SAFETY_ENDPOINT`, `PROJECT_ENDPOINT`, visual `DEFAULT_MODEL`, both relevant data-plane role assignments, and `support.png`.
+**Exam cues.** Mask validation only proves local format geometry and alpha channel. It does not prove semantic placement quality or exact outside-mask preservation. A mask constrains requested change; it is not a pixel lock.
 
-**How / architecture.**
+**References:** [Image generation how-to (DALL-E)](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e)
 
-```text
-image bytes ─> Content Safety analyze_image ─> four category signals
-image data URL + question ─> project OpenAI client ─> answer/filter metadata
-```
+---
 
-**Code path.** `_direct_content_safety()` reads local bytes and calls `AnalyzeImageOptions(ImageData(...))`; `_guardrail_through_model()` makes project-scoped Responses call and prints optional `model_extra.content_filters`.
+## Stage 3 — Video generation (lessons 07–09)
 
-**Output.** Direct category severity lines, then a support answer or service safety outcome; metadata may be absent.
+Sora is an async job API: submit → poll → download. All three steps are visible in lesson 07. Lessons 08–09 add governance gates for reference media and remix — run these as preflight before any billable job.
 
-**Use.** Pre-model image risk signals plus independent model deployment guardrails. **Do not use.** A severity alone as policy, legal decision, automatic approval, or audit record.
+### 07 — Sora text-to-video
 
-**Best practice.** Define per-category thresholds, intended-audience/context rules, block/escalate/user message, reviewer workflow, appeal, and minimal privacy-aware audit record. Test false positives/negatives.
+**Question answered:** What does the Sora video generation async lifecycle look like?
 
-**Pitfalls.** Direct image categories are Hate, SelfHarm, Sexual, Violence, with trimmed severities **0, 2, 4, 6**—not all 0–7 values. Filter metadata is optional and SDK/service-shape dependent. One image can signal several categories.
-
-**Takeaway.** Guardrail observation and explicit moderation are complementary, not interchangeable.
-
-### 07 — Accessible alt text and captions
-
-Run:
+**Background.** Sora 2 generates video from a text prompt through an asynchronous job. Unlike synchronous image generation, the video job has three distinct steps: submit, poll for terminal state, then download. This lesson uses the raw `httpx` REST client so all three steps are explicit. Preview availability and region support vary — confirm before committing a design.
 
 ```bash
-uv run python 03-computer-vision/07_alt_text_captions.py
+uv run python 03-computer-vision/07_video_generation.py
 ```
 
-**What.** Produces a short `ALT:` plus extended `DESCRIPTION:` draft, then one caption for two images.
+**Code path.**
+1. `_token()` → `DefaultAzureCredential().get_token("https://ai.azure.com/.default").token`
+2. `POST {AZURE_OPENAI_ENDPOINT}/openai/v1/video/generations/jobs?api-version=preview` → returns job id
+3. `_wait_for_job()` → GET polls every 5 s with 300 s deadline; raises on failure/cancellation
+4. GET `video/generations/{generation_id}/content/video` → downloads bytes → writes `northwind_video.mp4`
 
-**Why.** Vision can accelerate accessibility authoring, but image purpose comes from page/task context, not pixels alone.
+**What to watch in the output.** Job id printed on submit, status updates during polling, "saved: .../northwind_video.mp4" on success. Timeout does not cancel the remote job — reconcile the job id if the script times out.
 
-**Prereqs and dependencies.** Requirements from 01; `sales_data.png`, `support_ticket_portal.png`, and local response-format validator.
+**Exam cues.** Submit/poll/download is the required async lifecycle, not a single "generate video" call. A 300-second poll timeout does not cancel the remote Sora job. First generation selection is not a quality choice.
 
-**How / architecture.** Image data URLs → one instructed Responses call for alt/description; two data URLs → separate caption call.
+**References:** [Sora video generation concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/video-generation)
 
-**Code path.** `_alt_text_and_extended()` calls model; `_accessibility_draft()` checks labels and 125-character ALT ceiling, appending `REVIEW:` on mismatch; `_multi_image_caption()` sends both image items.
+---
 
-**Output.**
+### 08 — Sora reference-media preflight
 
-```text
-=== Alt-text ===
-ALT: ...
-DESCRIPTION: ...
-=== Multi-image caption ===
-...
-```
+**Question answered:** What are the requirements and governance gates for reference-image video generation?
 
-**Use.** Human-reviewed authoring drafts. **Do not use.** Blind publishing, substitute for real table/text/UI equivalent, or a claim of WCAG conformance.
-
-**Best practice.** Generate near render time with surrounding context; retain human-approved override; test with disabled users. Supply chart data and screen UI as actual text, not only as image.
-
-**Pitfalls.** Prompt labels and regex checks do not prove facts, useful intent, correct language, decorative-image handling, or safe disclosure of sensitive content. Caption is visible prose; alt text is nonvisual alternative.
-
-**Takeaway.** Accessibility output is draft content requiring contextual human review.
-
-### 08 — CU image analysis
-
-Run after hosting approved image behind service-reachable HTTPS:
+**Background.** Sora 2 accepts one JPEG, PNG, or WebP reference image as a first-frame visual anchor. The image must be exactly 1280×720 or 720×1280. Reference media introduces privacy, consent, IP, and source-control risks before a billable generation call — the preflight makes these explicit. Sora 2 currently rejects images containing human faces.
 
 ```bash
-uv run python 03-computer-vision/08_content_understanding_image.py
+# No-cloud preflight:
+uv run python 03-computer-vision/08_reference_media_preflight.py
+# Billable job (only after reviewing rights, privacy, and cost):
+uv run python 03-computer-vision/08_reference_media_preflight.py --apply --reference-image <owned-image>
 ```
 
-**What.** Sends `SAMPLE_IMAGE_URL` to `prebuilt-imageSearch`.
+**Code path.**
+1. Default: `preflight()` → prints requirements; no cloud call, no file inspection
+2. `--apply`: `reference_image(path)` → validates existence, suffix, dimensions via Pillow
+3. `openai_client().videos.create(model=VIDEO_MODEL, prompt=…, size="1280x720", input_reference=image)`
+4. Prints submitted job id and status (does NOT poll/download)
 
-**Why.** CU supplies an asynchronous analyzer-shaped result for searchable media rather than open-ended model prose.
+**What to watch in the output.** Default: governance requirements printed. With `--apply`: submitted job id. The lesson does not download the output — retrieve or delete via the Sora video API separately.
 
-**Prereqs and dependencies.** `CU_ENDPOINT`, supported `CU_API_VERSION`, CU data-plane role, `SAMPLE_IMAGE_URL`, and Blob/public access reachable by CU. Run 14 first for local SAS hygiene checks.
+**Exam cues.** Passing preflight does not establish rights or policy acceptance. Human faces are rejected by current Sora policy. `--apply` creates a billable preview job.
 
-**How / architecture.** CU retrieves source server-side; it never receives local `file://` path and this lesson does not upload media.
+**References:** [Sora video generation concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/video-generation)
 
-**Code path.** Environment URL → `validate_source_url()` → `analyze( "prebuilt-imageSearch", url)` → POST submit → validated `Operation-Location` poll → prints status, first content Markdown, optional `Summary`, or redacted diagnostic.
+---
 
-**Output.** `status: Succeeded` plus first result slice; empty contents is valid script behavior.
+### 09 — Sora video remix
 
-**Use.** Analyzer experiments and input for a separately designed searchable ingestion pipeline. **Do not use.** Upload implementation, all-result export, fixed permanent schema, or evidence that CU indexed data elsewhere.
+**Question answered:** How do you apply a narrow change to an existing Sora-generated video?
 
-**Best practice.** Copy/customize analyzer when schema must be stable; store operation ID, analyzer/version, source metadata without SAS, warnings, and evaluation outcome. Inspect raw approved result only in controlled diagnostics.
-
-**Pitfalls.** Expired/over-broad SAS, inaccessible private endpoint/DNS, unsupported input, wrong region/version, quota, or absent summary can fail. Prebuilt IDs can evolve. Current shared CU request headers are a redacted placeholder, so this path also needs real token handling before it can complete a live request.
-
-**Takeaway.** CU fetches URL asynchronously; URL submission is not Blob upload or search indexing.
-
-### 09 — CU video analysis
-
-Run after hosting an approved video:
+**Background.** Sora remix changes an existing generated-video lineage. It accepts a previously completed Sora video ID (not a local file) and applies one narrow prompt change while preserving source structure, motion, and framing. The output is a new async job — not an in-place edit. Source video rights and output retention must be reviewed before submitting.
 
 ```bash
-uv run python 03-computer-vision/09_video_analysis.py
+# No-cloud preflight:
+uv run python 03-computer-vision/09_video_remix.py
+# Billable remix (only after reviewing source ID, rights, and cost):
+uv run python 03-computer-vision/09_video_remix.py --apply --video-id video_<completed-id>
 ```
 
-**What.** Analyzes `SAMPLE_VIDEO_URL` with `prebuilt-videoSearch`.
+**Code path.**
+1. Default: `preflight()` → prints remix requirements; no cloud call
+2. `--apply`: validates `--video-id` starts with `video_`
+3. `openai_client().videos.remix(video_id=video_id, prompt="Change only the lighting…")`
+4. Prints submitted remix job id and status
 
-**Why.** Video requires segment-aware analyzer results rather than one generic image answer.
+**What to watch in the output.** Default: governance requirements. With `--apply`: remix job id. The `video_` prefix validation is shallow — it does not prove the ID completed or that the caller is authorized.
 
-**Prereqs and dependencies.** Requirements from 08, valid CU-reachable video, and a source compatible with selected analyzer/service limits. Run 14 first.
+**Exam cues.** Remix input is a completed Sora video ID, not a local file. `--apply` creates a new billable job; the lesson does not poll, download, cancel, or delete.
 
-**How / architecture.** HTTPS video URL → async CU job → content segments with times and optional summaries.
+**References:** [Sora video generation concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/video-generation)
 
-**Code path.** URL validation → `analyze("prebuilt-videoSearch", url)` → terminal result → iterate `result.contents` → print each `startTimeMs`, `endTimeMs`, and optional `Summary`.
+---
 
-**Output.**
+## Stage 4 — Visual safety and provenance (lessons 10–11)
 
-```text
-status: Succeeded
-[<start>–<end> ms] <summary>
-```
+These lessons address what happens AFTER media is created or received: detecting its origin and defending against content embedded in it. Both start with local preflights; cloud calls require explicit flags.
 
-**Use.** Video retrieval/triage prototype and segment handoff. **Do not use.** Full transcript/chapters/keyframes export, guaranteed frame-level detection, or a durable search index.
+### 10 — Visual provenance policy
 
-**Best practice.** Preserve segment timing/source grounding, test short events and small text against labeled video, and design a bounded downstream schema.
+**Question answered:** How do you detect C2PA and Microsoft watermark signals in hosted media?
 
-**Pitfalls.** `prebuilt-video` is base analyzer for custom analyzers; lesson uses `prebuilt-videoSearch`. A blank summary does not prove no useful media information. Sampling can miss rapid events/small details. Current shared CU request headers are a redacted placeholder, so this path is not authenticated for a live request as written.
-
-**Takeaway.** Video analyzer output is segmented and partial; inspect task relevant fields before downstream action.
-
-### 10 — Sora reference-media preflight
-
-Default run is local only:
+**Background.** The Content Safety Provenance Detect API checks HTTPS Blob or SAS URIs for supported C2PA metadata and Microsoft AI watermarks. A positive result is an origin signal, not proof of ownership, truth, safety, or trustworthiness. No detected marker does not prove media is human-made or non-AI. Lesson 10 makes this policy boundary explicit.
 
 ```bash
-uv run python 03-computer-vision/10_reference_media_preflight.py
-# Only after review:
-uv run python 03-computer-vision/10_reference_media_preflight.py --apply --reference-image <owned-image>
+# No-cloud preflight:
+uv run python 03-computer-vision/10_visual_provenance_policy.py
+# Cloud detection (only with owned HTTPS Blob/SAS URI):
+uv run python 03-computer-vision/10_visual_provenance_policy.py --run --media-url <https-blob-sas-url>
 ```
 
-**What.** Default run prints reference-media requirements. Only explicit `--apply` validates one image-to-video input and submits it.
+**Code path.**
+1. Default: `preflight()` → prints policy statements; no cloud call
+2. `--run`: `media_uri(value)` → validates HTTPS + supported extension
+3. `submit_detection(client, endpoint, source_uri)` → `POST …/provenance/operations:detect?api-version=2026-07-01-preview` → returns operation id
+4. Polls up to 60 × 2 s → prints `outcome` and detected marker `provider`/`model` fields
 
-**Why.** Reference media introduces privacy, consent, IP, and source-control risks before a billable generation call.
+**What to watch in the output.** Preflight: policy text. With `--run`: `outcome: AI_Generated` or `NOT_DETECTED` and zero or more marker lines. No marker is NOT a negative origin conclusion.
 
-**Prereqs and dependencies.** For preflight: none. For apply: requirements from 05, Pillow, readable owned/consented JPEG/PNG/WebP exactly 1280×720 or 720×1280, and no human faces because current Sora policy rejects them.
+**Exam cues.** Provenance is evidence signal, never a universal trust verdict. API version is `2026-07-01-preview` — verify current supported version before production use.
 
-**How / architecture.** Local file validation → opt-in `videos.create` with `input_reference`; output retrieval/deletion is separate API work.
+**References:** [Provenance detection concept](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/provenance-detection) · [Provenance detection how-to](https://learn.microsoft.com/azure/ai-services/content-safety/how-to/how-to-provenance-detection) · [Provenance disclosure guidance](https://learn.microsoft.com/azure/foundry/responsible-ai/content-understanding/provenance-disclosure)
 
-**Code path.** `preflight()` makes no cloud call and does not inspect a file. `apply()` calls `reference_image()` to check existence/suffix/dimensions, then opens the file and invokes `openai_client().videos.create`.
+---
 
-**Output.** Preflight instructions or `Submitted reference-media job:
-<id> (<status>)`.
+### 11 — OCR image-injection safety
 
-**Use.** Explicitly authorized first-frame creative anchors. **Do not use.** Personal/facial images, unlicensed assets, arbitrary dimensions, or assumed local output download.
+**Question answered:** How should text extracted from images be treated before reaching a model?
 
-**Best practice.** Record rights/consent basis, source digest, prompt, requestor, output review, retention, and deletion decision before submit.
-
-**Pitfalls.** Passing preflight does not establish rights/policy acceptance. `--apply` creates billable preview job; script does not poll/download/delete.
-
-**Takeaway.** Reference media needs governance before model invocation.
-
-### 11 — Sora video remix
+**Background.** Image text can contain indirect instructions intended to redirect model behavior (indirect prompt injection). OCR does not distinguish trusted user instructions from adversarial document content. The safe path: treat OCR text as untrusted document data, scan it with Prompt Shields before model use, and never paste OCR output into a system prompt. This lesson demonstrates the Prompt Shields `documentsAnalysis` path.
 
 ```bash
-uv run python 03-computer-vision/11_video_remix.py
-# Only after review:
-uv run python 03-computer-vision/11_video_remix.py --apply --video-id video_<completed-id>
+# No-cloud preflight:
+uv run python 03-computer-vision/11_ocr_image_injection_safety.py
+# Scan local OCR text file:
+uv run python 03-computer-vision/11_ocr_image_injection_safety.py --run --ocr-file <utf8-file>
 ```
 
-**What.** Preflights or submits one narrow lighting remix of completed Sora video.
+**Code path.**
+1. Default: `preflight()` → prints safe-path description; no cloud call
+2. `--run`: reads local UTF-8 OCR text file
+3. `shield_prompt(content_safety_client(), endpoint, _USER_REQUEST, [ocr_text])` → POST to Prompt Shields
+4. Checks `documentsAnalysis[0].attackDetected` → prints True/False and next policy action
 
-**Why.** Remix changes an existing generated-video lineage; it is not a general local video editor.
+**What to watch in the output.** `document attack detected: True` → block or route for human review. `False` → continue treating OCR as untrusted data and applying defense in depth. No detection is not approval.
 
-**Prereqs and dependencies.** Preflight has none. Apply needs direct Sora access, a completed authorized Sora video ID beginning `video_`, and rights/ retention review of source/output.
+**Exam cues.** Lesson does not run OCR itself — only scans an existing OCR text file. Never paste OCR output into a system prompt. Prompt Shields is defense-in-depth, not a guarantee that text is benign.
 
-**How / architecture.** Completed Sora ID + one narrow prompt → `videos.remix` → new asynchronous job.
+**References:** [Prompt Shields / jailbreak detection](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/jailbreak-detection) · [Content filter Prompt Shields](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-prompt-shields)
 
-**Code path.** CLI enforces `--apply` and prefix; `apply()` invokes `openai_client().videos.remix(video_id, prompt)`.
+---
 
-**Output.** Preflight guidance or `Submitted remix job: <id> (<status>)`.
+## Stage 5 — Content Understanding (lessons 12–15)
 
-**Use.** Controlled variation of approved Sora output. **Do not use.** Arbitrary local video upload, broad unreviewed transformation, or a claim that remix preserves every source attribute.
+Content Understanding (CU) is an async REST service that fetches media from a hosted URL and returns structured analyzer results. CU cannot access local file paths — the media must be hosted at an HTTPS URL reachable by the CU service (typically an Azure Blob with a short read SAS). Run lesson 12 first to validate your Blob/SAS configuration before lessons 13–15.
 
-**Best practice.** Keep parent/child video IDs, precise change request, reviewer, output policy decision, and deletion linkage.
+### 12 — CU Blob preflight
 
-**Pitfalls.** A `video_` prefix is shallow validation, not proof ID completed or caller authorized. Apply does not poll, download, cancel, or delete.
+**Question answered:** Is my Blob, SAS, and identity configuration ready for Content Understanding?
 
-**Takeaway.** Remix is a new async job rooted in Sora video ID, not file edit.
-
-### 12 — Visual provenance policy
+**Background.** CU retrieves media server-side from the URL you provide. A wrong scheme, missing SAS signature, insufficient permissions, or private Blob DNS failure will cause the analyzer to fail — but only at runtime, after a billable operation starts. This preflight checks all locally-detectable issues without making any Azure call.
 
 ```bash
-uv run python 03-computer-vision/12_visual_provenance_policy.py
-# Only after review:
-uv run python 03-computer-vision/12_visual_provenance_policy.py --run --media-url <https-blob-sas-url>
+# Basic config check:
+uv run python 03-computer-vision/12_cu_blob_preflight.py
+# Check a specific source URL:
+uv run python 03-computer-vision/12_cu_blob_preflight.py --source-url <https-blob-sas-url>
 ```
 
-**What.** Detects supported C2PA/Microsoft watermark provenance signals in hosted image, audio, or video and prints bounded marker facts.
+**Code path.**
+1. `preflight(source_url)` → reads `settings()` for `STORAGE_ACCOUNT`, `STORAGE_CONTAINER`, `CU_ENDPOINT`
+2. `source_metadata(source_url)` → parses scheme/host/container/blob path (never prints SAS query string)
+3. `validate_source_url(source_url)` → warns about: non-HTTPS, non-Blob host, missing `sig`, missing read `sp=r`, missing expiry `se`
 
-**Why.** Origin signals support transparent disclosure and routing decisions; they do not establish truth or ownership.
+**What to watch in the output.** Configuration status lines, SAS-free source path, and any warnings. Address every warning before running a real CU analysis — each warning is a likely failure mode.
 
-**Prereqs and dependencies.** `CONTENT_SAFETY_ENDPOINT`, Content Safety authorization, supported HTTPS Blob/SAS source, service/region/API-version availability, and retention review. Lesson uses literal `2026-07-01-preview`; verify supported API version before use.
+**Exam cues.** Local parser cannot verify SAS signature validity, RBAC, network access, or CU egress. Managed identity for application Blob upload does NOT automatically make CU able to fetch a private Blob URL. Run this lesson before 13–15.
 
-**How / architecture.** HTTPS URI → POST provenance detect operation → poll terminal operation → outcome plus detected marker provider/model.
+**References:** [Content Understanding quickstart (REST)](https://learn.microsoft.com/azure/ai-services/content-understanding/quickstart/use-rest-api) · [CU secure communications](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/secure-communications)
 
-**Code path.** `media_uri()` checks HTTPS/extension → `submit_detection()` sends REST request through Content Safety client → max 60 polls at two seconds → `run()` prints outcome and result markers.
+---
 
-**Output.** Preflight policy text or `outcome: ...` and zero/more marker lines.
+### 13 — Content Understanding image analysis
 
-**Use.** Provenance disclosure, policy routing, and audit signal. **Do not use.** Proof of ownership, creator identity, copyright status, truth, authenticity, safety, or proof that absent marker means human-made.
+**Question answered:** How does CU's `prebuilt-imageSearch` analyzer differ from a multimodal LLM response?
 
-**Best practice.** Preserve detector version, source identifier (not SAS), timestamp, raw outcome, policy action, and accurate user disclosure. Build appeal/review path for consequential decisions.
+**Background.** `prebuilt-imageSearch` returns a consistent analyzer-shaped result: a Markdown representation of the image content and a `Summary` field. Unlike lesson 01 (free-form LLM prose), CU gives a repeatable structured result designed for searchable-media pipelines. CU retrieves the image server-side — `file://` paths don't work; use `SAMPLE_IMAGE_URL` pointing to an HTTPS Blob SAS URL.
 
-**Pitfalls.** No marker is not a negative origin conclusion; unknown or unsupported formats can fail. This script has bounded polling but no external job persistence/cancel/retry strategy.
-
-**Takeaway.** Provenance is evidence signal, never a universal trust verdict.
-
-### 13 — OCR image-injection safety
+**Before code.** Run lesson 12 preflight. Set `SAMPLE_IMAGE_URL` to a Blob SAS URL of a test image.
 
 ```bash
-uv run python 03-computer-vision/13_ocr_image_injection_safety.py
-# Only after review:
-uv run python 03-computer-vision/13_ocr_image_injection_safety.py --run --ocr-file <utf8-file>
+uv run python 03-computer-vision/13_content_understanding_image.py
 ```
 
-**What.** Treats existing OCR text as untrusted document content and submits it to Content Safety Prompt Shields only on opt-in run.
+**Code path.**
+1. Reads `SAMPLE_IMAGE_URL` from environment; exits with instructions if missing
+2. `validate_source_url(image_url)` → validates HTTPS
+3. `analyze("prebuilt-imageSearch", image_url)` → POST submit → poll → terminal result
+4. Prints `status`, first content `markdown`, and optional `Summary` field
 
-**Why.** Image text can contain indirect instructions intended to redirect model behavior; OCR does not turn that text into trusted user intent.
+**What to watch in the output.** `status: Succeeded` followed by the Markdown representation and Summary string. Empty contents is valid — it may mean no searchable information was extracted for that image.
 
-**Prereqs and dependencies.** Preflight has none. Apply needs `CONTENT_SAFETY_ENDPOINT`, role/access, local UTF-8 OCR extract, and an upstream OCR stage (not implemented here).
+**Exam cues.** CU URL submission is NOT Blob upload or search indexing. CU fetches the URL asynchronously. `prebuilt-imageSearch` ≠ `prebuilt-image` (base analyzer for custom). Run lesson 12 first.
 
-**How / architecture.**
+**References:** [Content Understanding prebuilt analyzers](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/prebuilt-analyzers) · [Content Understanding quickstart (REST)](https://learn.microsoft.com/azure/ai-services/content-understanding/quickstart/use-rest-api)
 
-```text
-image → OCR (outside lesson) → untrusted document text → Prompt Shields
-     → policy block/review/continue → model receives data only when allowed
-```
+---
 
-**Code path.** Reads file → `scan_ocr_text()` calls `shield_prompt()` → helper enforces max five documents/10,000 aggregate characters and 10,000 user-prompt characters → prints `documentsAnalysis[0].attackDetected`.
+### 14 — Content Understanding video analysis
 
-**Output.** Preflight guidance or `document attack detected: True|False` and next policy action.
+**Question answered:** How does CU's `prebuilt-videoSearch` return video segment summaries?
 
-**Use.** Defense-in-depth before document/OCR content joins model context. **Do not use.** OCR itself, proof content benign, or a replacement for authorization/tool-output validation.
+**Background.** `prebuilt-videoSearch` returns segment-aware results: each content item includes `startTimeMs`, `endTimeMs`, and an optional `Summary` field for that time range. Contrast with `prebuilt-video` which is only a base analyzer for custom analyzers — lesson 14 uses `prebuilt-videoSearch`. Video analysis is async and the video URL must be reachable by CU (Blob SAS is easiest).
 
-**Best practice.** Delimit OCR as data, bind model instructions to trusted application policy, validate tool calls independently, minimize/sanitize downstream context, and log redacted security events.
-
-**Pitfalls.** No detection is not approval; the lesson scans one text file and does not call OCR/model. Never paste OCR output into system prompt.
-
-**Takeaway.** Text extracted from pixels remains untrusted external content.
-
-### 14 — CU Blob, SAS, and identity preflight
+**Before code.** Run lesson 12 preflight. Set `SAMPLE_VIDEO_URL` to a Blob SAS URL of an MP4.
 
 ```bash
-uv run python 03-computer-vision/14_cu_blob_preflight.py
-uv run python 03-computer-vision/14_cu_blob_preflight.py --source-url <https-blob-sas-url>
+uv run python 03-computer-vision/14_video_analysis.py
 ```
 
-**What.** Locally reports CU/storage configuration and safe source metadata without printing SAS query values.
+**Code path.**
+1. Reads `SAMPLE_VIDEO_URL` from environment; exits with instructions if missing
+2. `validate_source_url(video_url)` → validates HTTPS
+3. `analyze("prebuilt-videoSearch", video_url)` → POST submit → poll → terminal result
+4. Iterates `result["result"]["contents"]` → prints `[start–end ms] Summary` for each segment
 
-**Why.** CU retrieves media server-side; Blob access, delegated SAS, DNS, and identity are separate concerns that should fail before an expensive analyzer request.
+**What to watch in the output.** Segment lines with millisecond time ranges and summaries. A blank summary does not prove no useful information — sampling can miss rapid events or small text.
 
-**Prereqs and dependencies.** Optional `STORAGE_ACCOUNT`, `STORAGE_CONTAINER`, `CU_ENDPOINT`, and a Blob HTTPS URL. No Azure call occurs.
+**Exam cues.** `prebuilt-video` ≠ `prebuilt-videoSearch`. Segment output is partial — not a full transcript, chapter list, or keyframe set. URL submission is not Blob upload.
 
-**How / architecture.** URL parser extracts host/container/blob path, reads SAS query only to identify missing signature/read/expiry, then discards it.
+**References:** [Content Understanding prebuilt analyzers](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/prebuilt-analyzers) · [Content Understanding quickstart (REST)](https://learn.microsoft.com/azure/ai-services/content-understanding/quickstart/use-rest-api)
 
-**Code path.** `preflight()` reads settings and `source_metadata()`; with a URL, `validate_source_url()` warns about non-HTTPS/non-Blob/no `sig`, no read `sp=r`, or no expiry; stdout omits query string.
+---
 
-**Output.** Configuration status, SAS-free source path, warnings, and role/ network handoff guidance.
+### 15 — CU visual handoff
 
-**Use.** Pre-submit operator check and training on SAS boundaries. **Do not use.** SAS creation, Blob upload, cloud reachability proof, network-policy enforcement, or a security approval.
+**Question answered:** How do you normalize CU output into a bounded, credential-free payload for downstream use?
 
-**Best practice.** Application upload identity: `Storage Blob Data Contributor` at narrow container scope; runtime read identity: `Storage Blob Data Reader` where needed. Prefer user-delegation SAS, one blob, read only, HTTPS, minimal expiry, and no list/write/delete permissions.
+**Background.** Passing raw CU JSON downstream spreads SAS credentials, unbounded payload size, schema drift, and prompt-injection risk. This lesson normalizes the result: strips SAS query credentials, redacts credential-like strings, caps summary at 400 characters, limits warnings to 10, and limits segments to 20. The `select_analyzer()` function picks `prebuilt-imageSearch` or `prebuilt-videoSearch` automatically from the source file extension.
 
-**Pitfalls.** A local parser cannot verify signature validity, expiry time, RBAC, service access, firewall, private DNS, or CU egress. Avoid SAS in shell history and logs.
-
-**Takeaway.** SAS is delegated access; managed identity for application storage does not automatically make CU able to fetch private Blob URL.
-
-### 15 — Bounded CU visual handoff
+**Before code.** Run lesson 12 preflight and confirm lessons 13 or 14 work with your source URL.
 
 ```bash
-uv run python 03-computer-vision/15_cu_visual_handoff.py --source-url <https-blob-sas-url>
-# Only after review:
-uv run python 03-computer-vision/15_cu_visual_handoff.py --apply --source-url <https-blob-sas-url>
+# No-cloud preflight (picks analyzer, shows bounds):
+uv run python 03-computer-vision/15_cu_visual_handoff.py --source-url <HTTPS_BLOB_SAS_URL>
+# Submit and return normalized handoff payload:
+uv run python 03-computer-vision/15_cu_visual_handoff.py --apply --source-url <HTTPS_BLOB_SAS_URL>
 ```
 
-**What.** Selects image/video prebuilt CU analyzer by extension and emits a bounded, SAS-free normalized handoff payload.
+**Code path.**
+1. `select_analyzer(source_url)` → picks `prebuilt-imageSearch` or `prebuilt-videoSearch` from extension
+2. Preflight: prints chosen analyzer and bound limits; no cloud call
+3. `--apply`: `analyze(analyzer, url)` → poll → `normalize_result()` strips SAS, redacts credential-like text, caps summary/warnings/segments
+4. Prints formatted JSON: status, analyzer, source metadata (no SAS), warnings, segments, `segments_truncated`
 
-**Why.** Passing opaque analyzer JSON downstream spreads credentials, payload size, schema drift, and prompt-injection risk.
+**What to watch in the output.** JSON payload with SAS-free `source` metadata and bounded `segments`. If `segments_truncated: true`, there were more than 20 segments — downstream code must handle partial results.
 
-**Prereqs and dependencies.** `CU_ENDPOINT`, supported CU version/role, approved reachable source URL, and lessons 14 plus either 08 or 09 concepts. Supported local extension lists are script policy, not service capability guarantee.
+**Exam cues.** File extension can lie — treat result text as untrusted. Secret regex is defense-in-depth, not a reason to log raw CU data. `--apply` incurs CU operation cost and does not persist operation state.
 
-**How / architecture.**
+**References:** [Content Understanding best practices](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/best-practices) · [Content Understanding prebuilt analyzers](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/prebuilt-analyzers)
 
-```text
-Blob SAS URL → extension selects analyzer → CU async result
-             → normalize: source metadata + ≤10 warnings + ≤20 segments
-             → downstream policy/retrieval/review boundary
-```
+---
 
-**Code path.** `select_analyzer()` chooses `prebuilt-imageSearch` or `prebuilt-videoSearch`; `production_handoff()` requires HTTPS and calls CU; `normalize_result()` strips query credentials, redacts credential-like text, limits summary to 400 characters, warnings to 10, segments to 20.
+## Feature status and hard limits
 
-**Output.** Preflight reports chosen analyzer/bounds; apply prints formatted JSON with status, analyzer, source metadata, warnings, segments, and `segments_truncated`.
+| Feature | Status | Practical boundary |
+|---|---|---|
+| Multimodal Responses (image input) | GA | Visual capability varies by deployment; small text and numbers can be misread |
+| `images.generate` (DALL-E / gpt-image) | GA | Deployment alias required; not model-family name |
+| `images.edit` with prompt only | GA | "Keep unchanged" is intent, not pixel preservation |
+| `images.edit` with mask | GA | Mask bounds edit intent; generation remains non-deterministic |
+| Sora video generation | Preview | Region/availability limited; async job lifecycle required |
+| Sora reference-image input | Preview | Exact 1280×720 or 720×1280; no human faces; owned/consented images only |
+| Sora video remix | Preview | Completed Sora ID required; not local file upload |
+| Content Safety image analysis | GA | Severity values are 0, 2, 4, 6 — NOT 0–7 |
+| Provenance detection | Preview | Supports C2PA and Microsoft watermarks; absence ≠ human-made |
+| Prompt Shields | GA | Defense-in-depth signal; not a guarantee text is benign |
+| Content Understanding `prebuilt-imageSearch` | GA | Source must be HTTPS URL reachable by CU; not local file |
+| Content Understanding `prebuilt-videoSearch` | GA | Segment results are partial; sampling may miss rapid events |
 
-**Use.** A deliberately narrow integration boundary after policy/routing review. **Do not use.** Complete CU archive, raw result forwarding, authorization system, search index, or replacement for source validation.
-
-**Best practice.** Schema-version this normalized payload, preserve analyzer/ API version and provenance, authorize downstream reader, assess summaries against source, and quarantine/review warnings before agent retrieval.
-
-**Pitfalls.** File extension can lie; result text remains untrusted; bounded output can omit relevant segment; secret regex is defense-in-depth not a reason to log raw data. Apply can incur service cost and does not persist operation state. Current shared CU request headers are a redacted placeholder, so a real token is required before this path can complete a live request.
-
-**Takeaway.** Normalize and bound analyzer output before another AI or service consumes it.
-
-## Production workflow
-
-### Build and release flow
-
-```text
-Requirements/data classification
-  → choose region, service, deployment, quota, cost ceiling
-  → IaC: resource + RBAC + network + diagnostics
-  → private DNS/connectivity test with workload identity
-  → media intake: validate type/size/authorization; malware scan where required
-  → source store: private Blob + user-delegation read SAS or approved access path
-  → safety/provenance/prompt-injection controls by risk
-  → model/generation/CU job with idempotency, deadline, and redacted telemetry
-  → output validation + human/policy decision
-  → publish only approved output; retention/deletion and incident workflow
-  → evaluate, monitor cost/quota/quality/safety, then release or rollback
-```
-
-### Identity, RBAC, secrets, and network
-
-| Concern | Decision |
-|---|---|
-| Human local access | Azure CLI-backed `DefaultAzureCredential`; least role at resource/project scope |
-| Workload access | Managed identity/workload identity; do not ship client secret/account key |
-| Azure OpenAI inference | Grant only needed Cognitive Services/OpenAI data-plane role to runtime identity; verify exact role against resource/service documentation |
-| Foundry project calls | Grant project role that permits requested agent/model action; control-plane contributor is not inference access |
-| Content Safety/CU | Grant service-specific data-plane role; test with runtime identity, not administrator |
-| Blob upload | `Storage Blob Data Contributor` at container scope when application needs write |
-| Blob read | `Storage Blob Data Reader` only where application needs direct read; CU normally receives scoped read SAS |
-| SAS | Prefer user-delegation SAS, HTTPS-only, one blob, read-only, short expiry; redact `sig`, `se`, `sp`, and full query |
-| Secrets | Key Vault references for unavoidable secrets/certificates; RBAC, purge protection/retention policy, rotation, and no secret telemetry |
-| Public network | Disable when policy requires; validate each service’s private endpoint support and DNS zone requirements |
-| Private endpoint | Plan separate endpoint/DNS/egress test for Storage, Azure OpenAI/Foundry, Content Safety, CU, Key Vault, and Monitor. Private endpoint alone does not grant RBAC or make service-to-service URL fetch work |
-
-Use portal for discovery/one-off troubleshooting, CLI for repeatable inspection, and IaC for desired state. Never make portal clicks the only record of region, role, network, diagnostic, or deployment decision.
-
-### Observability, quota, reliability, and cost
-
-Emit structured, redacted telemetry: correlation ID, environment, service, region, deployment/analyzer/version, operation/job ID, status, latency, retry count, response class, content-policy action, cost/usage estimate, and SAS-free source identifier. Do **not** emit request image/video bytes, OCR text, prompt, generated media, full SAS, token, connection string, or customer identifiers unless approved secure telemetry policy says otherwise.
-
-Alert on 401/403/404 spikes, 429s, job failures/timeouts, CU terminal failure, private DNS/connectivity failure, content-policy block/review volume, dropped segments, latency, spend/budget, and storage growth. Monitor Azure resource metrics/diagnostic logs with Azure Monitor/Application Insights; service telemetry does not replace application acceptance metrics.
-
-For mutable work: idempotency key, bounded retry only for classified transient errors, exponential backoff/jitter, timeout, cancellation/reconciliation, and dead-letter/manual-review path. Never retry 400/401/403/404 blindly or re-submit video job after unknown timeout without checking existing job ID.
+---
 
 ## Troubleshooting
 
-| Symptom | Likely cause | First action |
+| Symptom | Likely cause | Resolution |
 |---|---|---|
-| 401/403 | Wrong endpoint/scope/tenant/identity/role | Confirm endpoint surface, `az account show`, workload identity, and resource-scoped data-plane role |
-| 404 model/deployment | Model-family label supplied instead of deployment alias, unsupported region/version | Check deployed alias/capability in Foundry portal |
-| Image request rejected | Deployment no visual capability, malformed/oversized input, policy filter | Check model/input contract and service error; do not bypass safety policy |
-| 429/slow generation | Quota/capacity/quality-size pressure | Respect retry-after, back off, reduce only acceptable quality/size, examine quota/budget |
-| Edit fails before cloud call | Invalid/unreadable source or invalid mask | Read helper error; use supported source, same-size PNG alpha mask with transparent pixels |
-| Sora failure/timeout | Preview access/region/policy/quota/request issue | Inspect returned `failure_reason`; timeout leaves remote job active, so reconcile job ID |
-| CU rejects/no result | Missing `SAMPLE_*_URL`, expired SAS, service cannot reach URL, analyzer/version/input mismatch | Run 14, test approved connectivity/DNS, validate resource-supported API/analyzer and inspect terminal diagnostic |
-| CU poll fails host validation | Unexpected `Operation-Location` host | Treat as security failure; compare CU endpoint configuration, do not follow arbitrary URL |
-| Provenance no marker | Unsupported/no detectable signal | Do not infer human origin/ownership; record result and apply policy |
-| Prompt Shields false/negative result | Detection is one signal, context/change attack | Keep OCR as data, layer authorization/validation/review, evaluate on representative attacks |
-| Private endpoint works locally but CU fetch fails | DNS/egress/service-fetch path differs from app path | Test CU source retrieval design explicitly; private networking is per service/path |
+| `401`/`403` on any call | Wrong endpoint, role, or credential chain | Confirm endpoint surface, `az account show`, workload identity, data-plane role |
+| `404 DeploymentNotFound` | Model-family label instead of deployment alias | List deployments in Foundry portal; use configured alias |
+| Visual model returns no image content | Deployment not visual-capable | Check `DEFAULT_MODEL` supports vision; gpt-4.1, gpt-4o |
+| `validate_edit_inputs` fails | Wrong format, mismatched dimensions, or missing alpha | Use PNG/JPEG/WebP; mask must be PNG with alpha and same dimensions as source |
+| Sora job times out | 300 s deadline exceeded or remote job still running | Do NOT resubmit blindly — reconcile existing job id; inspect `failure_reason` |
+| Sora reference image rejected | Human faces present or wrong dimensions | Use owned images without faces at exactly 1280×720 or 720×1280 |
+| `429` on image/video generation | Quota / capacity exhaustion | Respect `Retry-After`; reduce quality/size only if acceptable; check budget alerts |
+| Provenance: no marker detected | Signal absent or media format not supported | Do not infer human origin; record result and apply disclosure policy |
+| CU rejects / no result | Missing `SAMPLE_*_URL`, expired SAS, inaccessible URL, wrong API version | Run lesson 12; test connectivity; validate supported `CU_API_VERSION` and analyzer |
+| CU poll fails host validation | `Operation-Location` host doesn't match `CU_ENDPOINT` | Treat as security failure; do not follow arbitrary redirect URL |
+| Prompt Shields false/negative result | One scan is defense-in-depth, not proof of safety | Layer authorization, validation, and human review; evaluate on representative attacks |
 
-## AI-103 traps and interview prompts
+---
 
-| Trap | Correct answer |
+## CI/CD and operational release
+
+```text
+Define data classification for media (source, generated, OCR, CU output)
+    → IaC: resource + RBAC + private endpoints + diagnostic settings
+    → media intake: validate type/size/rights/malware scan
+    → source store: private Blob + user-delegation read SAS or managed-identity path
+    → apply safety/provenance/injection-defense controls by risk level
+    → model/generation/CU call with idempotency key, deadline, redacted telemetry
+    → output validation + human/policy review gate
+    → publish only approved output; retention/deletion and incident workflow
+    → evaluate, monitor cost/quota/quality/safety, then release or rollback
+```
+
+| Release gate | Minimum evidence |
 |---|---|
-| “Data URL and Blob SAS are equivalent.” | Data URL embeds bytes in request; SAS URL delegates server-side source retrieval. |
-| “Project endpoint can call direct OpenAI client.” | Endpoint/SDK/auth surface must match; project and OpenAI endpoints differ. |
-| “Managed identity removes RBAC work.” | It removes stored credential need; role/scope/network still require design and verification. |
-| “Content Safety severity approves content.” | It is one classifier signal; application policy decides block/escalate/allow. |
-| “Image severity uses all values 0–7.” | Direct image analysis returns trimmed 0, 2, 4, 6 values. |
-| “Mask guarantees preservation outside transparent pixels.” | It bounds edit intent; generation remains nondeterministic. |
-| “Sora returns video synchronously.” | Submit job, poll terminal state, retrieve generation; manage timeout/cancel/reconcile. |
-| “Reference preflight establishes rights.” | Local type/dimension validation is not consent, ownership, policy, or model acceptance. |
-| “No provenance marker proves human-made.” | Absence is not proof of origin, safety, truth, or ownership. |
-| “CU URL input uploads media.” | CU fetches existing reachable URL; scripts do not upload or index. |
-| “`prebuilt-video` equals `prebuilt-videoSearch`.” | Base analyzer differs from retrieval-oriented analyzer used in lesson 09. |
-| “Generated alt text solves accessibility.” | It is a contextual draft; equivalent information, human review, and user testing matter. |
+| Identity | Workload identity; roles scoped to endpoint/action; no user-shared credentials |
+| Media rights | Provenance/consent documented before reference media or remix use |
+| Content policy | Content Safety thresholds defined; human review path for escalations |
+| OCR/injection defense | Prompt Shields + model isolation enforced for document-source content |
+| Network | Blob → CU egress path tested from actual runtime; private DNS verified |
+| Cost | Image/video/CU budget alerts set; retry bounded with backoff |
 
-Interview prompts:
+---
 
-1. **Design private video analysis.** Explain private Blob, narrow upload
-identity, short read SAS/service access decision, CU endpoint/network/DNS, analyzer polling, normalized output, monitoring, retention, and rollback.
-2. **Choose moderation controls.** Explain direct pre-ingestion signal,
-model/deployment safety, policy thresholds, human review, audit minimization, and why neither is a universal approval.
-3. **Recover Sora timeout.** Persist job/idempotency identity, reconcile remote
-state before retry, show user status, cancel/cleanup where policy allows, and preserve only needed lineage.
-4. **Protect OCR RAG.** Keep OCR as data, scan indirect attacks, delimit input,
-validate tools/output, least privilege retrieval, and evaluate bypass cases.
+## Security, networking, and IaC
 
-## Official references
+| Decision | Recommendation | Common pitfall |
+|---|---|---|
+| SAS credentials | User-delegation SAS, read-only, one blob, HTTPS, short expiry; redact `sig` in logs | Long-lived storage account key SAS or SAS with write/list permissions |
+| CU source access | Blob SAS for CU fetch; managed identity for application Blob read/write | Managed identity for application ≠ CU can fetch private Blob URL |
+| Blob upload identity | `Storage Blob Data Contributor` at container scope | Account-level permissions or admin role |
+| Content Safety role | Cognitive Services User data-plane role at resource scope | Cognitive Services Contributor (control-plane, not inference) |
+| Generated content | Human review + policy approval before any distribution | Auto-publishing generated images/video without review |
+| OCR text handling | Treat as untrusted document; scan before model; never in system prompt | Pasting OCR output directly into system instructions |
+| Provenance disclosure | Record detector version, outcome, policy action; disclose accurately | Treating absent marker as proof of human origin |
 
-Use current service documentation to validate preview status, region, API version, quota, role names, and model support before deployment:
+---
 
-- [Azure OpenAI image generation](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e)
-- [Sora 2 video generation](https://learn.microsoft.com/azure/foundry/openai/concepts/video-generation)
-- [Vision-enabled image input](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-with-vision)
-- [Azure AI Content Safety overview](https://learn.microsoft.com/azure/ai-services/content-safety/overview)
+## Common exam traps
+
+| Claim | Correct interpretation |
+|---|---|
+| "Data URL and Blob SAS URL are equivalent" | Data URL embeds bytes in the request; SAS URL delegates server-side source retrieval |
+| "Image severity uses all values 0–7" | Direct image analysis returns only 0, 2, 4, 6 |
+| "Project endpoint can substitute for OpenAI endpoint" | Each has distinct SDK route, API contract, and RBAC scope |
+| "Mask guarantees preservation outside transparent pixels" | Bounds intended edit region; generation remains non-deterministic |
+| "No provenance marker proves media is human-made" | Absence is not proof of human origin, safety, or ownership |
+| "`prebuilt-video` equals `prebuilt-videoSearch`" | Base analyzer vs retrieval-oriented analyzer; use `prebuilt-videoSearch` for lessons 14–15 |
+| "CU URL input uploads media" | CU fetches an existing reachable URL; lessons do not upload or index media |
+| "Sora returns video synchronously" | Submit job → poll terminal state → retrieve generation; async lifecycle required |
+| "Generated alt text solves accessibility" | It is a contextual draft requiring human review; not WCAG conformance |
+| "Prompt Shields detection means text is safe" | It is one defense-in-depth signal; apply authorization and isolation regardless |
+| "Sora reference preflight establishes rights" | Local type/dimension validation is not consent, ownership, or policy acceptance |
+| "Content Safety approves or rejects content" | It provides severity signals; application policy decides block/escalate/allow |
+
+---
+
+## Objective coverage and limits
+
+Domain 3 covers: multimodal image understanding via Responses API; accessibility alt-text and multi-image captioning; two-flow image moderation (direct Content Safety + deployment guardrail); text-to-image generation and both prompt-only and mask-bounded editing; Sora text-to-video async job lifecycle; Sora reference-image and remix governance preflights; visual provenance detection via C2PA/watermark signals; OCR injection defense via Prompt Shields; Content Understanding Blob/SAS preflight; CU `prebuilt-imageSearch` image analysis; CU `prebuilt-videoSearch` video segment analysis; and bounded CU visual handoff with credential stripping.
+
+It does **not** implement: custom CU analyzer creation; full ingestion pipeline with indexing and deletion; image/video accessibility conformance testing; production Sora output lifecycle (download, storage, deletion); Content Safety blocklist or groundedness evaluation; Azure AI Vision OCR (the OCR in lesson 11 is a pre-existing text file); private endpoint configuration for CU or Content Safety; or image/video rights management beyond preflight governance prompts.
+
+---
+
+## References
+
+### Visual understanding and alt text
+
+- [GPT with vision how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-with-vision)
+- [Responses API quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api)
+- [OCR transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/computer-vision/ocr-transparency-note)
+
+### Image generation and editing
+
+- [Image generation how-to (DALL-E)](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e)
+
+### Video generation (Sora)
+
+- [Sora video generation concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/video-generation)
+
+### Visual safety and content moderation
+
 - [Content Safety image quickstart](https://learn.microsoft.com/azure/ai-services/content-safety/quickstart-image)
-- [Content Safety harm categories](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/harm-categories)
-- [Provenance detection](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/provenance-detection)
-- [Prompt Shields](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/jailbreak-detection)
-- [Content Understanding overview](https://learn.microsoft.com/azure/ai-services/content-understanding/overview)
-- [Content Understanding REST quickstart](https://learn.microsoft.com/azure/ai-services/content-understanding/quickstart/use-rest-api)
+- [Harm categories](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/harm-categories)
+- [Provenance detection concept](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/provenance-detection)
+- [Provenance detection how-to](https://learn.microsoft.com/azure/ai-services/content-safety/how-to/how-to-provenance-detection)
+- [Provenance disclosure guidance](https://learn.microsoft.com/azure/foundry/responsible-ai/content-understanding/provenance-disclosure)
+- [Prompt Shields / jailbreak detection](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/jailbreak-detection)
+- [Content filter Prompt Shields](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-prompt-shields)
+
+### Content Understanding
+
 - [Content Understanding prebuilt analyzers](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/prebuilt-analyzers)
-- [Content Understanding limits](https://learn.microsoft.com/azure/ai-services/content-understanding/service-limits)
-- [Content Understanding regions](https://learn.microsoft.com/azure/ai-services/content-understanding/language-region-support)
-- [Azure Storage SAS overview](https://learn.microsoft.com/azure/storage/common/storage-sas-overview)
-- [Assign Azure roles for Blob data access](https://learn.microsoft.com/azure/storage/blobs/assign-azure-role-data-access)
-- [Managed identities](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview)
-- [Azure RBAC overview](https://learn.microsoft.com/azure/role-based-access-control/overview)
-- [Azure Private Endpoint](https://learn.microsoft.com/azure/private-link/private-endpoint-overview)
-- [Application Insights overview](https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview)
-
-Repository snapshots:
-
-- [Image generation local reference](../.context/azure-ai-docs/articles/foundry/openai/how-to/dall-e.md)
-- [Sora local reference](../.context/azure-ai-docs/articles/foundry/openai/concepts/video-generation.md)
-- [Content Safety image local reference](../.context/azure-ai-docs/articles/ai-services/content-safety/quickstart-image.md)
-- [Content Understanding REST local reference](../.context/azure-ai-docs/articles/ai-services/content-understanding/quickstart/use-rest-api.md)
+- [Content Understanding quickstart (REST)](https://learn.microsoft.com/azure/ai-services/content-understanding/quickstart/use-rest-api)
+- [Content Understanding best practices](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/best-practices)
+- [CU secure communications](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/secure-communications)

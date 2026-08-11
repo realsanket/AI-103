@@ -1,4 +1,5 @@
-"""Run a visual-media provenance check before making origin claims.
+# Run: uv run python 03-computer-vision/10_visual_provenance_policy.py
+"""Visual-media provenance check via Content Safety Provenance Detect API — preflight + `--run`.
 
 The Content Safety Provenance Detect API checks supported C2PA and Microsoft
 watermark signals in an HTTPS Blob or SAS URI. A positive result is an origin

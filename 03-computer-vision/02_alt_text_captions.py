@@ -1,8 +1,23 @@
-"""Accessibility alt-text + multi-image captions via a multimodal model.
+# Run: uv run python 03-computer-vision/02_alt_text_captions.py
+"""Accessibility alt-text and multi-image captions — two flows using a multimodal model.
 
-Two flows:
-1. One image → short alt-text + extended description (WCAG-friendly).
-2. Multiple images → one narrative caption tying them together.
+AI-generated alt text can accelerate accessibility authoring but requires human review.
+The model generates text from pixels; it cannot know the intended page context, decorative
+vs informative intent, or how a screen-reader user will experience the surrounding content.
+
+Flow A — Single image: model returns `ALT:` (≤125 chars) and `DESCRIPTION:` (2–4 sentences).
+  `_accessibility_draft()` checks the 125-char ALT ceiling and expected labels.
+Flow B — Multiple images: model returns one narrative caption tying both images together.
+
+What to watch:
+  ALT text under 125 characters in the `ALT:` block. If the `REVIEW:` warning appears,
+  the draft needs human editing before publication. Never publish AI alt text without a
+  human reviewer checking it against the actual page context and user intent.
+
+Prerequisites / env vars:
+  AZURE_OPENAI_ENDPOINT — Azure OpenAI-compatible base URL
+  DEFAULT_MODEL         — visual-capable model deployment name
+  _shared/sample_data/images/sales_data.png, support_ticket_portal.png — source images
 """
 import re
 

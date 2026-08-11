@@ -1,4 +1,5 @@
-"""Blob, SAS, and identity preflight for Content Understanding visual inputs.
+# Run: uv run python 03-computer-vision/12_cu_blob_preflight.py
+"""Blob, SAS, and identity preflight for Content Understanding visual inputs — local only.
 
 Run without flags for a local-only check. Content Understanding retrieves source
 media server-side, so a local path cannot be analyzed. Pass a short-lived,

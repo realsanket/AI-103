@@ -1,4 +1,5 @@
-"""Visual characteristic extraction via Content Understanding `prebuilt-imageSearch`.
+# Run: uv run python 03-computer-vision/13_content_understanding_image.py
+"""Content Understanding image analysis via `prebuilt-imageSearch` — requires `SAMPLE_IMAGE_URL`.
 
 Beginner note:
   CU's `prebuilt-imageSearch` analyzer takes an image URL and returns

@@ -1,4 +1,5 @@
-"""Opt-in Sora 2 remix for one completed Sora 2 video.
+# Run: uv run python 03-computer-vision/09_video_remix.py
+"""Opt-in Sora 2 remix for one completed Sora 2 video — preflight + explicit `--apply`.
 
 Sora 2 remix is supported only from a previously completed video ID, not an
 arbitrary local upload. It preserves source structure, motion, and framing

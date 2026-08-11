@@ -1,4 +1,5 @@
-"""Treat OCR text from images as untrusted document content.
+# Run: uv run python 03-computer-vision/11_ocr_image_injection_safety.py
+"""OCR text treated as untrusted document content — Prompt Shields scan via `--run`.
 
 Run without flags to review the safe path: image -> OCR -> Prompt Shields
 document scan -> model only when allowed by your policy. `--run` sends a local

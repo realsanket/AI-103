@@ -1,3 +1,4 @@
+# Run: uv run python 03-computer-vision/15_cu_visual_handoff.py --source-url <HTTPS_BLOB_SAS_URL>
 """Normalize Content Understanding visual output for a bounded production handoff.
 
 Run without --apply for a no-cloud preflight. With --apply, submit one HTTPS

@@ -1,4 +1,5 @@
-"""Text-to-video via Sora 2 direct API.
+# Run: uv run python 03-computer-vision/07_video_generation.py
+"""Text-to-video via Sora 2 direct API — submit job, poll, download MP4.
 
 Beginner note:
   This lesson submits a job, polls until it succeeds, then downloads the MP4.

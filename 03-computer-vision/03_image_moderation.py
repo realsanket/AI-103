@@ -1,4 +1,5 @@
-"""Image moderation — two flows: direct Content Safety API + guardrail-through-model.
+# Run: uv run python 03-computer-vision/03_image_moderation.py
+"""Image moderation — two flows: direct Content Safety API and guardrail-through-model.
 
 Beginner note:
   Two ways to moderate visual content:
