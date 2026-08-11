@@ -1,5 +1,5 @@
 ---
-description: Restructure a domain README and Python lessons to match AI-103 style — beginner-to-advanced stages, per-lesson references from local foundry docs, code details from docstrings.
+description: Restructure a domain README and Python lessons to match AI-103 style — beginner-to-advanced stages, per-lesson references from local MS AI docs, code details from docstrings.
 ---
 
 You are restructuring domain $ARGUMENTS (e.g. `01-plan-and-manage`, `02-generative-ai-and-agents`) to match the AI-103 doc and code style established in domains 01 and 02.
@@ -22,7 +22,21 @@ Read the current README. List:
 - Which sections are duplicated
 - What is missing compared to domain 01 style
 
-Read the local foundry docs at `.context/azure-ai-docs/articles/foundry/` to find reference docs for each lesson topic. URL pattern: local path `foundry/<sub>/<name>.md` → `https://learn.microsoft.com/azure/foundry/<sub>/<name>`
+Find reference docs from the local MS AI docs root at `.context/azure-ai-docs/articles/`. Use the table below to convert local paths to learn.microsoft.com URLs:
+
+| Local path prefix | learn.microsoft.com URL prefix |
+|---|---|
+| `articles/foundry/` | `https://learn.microsoft.com/azure/foundry/` |
+| `articles/ai-services/content-safety/` | `https://learn.microsoft.com/azure/ai-services/content-safety/` |
+| `articles/ai-services/openai/` | `https://learn.microsoft.com/azure/ai-services/openai/` |
+| `articles/ai-services/` | `https://learn.microsoft.com/azure/ai-services/` |
+| `articles/search/` | `https://learn.microsoft.com/azure/search/` |
+| `articles/machine-learning/` | `https://learn.microsoft.com/azure/machine-learning/` |
+| `articles/foundry-local/` | `https://learn.microsoft.com/azure/foundry-local/` |
+
+Strip the `.md` extension. Example: `articles/ai-services/content-safety/concepts/task-adherence.md` → `https://learn.microsoft.com/azure/ai-services/content-safety/concepts/task-adherence`
+
+Search across all sections — Content Safety concepts often live under `ai-services/content-safety/` not `foundry/`.
 
 ---
 
@@ -175,19 +189,21 @@ uv run python <domain>/<file>.py [flags]
 
 For each lesson section, add `**References:**` at the end with links sourced from local docs.
 
-Find relevant docs:
+Search the full MS AI docs root — not just foundry:
 ```bash
-find .context/azure-ai-docs/articles/foundry -name "*.md" | grep -i "<topic keyword>"
+find .context/azure-ai-docs/articles -name "*.md" | grep -i "<topic keyword>"
 ```
 
-URL construction: strip `.md`, replace `.context/azure-ai-docs/articles/foundry/` with `https://learn.microsoft.com/azure/foundry/`
+URL construction: strip `.md`, then apply the path-prefix table from Phase 1.
 
-Example: `.context/azure-ai-docs/articles/foundry/observability/how-to/trace-agent-setup.md`
-→ `https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup`
+Examples:
+- `.context/azure-ai-docs/articles/foundry/observability/how-to/trace-agent-setup.md` → `https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup`
+- `.context/azure-ai-docs/articles/ai-services/content-safety/concepts/task-adherence.md` → `https://learn.microsoft.com/azure/ai-services/content-safety/concepts/task-adherence`
+- `.context/azure-ai-docs/articles/search/search-what-is-azure-search.md` → `https://learn.microsoft.com/azure/search/search-what-is-azure-search`
 
 Format: `**References:** [Title one](url) · [Title two](url)`
 
-It is fine for the same doc to appear in multiple lessons.
+It is fine for the same doc to appear in multiple lessons. Prefer the most specific doc (how-to over concept overview) when both exist.
 
 ---
 
@@ -218,7 +234,7 @@ Groups should match the stage structure of the README. Include all links referen
 - [ ] Every lesson section has `**References:**`
 - [ ] Lesson numbers in README match actual filenames
 - [ ] `# Run:` paths in Python files match actual filenames
-- [ ] All referenced local doc files actually exist: `ls .context/azure-ai-docs/articles/foundry/<path>.md`
+- [ ] All referenced local doc files actually exist: `ls .context/azure-ai-docs/articles/<path>.md`
 - [ ] README stages are in beginner-to-advanced order (local/concept lessons before cloud/advanced)
 - [ ] Syntax check all Python files: `python3 -m py_compile <domain>/*.py`
 - [ ] Verify all README run commands point to existing files
@@ -239,12 +255,22 @@ Groups should match the stage structure of the README. Include all links referen
 - Don't add error handling for impossible cases
 - Don't add abstractions not in the code
 
-**Reference docs to always check for new domains:**
+**Local MS AI docs root:** `.context/azure-ai-docs/articles/`
+
+Key subfolders to check for any domain:
 ```
-.context/azure-ai-docs/articles/foundry/concepts/
-.context/azure-ai-docs/articles/foundry/observability/
-.context/azure-ai-docs/articles/foundry/guardrails/
-.context/azure-ai-docs/articles/foundry/openai/concepts/
-.context/azure-ai-docs/articles/foundry/foundry-models/
-.context/azure-ai-docs/articles/foundry/how-to/
+foundry/concepts/                      — architecture, RBAC, auth, evaluators, observability concepts
+foundry/observability/                 — tracing, evaluation, human feedback, monitoring
+foundry/guardrails/                    — guardrail overview, intervention points, task adherence
+foundry/openai/concepts/               — content filters, model router, safety policies
+foundry/openai/how-to/                 — quota, blocklists, model router how-to
+foundry/foundry-models/                — deployment types, quotas, create deployments
+foundry/how-to/                        — cloud evaluation, private link, IaC templates
+foundry/agents/                        — hosted agents, MCP, A2A, toolbox
+ai-services/content-safety/concepts/  — task adherence, groundedness, harm categories, prompt shields
+ai-services/content-safety/how-to/    — content safety API how-tos
+ai-services/openai/                    — Azure OpenAI service concepts and how-tos
+search/                                — Azure AI Search (RAG lessons)
+machine-learning/                      — Azure ML (if domain covers MLOps)
+foundry-local/                         — local model inference
 ```
