@@ -806,6 +806,25 @@ It does **not** prove production readiness, current region/model availability, c
 - [Model router policy](https://learn.microsoft.com/azure/foundry/how-to/model-router-policy)
 - [Instant models](https://learn.microsoft.com/azure/foundry/concepts/instant-models)
 
+### Foundry Models catalog
+
+- [Endpoints (model catalog)](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/endpoints)
+- [Model versions](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/model-versions)
+- [Models sold directly by Azure](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure)
+- [Models from partners](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-from-partners)
+- [Deployment types (gov)](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types-gov)
+- [Deploy Foundry Models](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/deploy-foundry-models)
+- [Configure Entra ID for Foundry Models](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/configure-entra-id)
+
+### Claude models (partner)
+
+- [Claude models](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models)
+- [Claude models billing](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models-billing)
+- [Claude models hosting comparison](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models-hosting-comparison)
+- [Configure Claude Code](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/configure-claude-code)
+- [Configure Claude Desktop](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/configure-claude-desktop)
+- [Claude models data privacy](https://learn.microsoft.com/azure/foundry/responsible-ai/claude-models/data-privacy)
+
 ### Related domains
 
 - [Domain 1: Plan and manage Foundry](../01-plan-and-manage/README.md)

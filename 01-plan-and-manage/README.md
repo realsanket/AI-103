@@ -1491,3 +1491,28 @@ It does **not** prove production readiness, regional feature availability, compl
 - [Private Link](https://learn.microsoft.com/azure/foundry/how-to/configure-private-link)
 - [Bicep resource template](https://learn.microsoft.com/azure/foundry/how-to/create-resource-template) *(local docs: `how-to/create-resource-bicep`)*
 - [Terraform resource deployment](https://learn.microsoft.com/azure/foundry/how-to/create-resource-terraform)
+
+### Foundry Control Plane (fleet governance)
+
+- [Control plane overview](https://learn.microsoft.com/azure/foundry/control-plane/overview)
+- [Govern agent infrastructure (Entra admin)](https://learn.microsoft.com/azure/foundry/control-plane/govern-agent-infrastructure-entra-admin)
+- [Enforce limits on models](https://learn.microsoft.com/azure/foundry/control-plane/how-to-enforce-limits-models)
+- [Manage agents across fleet](https://learn.microsoft.com/azure/foundry/control-plane/how-to-manage-agents)
+- [Manage compliance + security](https://learn.microsoft.com/azure/foundry/control-plane/how-to-manage-compliance-security)
+- [Monitoring across fleet](https://learn.microsoft.com/azure/foundry/control-plane/monitoring-across-fleet)
+- [Quickstart: create guardrail policy](https://learn.microsoft.com/azure/foundry/control-plane/quickstart-create-guardrail-policy)
+- [Register custom agent](https://learn.microsoft.com/azure/foundry/control-plane/register-custom-agent)
+- [Optimize cost + performance](https://learn.microsoft.com/azure/foundry/control-plane/how-to-optimize-cost-performance)
+
+### Observability (advanced)
+
+- [Cluster analysis](https://learn.microsoft.com/azure/foundry/observability/how-to/cluster-analysis)
+- [Prompt Optimizer](https://learn.microsoft.com/azure/foundry/observability/how-to/prompt-optimizer)
+- [Traces to dataset](https://learn.microsoft.com/azure/foundry/observability/how-to/traces-to-dataset)
+- [Synthetic evaluation dataset](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluation-dataset-synthetic)
+- [Trace agent replay](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-replay)
+- [Optimization dashboard](https://learn.microsoft.com/azure/foundry/observability/how-to/optimization-dashboard)
+- [Optimization model upgrade](https://learn.microsoft.com/azure/foundry/observability/how-to/optimization-model-upgrade)
+- [Benchmark evaluations](https://learn.microsoft.com/azure/foundry/observability/how-to/benchmark-evaluations)
+- [Trace ingestion Entra auth](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-ingestion-entra-authentication)
+- [Observability troubleshooting](https://learn.microsoft.com/azure/foundry/observability/how-to/troubleshooting)

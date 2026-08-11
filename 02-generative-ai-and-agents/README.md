@@ -1251,6 +1251,49 @@ It does **not** fully implement: remote MCP OAuth/Entra setup, credential rotati
 - [Enable A2A endpoint](https://learn.microsoft.com/azure/foundry/agents/how-to/enable-agent-to-agent-endpoint)
 - [Development lifecycle](https://learn.microsoft.com/azure/foundry/agents/concepts/development-lifecycle)
 
+### Azure OpenAI how-to (advanced)
+
+- [Embeddings](https://learn.microsoft.com/azure/foundry/openai/how-to/embeddings)
+- [Function calling](https://learn.microsoft.com/azure/foundry/openai/how-to/function-calling)
+- [JSON mode](https://learn.microsoft.com/azure/foundry/openai/how-to/json-mode)
+- [Predicted outputs](https://learn.microsoft.com/azure/foundry/openai/how-to/predicted-outputs)
+- [Prompt caching](https://learn.microsoft.com/azure/foundry/openai/how-to/prompt-caching)
+- [Latency](https://learn.microsoft.com/azure/foundry/openai/how-to/latency)
+- [Deep research](https://learn.microsoft.com/azure/foundry/openai/how-to/deep-research)
+- [Codex](https://learn.microsoft.com/azure/foundry/openai/how-to/codex)
+- [ChatGPT](https://learn.microsoft.com/azure/foundry/openai/how-to/chatgpt)
+- [Realtime audio](https://learn.microsoft.com/azure/foundry/openai/how-to/realtime-audio)
+- [Model router for agents](https://learn.microsoft.com/azure/foundry/openai/how-to/model-router-agents)
+
+### Azure OpenAI concepts (prompt + safety)
+
+- [Prompt engineering](https://learn.microsoft.com/azure/foundry/openai/concepts/prompt-engineering)
+- [Advanced prompt engineering](https://learn.microsoft.com/azure/foundry/openai/concepts/advanced-prompt-engineering)
+- [System message](https://learn.microsoft.com/azure/foundry/openai/concepts/system-message)
+- [Safety system-message templates](https://learn.microsoft.com/azure/foundry/openai/concepts/safety-system-message-templates)
+- [Red teaming](https://learn.microsoft.com/azure/foundry/openai/concepts/red-teaming)
+- [Abuse monitoring](https://learn.microsoft.com/azure/foundry/openai/concepts/abuse-monitoring)
+- [Content streaming](https://learn.microsoft.com/azure/foundry/openai/concepts/content-streaming)
+- [Prompt transformation](https://learn.microsoft.com/azure/foundry/openai/concepts/prompt-transformation)
+- [Model retirements](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirements)
+- [Model retirement schedule](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule)
+- [Retired models](https://learn.microsoft.com/azure/foundry/openai/concepts/retired-models)
+
+### LangChain deep dives
+
+- [LangChain hosted agents](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-hosted-agents)
+- [LangChain memory](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-memory)
+- [LangChain middleware](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-middleware)
+- [LangChain models](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-models)
+- [LangChain Toolbox](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-toolbox)
+
+### Foundry dev tooling
+
+- [Get started with projects in VS Code](https://learn.microsoft.com/azure/foundry/how-to/develop/get-started-projects-vs-code)
+- [Install CLI + SDK](https://learn.microsoft.com/azure/foundry/how-to/develop/install-cli-sdk)
+- [AI template get started](https://learn.microsoft.com/azure/foundry/how-to/develop/ai-template-get-started)
+- [Evaluate admin connected models](https://learn.microsoft.com/azure/foundry/how-to/develop/evaluate-admin-connected-models)
+
 ### Repository assets
 
 - [OpenAPI Function backend](azure_functions_orders/README.md)

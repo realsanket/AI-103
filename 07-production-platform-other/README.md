@@ -541,6 +541,28 @@ It does **not** provision model deployments, agents, capability hosts, workload 
 
 - [High availability and resiliency](https://learn.microsoft.com/azure/foundry/how-to/high-availability-resiliency)
 - [Agent Service disaster recovery](https://learn.microsoft.com/azure/foundry/how-to/agent-service-disaster-recovery)
+- [Agent Service operator DR](https://learn.microsoft.com/azure/foundry/how-to/agent-service-operator-disaster-recovery)
+- [Agent Service platform DR](https://learn.microsoft.com/azure/foundry/how-to/agent-service-platform-disaster-recovery)
+
+### Networking (deep dive)
+
+- [Access on-premises resources](https://learn.microsoft.com/azure/foundry/how-to/access-on-premises-resources)
+- [Add Foundry to Network Security Perimeter](https://learn.microsoft.com/azure/foundry/how-to/add-foundry-to-network-security-perimeter)
+- [Agents networking deep dive](https://learn.microsoft.com/azure/foundry/agents/concepts/agents-networking-deep-dive)
+- [Agent networking options](https://learn.microsoft.com/azure/foundry/agents/concepts/networking-options)
+
+### BYO Storage
+
+- [BYO Azure Storage for Foundry](https://learn.microsoft.com/azure/foundry/how-to/bring-your-own-azure-storage-foundry)
+- [BYO Azure Storage for Speech + Language](https://learn.microsoft.com/azure/foundry/how-to/bring-your-own-azure-storage-speech-language-services)
+
+### Governance operations
+
+- [Custom policy definition](https://learn.microsoft.com/azure/foundry/how-to/custom-policy-definition)
+- [Connections: add](https://learn.microsoft.com/azure/foundry/how-to/connections-add)
+- [Create projects](https://learn.microsoft.com/azure/foundry/how-to/create-projects)
+- [Deploy models (managed)](https://learn.microsoft.com/azure/foundry/how-to/deploy-models-managed)
+- [Benchmark model in catalog](https://learn.microsoft.com/azure/foundry/how-to/benchmark-model-in-catalog)
 
 ### Related domains
 

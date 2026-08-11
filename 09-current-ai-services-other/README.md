@@ -514,6 +514,13 @@ It does **not** cover: DI containers deployment, DI classifier models, custom te
 - [Managed identity and secured network access](https://learn.microsoft.com/azure/ai-services/document-intelligence/authentication/managed-identities-secured-access)
 - [Estimate cost](https://learn.microsoft.com/azure/ai-services/document-intelligence/how-to-guides/estimate-cost)
 
+### Compliance and Responsible AI
+
+- [Document Intelligence transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/document-intelligence/transparency-note)
+- [Document Intelligence data privacy + security](https://learn.microsoft.com/azure/foundry/responsible-ai/document-intelligence/data-privacy-security)
+- [Content Understanding transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/content-understanding/transparency-note)
+- [Content Understanding data privacy](https://learn.microsoft.com/azure/foundry/responsible-ai/content-understanding/data-privacy)
+
 ### Related domains
 
 - [Domain 5: Information extraction](../05-information-extraction/README.md) — Content Understanding lessons (09-16)

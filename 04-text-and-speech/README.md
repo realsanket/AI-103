@@ -997,3 +997,43 @@ Not covered: Custom NER training lifecycle, conversation PII, document-format PI
 - [TTS responsible AI transparency](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/text-to-speech/transparency-note)
 - [Managed identities overview](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview)
 - [Azure Key Vault overview](https://learn.microsoft.com/azure/key-vault/general/overview)
+
+### Compliance and Responsible AI
+
+**Language Service:**
+- [Language Service transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/language-service/transparency-note)
+- [Language Service data privacy](https://learn.microsoft.com/azure/foundry/responsible-ai/language-service/data-privacy)
+- [Language Service integration guidance](https://learn.microsoft.com/azure/foundry/responsible-ai/language-service/guidance-integration-responsible-use)
+- [Sentiment analysis transparency](https://learn.microsoft.com/azure/foundry/responsible-ai/language-service/transparency-note-sentiment-analysis)
+- [Named Entity Recognition transparency](https://learn.microsoft.com/azure/foundry/responsible-ai/language-service/transparency-note-named-entity-recognition)
+- [PII transparency](https://learn.microsoft.com/azure/foundry/responsible-ai/language-service/transparency-note-personally-identifiable-information)
+- [Language detection transparency](https://learn.microsoft.com/azure/foundry/responsible-ai/language-service/transparency-note-language-detection)
+- [Key phrase extraction transparency](https://learn.microsoft.com/azure/foundry/responsible-ai/language-service/transparency-note-key-phrase-extraction)
+- [Text Analytics for Health transparency](https://learn.microsoft.com/azure/foundry/responsible-ai/language-service/transparency-note-health)
+- [Extractive summarization transparency](https://learn.microsoft.com/azure/foundry/responsible-ai/language-service/transparency-note-extractive-summarization)
+- [Summarization characteristics + limitations](https://learn.microsoft.com/azure/foundry/responsible-ai/language-service/characteristics-and-limitations-summarization)
+- [CLU transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/clu/clu-transparency-note)
+- [CLU characteristics + limitations](https://learn.microsoft.com/azure/foundry/responsible-ai/clu/clu-characteristics-and-limitations)
+- [CLU data privacy + security](https://learn.microsoft.com/azure/foundry/responsible-ai/clu/clu-data-privacy-security)
+- [CLU integration guidance](https://learn.microsoft.com/azure/foundry/responsible-ai/clu/clu-guidance-integration-responsible-use)
+
+**Speech Service:**
+- [Speech-to-Text transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/speech-to-text/transparency-note)
+- [Text-to-Speech transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/text-to-speech/transparency-note)
+- [TTS data privacy + security](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/text-to-speech/data-privacy-security)
+- [TTS limited access](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/text-to-speech/limited-access)
+- [TTS disclosure guidelines](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/text-to-speech/concepts-disclosure-guidelines)
+- [TTS disclosure patterns](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/text-to-speech/concepts-disclosure-patterns)
+- [TTS avatar disclosure guidelines](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/text-to-speech/concepts-disclosure-guidelines-avatar)
+- [TTS avatar disclosure patterns](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/text-to-speech/concepts-disclosure-patterns-avatar)
+- [TTS voice talent disclosure](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/text-to-speech/disclosure-voice-talent)
+- [Voice Live transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/voice-live/transparency-note)
+- [Voice Live data privacy + security](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/voice-live/data-privacy-security)
+- [Embedded speech limited access](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/embedded-speech/limited-access-embedded-speech)
+- [Pronunciation assessment transparency](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/pronunciation-assessment/transparency-note-pronunciation-assessment)
+- [Pronunciation assessment characteristics + limitations](https://learn.microsoft.com/azure/foundry/responsible-ai/speech-service/pronunciation-assessment/characteristics-and-limitations-pronunciation-assessment)
+
+**Translator:**
+- [Translator transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/translator/transparency-note)
+- [Translator Pro transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/translator/translator-pro-transparency-note)
+- [Translator data privacy + security](https://learn.microsoft.com/azure/foundry/responsible-ai/translator/data-privacy-security)

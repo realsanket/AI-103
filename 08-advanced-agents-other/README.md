@@ -578,8 +578,61 @@ It does **not** create knowledge bases, publish to Microsoft 365 Copilot or Team
 
 - [Routines](https://learn.microsoft.com/azure/foundry/agents/how-to/use-routines)
 - [AI Gateway](https://learn.microsoft.com/azure/foundry/configuration/enable-ai-api-management-gateway-portal)
+- [AI Gateway (agents how-to)](https://learn.microsoft.com/azure/foundry/agents/how-to/ai-gateway)
 - [Configure agent (stable endpoint)](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-agent)
 - [Current publishing model](https://learn.microsoft.com/azure/foundry/agents/how-to/migrate-agent-applications)
+
+### Hosted-agent lifecycle
+
+- [Hosted-agent contract](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-contract)
+- [Hosted-agent permissions](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions)
+- [Agent identity](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-identity)
+- [Agent YAML reference](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-yaml-reference)
+- [Capability hosts](https://learn.microsoft.com/azure/foundry/agents/concepts/capability-hosts)
+- [Runtime components](https://learn.microsoft.com/azure/foundry/agents/concepts/runtime-components)
+- [Standard agent setup](https://learn.microsoft.com/azure/foundry/agents/concepts/standard-agent-setup)
+- [Limits, quotas, regions](https://learn.microsoft.com/azure/foundry/agents/concepts/limits-quotas-regions)
+- [Deploy hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent)
+- [Deploy hosted-agent code](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent-code)
+- [Deploy hosted agent with private ACR](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent-private-azure-container-registry)
+- [Configure hosted-agent env variables](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-hosted-agent-env-variables)
+- [Configure hosted-agent telemetry](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-hosted-agent-telemetry)
+- [Debug hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/debug-hosted-agent)
+- [Agent Doctor](https://learn.microsoft.com/azure/foundry/agents/how-to/agent-doctor)
+- [Agent Inspector](https://learn.microsoft.com/azure/foundry/agents/how-to/agent-inspector)
+- [Disable classic agents](https://learn.microsoft.com/azure/foundry/agents/how-to/disable-classic-agents)
+
+### Private-network Foundry IQ tutorial
+
+- [Private Foundry IQ overview](https://learn.microsoft.com/azure/foundry/agents/how-to/foundry-iq-tutorial-private-overview)
+- [Private inbound](https://learn.microsoft.com/azure/foundry/agents/how-to/foundry-iq-tutorial-private-inbound)
+- [Private outbound](https://learn.microsoft.com/azure/foundry/agents/how-to/foundry-iq-tutorial-private-outbound)
+- [Private retrieval](https://learn.microsoft.com/azure/foundry/agents/how-to/foundry-iq-tutorial-private-retrieval)
+
+### Agent CLI + tooling
+
+- [Init agent project](https://learn.microsoft.com/azure/foundry/agents/how-to/init-agent-project)
+- [Install CLI Foundry extensions](https://learn.microsoft.com/azure/foundry/agents/how-to/install-cli-foundry-extensions)
+- [Author azure.yaml](https://learn.microsoft.com/azure/foundry/agents/how-to/author-azure-yaml)
+
+### Agent 365 + protocols + migration
+
+- [Agent 365](https://learn.microsoft.com/azure/foundry/agents/how-to/agent-365)
+- [Agent Applications migration](https://learn.microsoft.com/azure/foundry/agents/how-to/agent-applications)
+- [Add protocol adapter](https://learn.microsoft.com/azure/foundry/agents/how-to/add-protocol-adapter)
+- [Connected models](https://learn.microsoft.com/azure/foundry/agents/how-to/connected-models)
+
+### MCP
+
+- [MCP get started](https://learn.microsoft.com/azure/foundry/mcp/get-started)
+- [MCP available tools](https://learn.microsoft.com/azure/foundry/mcp/available-tools)
+- [Build your own MCP server](https://learn.microsoft.com/azure/foundry/mcp/build-your-own-mcp-server)
+- [MCP security best practices](https://learn.microsoft.com/azure/foundry/mcp/security-best-practices)
+
+### Compliance and Responsible AI (agents)
+
+- [Agents transparency note](https://learn.microsoft.com/azure/foundry/responsible-ai/agents/transparency-note)
+- [Agents data privacy + security](https://learn.microsoft.com/azure/foundry/responsible-ai/agents/data-privacy-security)
 
 ### Related domains
 
