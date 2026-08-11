@@ -283,24 +283,44 @@ uv run python 01-plan-and-manage/01_model_catalog_list.py
 3. `name`, `model_name`, and type-like fields are read defensively because service SDK shapes can evolve.
 4. Printed `name` becomes the value passed to later `model=` calls.
 
+**What to watch in the output.**
+
+- `name` column = what you pass as `model=` in every other lesson. This is the deployment alias, not the model family.
+- `model` column = the underlying model powering that deployment (e.g. `gpt-4.1-mini`).
+- `type` column = the SKU (GlobalStandard, DataZoneStandard, PTU, ...).
+
 **Study points**
 
 - `model=` is generally deployment name. A model-family name causes `DeploymentNotFound` unless it happens to equal a deployment name.
-- A deployment's name is an application contract; isolate it in environment or deployment configuration, not scattered literals.
 - Empty output can mean no deployment is visible *or* the identity lacks access — not the same diagnosis.
-- Model selection includes capability, region, compliance, quota, throughput, context, modality, price, and evaluation results.
+- Model selection includes capability, region, compliance, quota, throughput, context, modality, price, and evaluation results. Do not choose by benchmark headline alone.
+
+**References:** [Deployments overview](https://learn.microsoft.com/azure/foundry/concepts/deployments-overview) · [Create model deployments](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/create-model-deployments)
 
 ### 02 — Select a deployment type from constraints
 
 **Question answered:** Which deployment type fits residency, traffic, and cost?
 
-**Background.** Deployment type exists to make a trade-off explicit: where inference can process, how capacity is allocated, and how billing behaves. Global optimizes broad availability; Data Zone constrains processing to a geographic zone; Regional constrains it to one Azure region; Provisioned reserves PTUs; Batch exchanges latency for discounted asynchronous processing.
+**Background.** Deployment type exists to make a trade-off explicit: where inference can process, how capacity is allocated, and how billing behaves.
 
 ```bash
 uv run python 01-plan-and-manage/02_deployment_types.py
 ```
 
-**Code path.** This local lesson prints a reference matrix rather than calling Azure. `_MATRIX` forces each deployment type into comparable dimensions: `type`, `billing`, `residency`, `throughput`, `cost`, and `when`. Use it as a decision reference, then validate exact model/SKU availability in the current Foundry portal.
+**Code path.** This local lesson prints a reference matrix rather than calling Azure. `_MATRIX` forces each deployment type into comparable dimensions: `type`, `billing`, `residency`, `throughput`, `cost`, and `when`. Instant access (preview) uses a platform global pool without creating a deployment; Managed compute serves a different model/accelerator operating model.
+
+**Deployment type matrix (what the code prints).**
+
+| Type | Residency | Billing | When |
+|---|---|---|---|
+| Instant (preview) | Any Azure region; separate global quota pool | Pay-per-token | Prototyping or trying an eligible model |
+| Global Standard | Any Azure region | Pay-per-token; highest default quota | Variable general workloads |
+| Data Zone Standard | US / EU / APAC zone | Pay-per-token; higher than regional | Data-zone compliance requirement |
+| Regional Standard | Deploy region only | Pay-per-token; model/region quota | Single-region processing |
+| Global Provisioned | Any Azure region | Reserved PTUs, hourly | High predictable volume |
+| Data Zone Provisioned | US / EU / APAC zone | Reserved PTUs, hourly | Data-zone, high-volume workload |
+| Regional Provisioned | Deploy region only | Reserved PTUs, hourly | Strict locality + high volume |
+| Batch | Global/Data Zone where offered | Async discounted | Large non-interactive jobs |
 
 **Decision process.**
 
@@ -314,15 +334,18 @@ uv run python 01-plan-and-manage/02_deployment_types.py
 - Data Zone is not one region.
 - PTUs reserve hourly capacity; they do not pre-buy tokens or make all 429s impossible.
 - Batch is an asynchronous workload pattern, not a low-latency serving tier.
-- Managed compute offerings can have a different billing/operations model from Azure OpenAI Standard deployments.
+
+**References:** [Deployment types](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types) · [Quotas and limits](https://learn.microsoft.com/azure/foundry/foundry-models/quotas-limits) · [Manage costs](https://learn.microsoft.com/azure/foundry/concepts/manage-costs)
 
 ### 03 — Deploy a model through the management plane
 
 **Question answered:** How is deployment configuration automated safely?
 
-**Background.** Deployment creation is Azure resource management, not inference. It exists so deployment configuration can be reviewed, versioned, and automated through SDK/CLI/IaC instead of ad-hoc portal clicks.
+**Background.** Deployment creation is Azure resource management, not inference. Portal shortcut: Foundry portal → Models → pick a model → Deploy. This lesson does the same thing programmatically so you can script it in CI/CD.
 
-**Before code.** Use a nonproduction Foundry resource; set `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `FOUNDRY_ENDPOINT`, `DEPLOYMENT_NAME`, and `DEPLOYMENT_MODEL_NAME`. Optionally pin `DEPLOYMENT_MODEL_VERSION`. Caller needs a suitable control-plane role such as `Cognitive Services Contributor`; that role does not grant model inference.
+**Important:** Azure has two planes. Control plane = manage resources (create/delete deployments, set SKUs). Data plane = use resources (send prompts, get completions). `AIProjectClient` is data-plane only — it has no `.deployments.create()`. You need `CognitiveServicesManagementClient` from `azure-mgmt-cognitiveservices`.
+
+**Before code.** Use a nonproduction Foundry resource; set `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `FOUNDRY_ENDPOINT`, `DEPLOYMENT_NAME`, and `DEPLOYMENT_MODEL_NAME`. Optionally pin `DEPLOYMENT_MODEL_VERSION`. Caller needs `Cognitive Services Contributor` or similar control-plane role — that role does not grant model inference.
 
 ```bash
 uv run python 01-plan-and-manage/03_deploy_model.py
@@ -330,13 +353,15 @@ uv run python 01-plan-and-manage/03_deploy_model.py
 
 **Code path.**
 
-1. `settings()` separates existing `DEFAULT_MODEL` deployment alias from the model family being created.
-2. `foundry_account_name()` validates and extracts the resource name from the Foundry endpoint instead of silently accepting an OpenAI/project URL.
+1. `settings()` separates existing `DEFAULT_MODEL` alias from the model family being deployed.
+2. `foundry_account_name()` validates and extracts the resource name from `FOUNDRY_ENDPOINT` — prevents silently accepting an OpenAI/project URL.
 3. `CognitiveServicesManagementClient` targets the Azure management plane.
 4. `begin_create_or_update()` supplies `Sku(name="GlobalStandard")` and `DeploymentModel(format="OpenAI", name=..., version=...)`.
-5. Waiting on `.result()` makes the script report actual provisioning state.
+5. Waiting on `.result()` reports actual provisioning state. Success prints `state: Succeeded`; if already deployed the SDK returns the existing deployment idempotently.
 
-**Production practice.** Pin or deliberately govern model versions, tags, region, SKU, capacity, rollback owner, and cleanup. A `Succeeded` deployment does not prove data-plane RBAC, cost fit, model quality, or an SLO.
+**Production practice.** Pin or deliberately govern model versions, tags, region, SKU, capacity, rollback owner, and cleanup. A `Succeeded` state does not prove data-plane RBAC, cost fit, model quality, or an SLO.
+
+**References:** [Create model deployments](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/create-model-deployments) · [Automate quota and deployments](https://learn.microsoft.com/azure/foundry/openai/how-to/automate-quota-deployments) · [Model deployment policy](https://learn.microsoft.com/azure/foundry/how-to/model-deployment-policy)
 
 ### 04 — Route mixed work with Model Router
 
@@ -355,9 +380,13 @@ uv run python 01-plan-and-manage/04_model_router.py
 1. `project_client().get_openai_client()` obtains the project-scoped OpenAI-compatible client.
 2. `responses.create(model=router, input=prompt)` invokes the router through Responses API.
 3. `response.model` reports the model chosen for this request.
-4. `output_text` demonstrates that the application still receives a normal response shape.
+4. `output_text` shows the application still receives a normal response shape regardless of which model answered.
+
+**What to watch in the output.** Three prompts are sent: trivial arithmetic (→ nano/mini model), medium summarization, and a hard distributed-systems question (→ frontier model). Each line prints `[picked: <model>]` showing the router's selection. This demonstrates that cheap models handle easy requests while expensive models handle hard ones — automatically.
 
 **When not to use it.** Do not use a router when one approved/pinned model is required for validation, jurisdiction, deterministic behavior, or a narrow latency/cost SLO. The smallest model in the allowed set can limit usable context; exclude unsuitable models rather than discovering that limit in production.
+
+**References:** [Model Router concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/model-router) · [How Model Router works](https://learn.microsoft.com/azure/foundry/openai/concepts/model-router-how-it-works) · [Model Router how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/model-router)
 
 ### 05 — Read quota before scaling demand
 
@@ -373,12 +402,19 @@ uv run python 01-plan-and-manage/05_quotas_and_tpm.py
 
 1. The lesson validates subscription/resource-group settings and derives the resource name.
 2. `accounts.get()` obtains the account location needed by management APIs.
-3. `deployments.list()` prints configured alias, model, SKU, and capacity.
+3. `deployments.list()` prints configured alias, model, SKU, and capacity per deployment.
 4. `usages.list(location)` prints current value, limit, and unit for quota buckets visible in that location.
 
 Needs a subscription-level role such as `Cognitive Services Usages Reader` or subscription `Reader`; resource scope alone can be insufficient.
 
-**Use results with** application tokens, request rate, retry count, latency, and Cost Management data. Standard quota can be pooled; Instant access has a separate global pool; PTUs are a different capacity model. A quota increase can propagate after a delay.
+**Key facts from the code comments.**
+
+- Standard quota is assigned per subscription, region, model, and deployment type.
+- Deployment `capacity` maps to TPM/RPM in model-specific units; do not assume a capacity value has one fixed TPM conversion.
+- PTU-to-TPM ratios and minimum deployment sizes vary by model. A saturated provisioned deployment can still return 429; configure spillover if supported and required.
+- Instant access has a separate global quota pool, not the same pool as Standard.
+
+**References:** [Quota management](https://learn.microsoft.com/azure/foundry/openai/how-to/quota) · [Quotas and limits](https://learn.microsoft.com/azure/foundry/foundry-models/quotas-limits) · [Automate quota deployments](https://learn.microsoft.com/azure/foundry/openai/how-to/automate-quota-deployments)
 
 ### 06 — Retry transient failure without amplifying it
 
@@ -392,19 +428,22 @@ uv run python 01-plan-and-manage/06_rate_limit_backoff.py
 
 **Code path.**
 
-1. Tenacity retries only `RateLimitError` and `APIConnectionError`.
-2. `retry_after_seconds()` reads `retry-after-ms`, `retry-after`, or a valid HTTP date, bounds wait to 60 seconds, and falls back to jittered exponential delay.
+1. Tenacity retries only `RateLimitError` and `APIConnectionError` — not 400/401/403/404.
+2. `retry_after_seconds()` reads `retry-after-ms` (milliseconds), then `retry-after` (seconds or HTTP date), falls back to jittered exponential delay. Bounds wait to 60 seconds maximum.
 3. `stop_after_attempt(6)` gives failure a bounded budget.
-4. `_ask()` remains small: it performs one Responses call; retry policy wraps it rather than every caller reimplementing behavior.
+4. `_ask()` remains small: one Responses call; retry policy wraps it rather than every caller reimplementing behavior.
 
 ```text
 429 / transient connection failure
-  → wait with exponential backoff + jitter
-  → retry within a bounded budget
+  → read Retry-After header (retry-after-ms → retry-after → HTTP date → fallback)
+  → wait with exponential backoff + jitter (max 60s)
+  → retry within a bounded budget (6 attempts)
   → surface failure or queue work after budget exhausted
 ```
 
 **Do not retry** 400/401/403/404: they require input, endpoint, deployment, or RBAC correction. For high volume add queueing, admission control, idempotency for mutations, circuit breaking, user degradation, and capacity/fallback design — not larger retry counts.
+
+**References:** [Quotas and limits](https://learn.microsoft.com/azure/foundry/foundry-models/quotas-limits)
 
 ### 07 — Prove keyless project access
 
@@ -412,16 +451,24 @@ uv run python 01-plan-and-manage/06_rate_limit_backoff.py
 
 **Background.** `DefaultAzureCredential` lets local development use Azure CLI while deployed workloads use managed/workload identity. This removes stored secrets, but it does not remove the need to know exactly which principal and role the service receives.
 
+**Two OpenAI endpoints on the same Foundry resource:**
+
+```text
+<resource>.openai.azure.com/openai/v1/      → direct Azure OpenAI resource API
+<resource>.services.ai.azure.com/...        → project-scoped Foundry API
+```
+
+This file tests the **project-scoped path**. Direct resource inference needs a Cognitive Services inference role instead.
+
 ```bash
 uv run python 01-plan-and-manage/07_managed_identity_agent.py
 ```
 
-**Code path.**
+**Code path.** The script verifies three things in order:
 
-1. `project_client()` authenticates to `PROJECT_ENDPOINT`.
-2. `client.agents.list()` is a project API reachability check.
-3. `get_openai_client()` obtains project-scoped inference access.
-4. A small Responses request verifies configured deployment use.
+1. `project_client()` authenticates with `DefaultAzureCredential` to `PROJECT_ENDPOINT` — proves Entra ID auth works.
+2. `client.agents.list()` is a project API reachability check — proves the Foundry Agents API is reachable.
+3. `get_openai_client()` + `responses.create()` verifies configured deployment use via the project-scoped endpoint.
 
 ```text
 local development: Azure CLI token after az login
@@ -435,11 +482,13 @@ Azure workload:    managed identity
 
 Passing proves that this credential chain can access this project and deployment now. It does not identify which credential won the chain, prove direct Azure OpenAI access, or prove production managed-identity assignment. Agents and evaluations require Entra ID; configure a custom subdomain and use `https://ai.azure.com/.default`.
 
+**References:** [Authentication and authorization](https://learn.microsoft.com/azure/foundry/concepts/authentication-authorization-foundry)
+
 ### 08 — Grant and review least privilege
 
 **Question answered:** How does RBAC actually authorize Foundry and Azure AI operations?
 
-**Background.** Azure RBAC binds a principal, role definition, and scope. Least privilege limits blast radius: a user who invokes one agent should not also create deployments or query all resource-group assignments.
+**Background.** Azure RBAC binds a principal, role definition, and scope. Least privilege limits blast radius: a user who invokes one agent should not also create deployments or query all resource-group assignments. Control plane = manage resources (Owner, Contributor, Reader). Data plane = use the AI (call inference, build agents). `Owner` or `Contributor` commonly grants management actions but does not by itself grant every data-plane inference action.
 
 ```bash
 # List aliases supported by this lesson
@@ -490,7 +539,9 @@ If any one is mismatched, access fails even when another piece looks correct.
 4. Using client ID instead of principal object ID for assignment causes identity confusion.
 5. Broad inherited subscription roles can hide least-privilege gaps in project-level design.
 
-Use groups for human access, managed identities or workload identities for application access, and narrow scope before broad scope. A caller that needs one agent endpoint should not receive resource-wide management rights.
+Use groups for human access, managed identities or workload identities for application access, and narrow scope before broad scope.
+
+**References:** [RBAC for Foundry](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry) · [Authentication and authorization](https://learn.microsoft.com/azure/foundry/concepts/authentication-authorization-foundry)
 
 ---
 
@@ -575,20 +626,19 @@ After model call:  app decides route (allow, block, redact, escalate)
 uv run python 01-plan-and-manage/09_content_safety_filters.py
 ```
 
-**Code path.**
+**Code path — three flows run side by side.**
 
-1. Flow A uses Chat Completions so you can observe deployment-level filter behavior directly.
-2. A blocked request often surfaces as HTTP 400 with `content_filter` semantics.
-3. Flow B calls `ContentSafetyClient.analyze_text()` for explicit text severity signals.
-4. Flow C calls `analyze_image()` for explicit image category severity signals.
-5. The lesson prints both outputs so you can see policy enforcement and explicit analysis side by side.
+1. **Flow A** uses Chat Completions to observe deployment-level filter behavior. Default guardrail is `Microsoft.DefaultV2`. Blocked request surfaces as `400 BadRequestError` with `code="content_filter"`. Annotate-only: response returned with `choices[0].content_filter_results` showing results.
+2. **Flow B** calls `ContentSafetyClient.analyze_text()` for explicit text severity signals on the **0–7 integer scale** (not the 4-level Safe/Low/Medium/High scale used by guardrails).
+3. **Flow C** calls `analyze_image()` for explicit image category severity signals (same 0–7 scale; image severities are 0/2/4/6 only).
 
-**How to interpret results.**
+**Critical scale difference.** Guardrail labels (Safe/Low/Medium/High) and direct API severities (0–7 integers) are **not the same scoring system**. Do not map integer severity values directly to deployment policy labels.
 
-1. Guardrail labels and direct API severities are not the same scoring system. Do not map integer severity values directly to deployment policy labels.
-2. Use deployment or agent guardrails for consistent service-side enforcement.
-3. Use direct Content Safety API checks when app code must decide before or after inference.
-4. Image moderation is not a defense against text hidden in OCR, RAG chunks, or a tool response.
+**When to choose each path.**
+
+1. Use deployment or agent guardrails for consistent service-side enforcement.
+2. Use direct Content Safety API checks when app code must decide before or after inference.
+3. Image moderation is not a defense against text hidden in OCR, RAG chunks, or a tool response.
 
 **Exam cues.**
 
@@ -596,9 +646,11 @@ uv run python 01-plan-and-manage/09_content_safety_filters.py
 2. Platform-level consistent blocking → favor configured guardrails.
 3. Strong enterprise safety posture → combine enforcement and app decisioning.
 
+**References:** [Guardrails overview](https://learn.microsoft.com/azure/foundry/guardrails/guardrails-overview) · [Guardrail intervention points](https://learn.microsoft.com/azure/foundry/guardrails/intervention-points) · [How to create guardrails](https://learn.microsoft.com/azure/foundry/guardrails/how-to-create-guardrails) · [Content filter severity levels](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-severity-levels) · [Default safety policies](https://learn.microsoft.com/azure/foundry/openai/concepts/default-safety-policies)
+
 ### 10 — Detect direct Prompt Shield attacks
 
-**What you are learning.** A direct prompt attack comes from the user's own message. Prompt Shields detect attack patterns — instruction override, jailbreak framing — not harmful content severity.
+**What you are learning.** A direct prompt attack comes from the user's own message. Prompt Shields detect attack patterns — instruction override, jailbreak framing — not harmful content severity. This lesson covers the **user prompt channel**. Lesson 11 covers the **document channel**.
 
 ```text
 User message contains: "ignore your rules" / "act as system" / "bypass safety"
@@ -612,13 +664,10 @@ Application decides: block, ask clarification, or continue with controls
 uv run python 01-plan-and-manage/10_prompt_shields_user.py
 ```
 
-**Code path.**
+**Code path — two flows.**
 
-1. `shield_user_prompt()` routes through shared `shield_prompt()`.
-2. The helper enforces request-size boundaries before any API call.
-3. It sends `userPrompt` with `documents=[]` to the direct Shield endpoint.
-4. You inspect `userPromptAnalysis.attackDetected` across benign and attack-like prompts.
-5. Optional Flow B compares this with deployment-level `jailbreak` annotation behavior.
+1. **Flow A** (Content Safety API direct): calls `/contentsafety/text:shieldPrompt` explicitly. Returns `userPromptAnalysis.attackDetected` boolean. No deployment config needed — just `CONTENT_SAFETY_ENDPOINT`. Tests both a benign prompt and a jailbreak attempt.
+2. **Flow B** (Foundry deployment guardrail): Prompt Shields guardrail assigned to deployment in Foundry portal. Detection appears inline in `prompt_filter_results[0].content_filter_results.jailbreak`. Annotate action → response returned, `detected=true`; Block action → `400 BadRequestError` with `code="content_filter"`.
 
 **What this proves and what it does not.** It proves how direct attack detection signals are returned and interpreted. A detected attack is not proof that the user is malicious. It does not grant permission to execute sensitive tools.
 
@@ -630,9 +679,11 @@ uv run python 01-plan-and-manage/10_prompt_shields_user.py
 2. Uniform runtime policy required → include configured guardrails.
 3. Shield replaces authorization → no.
 
+**References:** [Prompt Shields and Spotlighting](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-prompt-shields)
+
 ### 11 — Detect indirect document attacks
 
-**What you are learning.** Indirect attack means the user input is innocent, but external content attempts to hijack model behavior. Examples: OCR text, retrieval chunks, web snippets, uploaded files, or tool output containing hidden override instructions.
+**What you are learning.** Indirect attack means the user input is innocent, but external content attempts to hijack model behavior. Examples: OCR text, retrieval chunks, web snippets, uploaded files, or tool output containing hidden override instructions. This lesson covers the **document channel**. Lesson 10 covers the **user prompt channel**.
 
 ```text
 User asks: "Summarize this file"
@@ -647,13 +698,11 @@ uv run python 01-plan-and-manage/11_prompt_shields_docs.py
 
 **Code path.**
 
-1. The lesson loads deliberately untrusted OCR sample content.
-2. `_USER_PROMPT` stays benign on purpose to isolate the document risk.
-3. Documents are passed in the document channel, not pasted into a user message.
-4. Shared validation enforces document count and total-length constraints.
-5. `documentsAnalysis[i].attackDetected` identifies risky documents directly.
+1. Loads a real `data/malicious_ocr_sample.txt` — actual OCR extract containing indirect prompt injection. The user prompt stays benign to isolate the document risk.
+2. **Flow A** (Content Safety API): passes documents in the `documents[]` field, not pasted into user message. Returns `documentsAnalysis[i].attackDetected` per document.
+3. **Flow B** (Foundry guardrail): intentionally pastes document text into a Chat Completions user message to demonstrate that this trips the `jailbreak` key (user-prompt channel evaluation) rather than the `indirect_attack` key — proving why channel separation is critical.
 
-**Critical channel caveat.** Do not paste retrieved text into a user-message channel and claim document protection was tested. That changes the security channel and produces misleading conclusions. An inline `indirect_attack` result requires an actual supported document path.
+**Critical channel caveat.** Pasting document text into a user message changes the security channel. An `indirect_attack` result requires an actual supported document path — not pasted content. This lesson intentionally shows both behaviors so you can see the difference.
 
 **Production design habits.**
 
@@ -667,28 +716,35 @@ uv run python 01-plan-and-manage/11_prompt_shields_docs.py
 2. Separating user and document risk → channel separation.
 3. One scan at upload is enough → no.
 
+**References:** [Prompt Shields and Spotlighting](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-prompt-shields)
+
 ### 12 — Understand Spotlighting before using it
 
-**What you are learning.** Spotlighting is a specific preview mechanism for supported document workflows. It is not a universal switch for all chat or agent paths.
+**What you are learning.** Spotlighting is a specific preview mechanism for supported document workflows. It defends against cross-prompt injection (indirect attacks) by transforming inputs to provide a "continuous signal of provenance" (e.g. via base64 encoding) so the model treats external inputs as lower trust. Studies show it can reduce indirect prompt injection attack success **from >50% to <2%**.
 
 ```bash
 uv run python 01-plan-and-manage/12_spotlighting.py
 ```
 
-**Code path.** The lesson prints request shape intentionally rather than calling Azure. It shows that `data_sources` is the document-bearing channel and where `prompt_shield.documents.spotlighting_enabled` belongs. It avoids pretending unsupported channels are valid integrations.
+**Code path.** The lesson shows two views without making live Azure calls to prove Spotlighting configured:
+
+1. **Flow A** (Explicit Spotlighting API REST): demonstrates the `/promptshields:spotlight` standalone endpoint contract and required payload shape.
+2. **Flow B** (Chat Completions override): shows where `prompt_shield.documents.spotlighting_enabled` belongs in a `data_sources` request — the actual document-bearing channel.
 
 **Use and non-use boundaries.**
 
 1. Use for eligible preview document workflows after measuring context and token cost.
 2. Do not assume support for agents or Responses API paths where not documented.
 3. Do not treat Spotlighting as a replacement for authorization, source validation, or tool policy.
-4. Encoded document payloads can increase token usage and exceed context limits faster than expected.
+4. Encoded document payloads can increase token usage significantly and exceed context limits faster than expected.
 
 **Exam cues.**
 
 1. Spotlighting is additive defense, not standalone safety architecture.
-2. Agents + Spotlighting → not supported.
+2. Agents + Spotlighting → not supported (Chat Completions only).
 3. Unsupported endpoint type → do not force Spotlighting into that path.
+
+**References:** [Prompt Shields and Spotlighting](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-prompt-shields)
 
 ### 13 — Treat PII filtering as output control
 
@@ -708,11 +764,13 @@ uv run python 01-plan-and-manage/13_pii_filter.py
 
 **Code path.**
 
-1. The lesson uses synthetic data only.
-2. Chat Completions runs on a deployment with PII guardrail configured.
-3. `_extract_pii()` handles current and older annotation key variants.
-4. `_print_pii()` surfaces whether data was detected, filtered, and redacted.
-5. Blocking behavior path inspects policy feedback when full completion is denied.
+1. Uses synthetic data only — never real personal data in labs. The demo prompt asks for a fake support ticket using explicitly synthetic values.
+2. Chat Completions runs on a deployment with PII guardrail configured (set `PII_GUARDRAIL_MODEL` env var to override which deployment).
+3. `_extract_pii()` handles both current annotation key (`pii`) and older variant (`personally_identifiable_information`) because the shape evolves.
+4. `_print_pii()` surfaces `detected`, `filtered`, and `redacted` fields. Newer payloads may also include `redacted_text` and `sub_categories`.
+5. Block path inspects policy feedback when full completion is denied as `400 content_filter`.
+
+**API version note.** PII needs `2025-01-01-preview` or later on classic filter APIs. Prereq: enable PII on deployment guardrail in Foundry portal (Guardrails → create/edit → Personally identifiable information).
 
 **What this control can and cannot do.**
 
@@ -722,9 +780,11 @@ uv run python 01-plan-and-manage/13_pii_filter.py
 
 **Exam cues.**
 
-1. Where does PII filter apply → output or completion boundary.
+1. Where does PII filter apply → output or completion boundary (not user input).
 2. Does it replace privacy governance → no.
 3. Validation → controlled test cases and logging controls.
+
+**References:** [Personal information filter](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-personal-information) · [How to create guardrails](https://learn.microsoft.com/azure/foundry/guardrails/how-to-create-guardrails)
 
 ### 14 — Check whether tool intent matches user intent
 
@@ -745,14 +805,20 @@ uv run python 01-plan-and-manage/14_task_adherence.py
 
 **Code path.**
 
-1. `_TOOLS` defines available operations and their semantics.
+1. `_TOOLS` defines available operations: `get_leave_balance` (read-only) and `apply_leave` (write) — showing aligned vs misaligned scenarios.
 2. Each scenario builds a realistic prompt, assistant proposal, and optional tool result.
-3. `_analyze()` calls preview contract with documented fallback behavior for known compatibility gaps.
-4. It returns `taskRiskDetected` with details and surfaces unhandled failures explicitly.
+3. `_analyze()` tries `2025-09-15-preview` API version first, then falls back to `2024-12-15-preview` — always try the newest documented version first before falling back.
+4. Returns `taskRiskDetected` with details when risk is found; surfaces unhandled failures explicitly rather than silently swallowing them.
 
-**What this signal is for** — catching "asked X, proposed Y" mismatches before consequential execution, and supporting approval workflows for side-effecting operations.
+**Task Adherence has three distinct surfaces** (a common exam question):
 
-**What this signal is not for** — it is not a jailbreak detector, not automatic execution control, and not a substitute for authorization or audit policy.
+- **Lesson 14** — Content Safety REST endpoint: real-time signal for specific tool plans.
+- **Foundry guardrail** — annotates/filters agent workflow at runtime (requires guardrail configured in portal).
+- **`builtin.task_adherence`** — offline/continuous evaluation criterion (lesson 21): scores adherence across a dataset.
+
+Choose real-time enforcement, runtime policy, or offline measurement deliberately. They are not interchangeable.
+
+**What this signal is not for** — not a jailbreak detector, not automatic execution control, not a substitute for authorization or audit policy.
 
 **Application enforcement pattern.**
 
@@ -760,11 +826,7 @@ uv run python 01-plan-and-manage/14_task_adherence.py
 2. Medium risk or unclear intent: ask explicit user confirmation.
 3. High impact or ambiguous state: block and escalate to human review.
 
-**Exam cues.**
-
-1. Tool side effects beyond user intent → Task Adherence-style control.
-2. Signal alone blocks execution → no, unless app logic enforces it.
-3. Enterprise-safe design → include approval and audit paths.
+**References:** [Task Adherence guardrail](https://learn.microsoft.com/azure/foundry/guardrails/task-adherence) · [Guardrail intervention points](https://learn.microsoft.com/azure/foundry/guardrails/intervention-points)
 
 ### 15 — Build domain-specific blocklists deliberately
 
@@ -780,26 +842,29 @@ Best practice: use both when policy requires both
 uv run python 01-plan-and-manage/15_blocklists.py --apply
 ```
 
-**Code path.**
+**Code path — two distinct layers (exam trap — different products, similar idea).**
 
-1. `create_or_update_text_blocklist()` ensures list metadata exists safely.
-2. `add_or_update_blocklist_items()` adds policy terms and receives IDs.
-3. `AnalyzeTextOptions(blocklist_names=[...])` checks content against those terms.
-4. Propagation wait logic avoids false assumptions immediately after updates.
-5. Separate flow shows that direct Content Safety blocklists and Foundry deployment custom-blocklist policy are different integration surfaces.
+1. **Flow A** (Content Safety blocklist API — this lesson): `create_or_update_text_blocklist` → `add_or_update_blocklist_items` → `analyze_text(blocklist_names=[...])` → returns `blocklists_match[]` with blocklist name and matched text.
+2. **Flow B** (Foundry deployment blocklist — portal/ARM): attach via `raiBlocklists` in deployment policy. Chat Completions returns `custom_blocklists` in filter results. These are related concepts with different wiring; configure and test the one your serving path uses.
+
+The lesson uses three realistic example items: `"Contoso Premium Rival"` (competitor phrase), `"PROJECT-NIGHTHAWK"` (internal codename), `"bypass-northwind-billing"` (abuse phrase) — showing the three real use cases.
+
+**Important:** new blocklist terms take ~a few minutes to propagate after update. If `blocklists_match` is empty immediately after adding terms, retry after a short wait.
 
 **Policy design guidance.**
 
 1. Every match must map to a clear action: warn, block, redact, or review.
 2. Track owners for each term and review cadence to prevent stale policy.
 3. Test precision to avoid overblocking normal content.
-4. Remove lab-only terms after training or testing.
+4. Remove lab-only terms after training or testing. The `northwind-exam-blocklist` persists until deleted.
 
 **Exam cues.**
 
 1. Organization-specific prohibited terms → blocklist is appropriate.
 2. Broad semantic moderation → blocklist alone is insufficient.
 3. Direct API vs deployment policy paths → verify which path is actually enforced at runtime.
+
+**References:** [Use blocklists](https://learn.microsoft.com/azure/foundry/openai/how-to/use-blocklists)
 
 ---
 
@@ -827,14 +892,16 @@ Lessons 16 and 17 introduce two foundational concepts the rest of the domain bui
 uv run python 01-plan-and-manage/16_agent_basics.py
 ```
 
-**Code path.**
+**Code path — two functions show the key patterns.**
 
-1. `_SYSTEM` is an instruction contract: scope, tone, and domain boundary.
-2. `single_turn()` passes `instructions` and user input to one Responses call.
-3. `multi_turn()` stores returned `response.id`.
-4. Later calls pass `previous_response_id`, letting server-side conversation state link turns without resending full history.
+1. **`single_turn()`** — "ephemeral agent": passes `instructions` and user input in one Responses call. Instructions live only in this source file. No state persisted anywhere.
+2. **`multi_turn()`** — links turns via `previous_response_id`. The server tracks conversation state between turns; the client only sends new input each time, not the full history. This avoids resending tokens for prior context.
 
-Use it when application owns behavior and state requirements are bounded. Do not mistake linked response state for retention/security policy: decide conversation lifecycle, user isolation, logging, and tool authorization explicitly. Use Domain 2 managed agents when team lifecycle/tools require it.
+The pattern demonstrates that conversation state can be managed server-side without sending full message history — but this is still not a "Foundry agent resource" with lifecycle, tools, or an endpoint.
+
+Use it when application owns behavior and state requirements are bounded. Do not mistake linked response state for retention/security policy: decide conversation lifecycle, user isolation, logging, and tool authorization explicitly.
+
+**References:** [Choose a build approach](https://learn.microsoft.com/azure/foundry/concepts/choose-build-approach) · [Foundry architecture](https://learn.microsoft.com/azure/foundry/concepts/architecture)
 
 ### Evaluation concepts: why lesson 17 is not a Foundry evaluation
 
@@ -861,12 +928,21 @@ uv run python 01-plan-and-manage/17_evaluator_groundedness.py
 
 **Code path.**
 
-1. `_AGENT_INSTRUCTIONS` provides only known refund policy.
-2. First Responses call produces a draft.
-3. `_CRITIQUE_INSTRUCTIONS` defines completeness criteria and constrained `COMPLETE`/`MISSING` output.
-4. If missing, a second answer call receives an explicit coverage reminder.
+1. An ephemeral agent answers using only the known `_AGENT_INSTRUCTIONS` refund policy — if a detail isn't in the policy, it must say so; no inventing.
+2. A second Responses call plays evaluator: reads the answer against a 5-point completeness checklist, returns only `COMPLETE` or `MISSING`.
+3. If `MISSING`, a third call regenerates with the checklist explicitly in scope as a reminder.
 
-Use it for low-risk response refinement with clear source material. Do not use it as a release evaluator, fabricated-claim detector, safety approval, or chain-of-thought store. For production use held-out data, built-in evaluators, human review, thresholds, drift monitoring, and run history — lesson 21.
+**What the completeness checklist checks:**
+
+1. Whether the customer appears eligible for a refund.
+2. The refund window, if one applies.
+3. How the refund window is measured (charge date vs. usage date).
+4. Whether refunds are available after the normal window.
+5. Whether any requested details are unavailable in the knowledge base.
+
+**Limitation.** Lesson 17 is **not** a Foundry built-in Groundedness or Response Completeness evaluator, and it does not create an evaluation run. A model can make the same mistake in drafting and reviewing. For production use held-out data, built-in evaluators, human review, thresholds, drift monitoring, and run history — lesson 21.
+
+**References:** [Built-in evaluators](https://learn.microsoft.com/azure/foundry/concepts/built-in-evaluators) · [General-purpose evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/general-purpose-evaluators)
 
 ---
 
@@ -888,36 +964,61 @@ A Foundry project connection is not permission to access Storage, Key Vault, Sea
 
 ### 18 — Protected Material detection
 
-**What:** GA Content Safety output check for known protected English text. **Why:** route a completion to abstention, attribution, legal review, or policy handling. **How:** send a model completion to `text:detectProtectedMaterial`; inspect `protectedMaterialAnalysis.detected`. **Use it:** after generation where reproduction risk matters. **Do not use it:** for user prompts, harm classification, short snippets, or legal conclusions.
+**What:** GA Content Safety output check for known protected English text. **Why:** route a completion to abstention, attribution, legal review, or policy handling. **Use it:** after generation where reproduction risk matters. **Do not use it:** for user prompts, harm classification, short snippets, or legal conclusions.
 
 ```bash
 uv run python 01-plan-and-manage/18_protected_material.py
 uv run python 01-plan-and-manage/18_protected_material.py --run
 ```
 
-Requires Content Safety, `CONTENT_SAFETY_ENDPOINT`, and `Cognitive Services User`. Accepts 110–10,000 English characters; the lab sends synthetic text and creates no persistent state.
+**API details from the code.**
+
+- Endpoint: `POST .../contentsafety/text:detectProtectedMaterial?api-version=2024-09-01`
+- Input: `{ "text": "<completion>" }` — must be 110–10,000 characters.
+- Result field: `protectedMaterialAnalysis.detected` — boolean.
+- The lesson validates the character range before calling the API.
+
+Requires `CONTENT_SAFETY_ENDPOINT` and `Cognitive Services User`. The lab sends synthetic text and creates no persistent state.
+
+**References:** [Protected material detection](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-protected-material)
 
 ### 19 — Groundedness detection
 
-**What:** preview Content Safety API for unsupported answer spans. **Why:** a fluent RAG answer can still invent claims. **How:** compare generated `text` to `groundingSources`, then use `ungroundedDetected`, `ungroundedPercentage`, and `ungroundedDetails`. The percentage is a proportion, not confidence. **Use it:** summaries and answers backed by curated content. **Do not use it:** as authorization, citation storage, or universal truth test.
+**What:** preview Content Safety API for unsupported answer spans. **Why:** a fluent RAG answer can still invent claims. **Use it:** summaries and answers backed by curated content. **Do not use it:** as authorization, citation storage, or universal truth test.
 
 ```bash
 uv run python 01-plan-and-manage/19_groundedness_detection.py
 uv run python 01-plan-and-manage/19_groundedness_detection.py --run
 ```
 
-Requires S0 Content Safety in a supported region, `Cognitive Services User`, and `CONTENT_SAFETY_ENDPOINT`; F0 is unsupported. The preview API is `2024-09-15-preview`. Text and optional QnA query allow 7,500 characters; sources total 55,000. Reasoning mode additionally needs an eligible GPT-4o deployment and `llmResource`; do not enable it by accident.
+**API details from the code.**
+
+- Endpoint: `POST .../contentsafety/text:detectGroundedness?api-version=2024-09-15-preview`
+- Body fields: `domain`, `task`, `text` (≤7,500 chars), `groundingSources` (≤55,000 total), `reasoning: false`.
+- Result fields: `ungroundedDetected` (boolean), `ungroundedPercentage` (proportion, not confidence), `ungroundedDetails` (which spans are unsupported).
+- **Reasoning mode** additionally needs an eligible GPT-4o deployment and `llmResource` — do not enable it by accident as it changes the cost profile.
+
+Requires S0 Content Safety in a supported region; F0 is unsupported. Preview API `2024-09-15-preview`.
+
+**References:** [Groundedness detection](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-groundedness)
 
 ### 20 — Provenance detection
 
-**What:** preview asynchronous detection of C2PA and supported invisible watermark markers in media. **Why:** add an origin signal before trusting or publishing media. **How:** submit `content.uri` to `operations:detect`, poll its operation ID, and handle `ProvenanceDetected`, `NoProvenanceDetected`, or failure. **Use it:** media review workflows. **Do not use it:** as a safety classifier, ownership proof, or authenticity guarantee.
+**What:** preview asynchronous detection of C2PA and supported invisible watermark markers in media. **Why:** add an origin signal before trusting or publishing media. **Use it:** media review workflows. **Do not use it:** as a safety classifier, ownership proof, or authenticity guarantee.
 
 ```bash
 uv run python 01-plan-and-manage/20_provenance_detection.py
 uv run python 01-plan-and-manage/20_provenance_detection.py --run
 ```
 
-Requires `PROVENANCE_SOURCE_URL` (HTTPS Blob/SAS URI), `CONTENT_SAFETY_ENDPOINT`, `Cognitive Services User` for caller, and `Storage Blob Data Reader` for Content Safety's managed identity. Prefer managed identity over a long-lived SAS.
+**API details from the code — two-step async pattern.**
+
+1. `POST .../contentsafety/provenance/operations:detect?api-version=2026-07-01-preview` — submit `{ "content": { "uri": "<https-blob-or-sas>" } }` and receive an operation ID.
+2. `GET .../contentsafety/provenance/operations/<id>?api-version=2026-07-01-preview` — poll until status is `ProvenanceDetected`, `NoProvenanceDetected`, or a failure state.
+
+Requires `PROVENANCE_SOURCE_URL` (HTTPS Blob or SAS URI), `CONTENT_SAFETY_ENDPOINT`, `Cognitive Services User` for caller, and `Storage Blob Data Reader` for Content Safety's managed identity. Prefer managed identity over a long-lived SAS.
+
+**References:** [Provenance disclosure](https://learn.microsoft.com/azure/foundry/responsible-ai/content-understanding/provenance-disclosure)
 
 ---
 
@@ -944,7 +1045,9 @@ uv run python 01-plan-and-manage/21_foundry_evaluation.py \
   --apply --dataset path/to/tests.jsonl [--rubric reviewed-rubric-name]
 ```
 
-The first command is preflight. Applying uploads data, creates an evaluation and run, calls the agent/evaluators, and can bill. It needs JSONL `query` fields, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, `AZURE_AI_MODEL_DEPLOYMENT_NAME`, a target agent/deployment, and `Foundry User`.
+The first command is preflight — prints every intended write without contacting Azure. Applying uploads data, creates an evaluation and run, calls the agent/evaluators, and can bill. It needs JSONL `query` fields, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, `AZURE_AI_MODEL_DEPLOYMENT_NAME`, a target agent/deployment, and `Foundry User`.
+
+**Region support for evaluators.** Risk and safety evaluators are available in: East US 2, North Central US, France Central, Sweden Central, Switzerland West, and Australia East. Confirm current limits before a production run.
 
 | Evaluator | Input / purpose | Distinction |
 |---|---|---|
@@ -954,7 +1057,15 @@ The first command is preflight. Applying uploads data, creates an evaluation and
 | Groundedness Pro | Binary Content Safety-backed score | Different from model-based 1-5 Groundedness. |
 | Response Completeness | `ground_truth` and response | Different from grounding and safety. |
 
-Task Adherence has three surfaces: lesson 14's Content Safety REST signal (`tools` plus conversation messages), Foundry guardrail runtime annotation, and `builtin.task_adherence` evaluator over evaluation data. Choose real-time enforcement, runtime policy, or offline measurement deliberately. Rows are limited to 2 MB; batches to 100,000 rows; evaluator region support varies.
+**Task Adherence across three surfaces** (a common exam question — all three are different):
+
+- **Lesson 14**: Content Safety REST endpoint (`tools` + conversation messages) — real-time signal.
+- **Foundry guardrail**: annotates/filters agent workflow at runtime.
+- **`builtin.task_adherence`** (this lesson): offline evaluation criterion scored across a dataset.
+
+Choose real-time enforcement, runtime policy, or offline measurement deliberately. Rows are limited to 2 MB; batches to 100,000 rows; evaluator region support varies.
+
+**References:** [Cloud evaluation](https://learn.microsoft.com/azure/foundry/how-to/develop/cloud-evaluation) · [Evaluate an agent](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-agent) · [Built-in evaluators](https://learn.microsoft.com/azure/foundry/concepts/built-in-evaluators) · [Agent evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/agent-evaluators) · [Risk and safety evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/risk-safety-evaluators) · [Rubric evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/rubric-evaluators) · [View evaluation results](https://learn.microsoft.com/azure/foundry/how-to/evaluate-results)
 
 ### 22 — Continuous evaluation
 
@@ -965,7 +1076,11 @@ uv run python 01-plan-and-manage/22_continuous_evaluation.py
 uv run python 01-plan-and-manage/22_continuous_evaluation.py --apply
 ```
 
-Applying creates persistent evaluation/rule state and incurs sampling, evaluator, and telemetry cost. Requires project/agent identifiers, Application Insights, and `Foundry User` for project managed identity. The lesson caps at 10 runs/hour; change only after privacy, cost, alert, owner, and rollback review.
+**From the code.** The preflight prints the exact cloud side effects without contacting Azure: creates evaluation `"Northwind continuous violence evaluation"`, creates rule `northwind-continuous-violence`, targets completed responses from the named agent using `builtin.violence` evaluator. Maximum `10 runs/hour` cap is hardcoded — change only after privacy, cost, alert, owner, and rollback review.
+
+Applying creates persistent evaluation/rule state and incurs sampling, evaluator, and telemetry cost. Requires project/agent identifiers, Application Insights, and `Foundry User` for project managed identity.
+
+**References:** [Evaluate an agent](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-agent) · [Monitor agents dashboard](https://learn.microsoft.com/azure/foundry/observability/how-to/how-to-monitor-agents-dashboard)
 
 ### 23 — Human feedback and HITL
 
@@ -975,7 +1090,20 @@ Applying creates persistent evaluation/rule state and incurs sampling, evaluator
 uv run python 01-plan-and-manage/23_human_feedback.py
 ```
 
-The lesson prints integration guidance; a handler calls `emit_end_user_feedback(..., apply=True)` with the original span. Requires project-connected Application Insights, tracing packages, and governed retention. Reviewers need `Foundry User` plus Reader; template management needs `Foundry Project Manager`. Human templates are preview; the default binary `task_completion` path must preserve trace/span correlation.
+**Binary feedback schema (from the code attributes).**
+
+- `gen_ai.evaluation.name`: `"task_completion"` — the default binary template.
+- `gen_ai.evaluation.score.value`: `1.0` = thumbs up (pass), `0.0` = thumbs down (fail).
+- `gen_ai.evaluation.score.label`: `"pass"` or `"fail"`.
+- `microsoft.gen_ai.human_evaluation.source`: `"end_user"`.
+- `microsoft.gen_ai.evaluation.actor.type`: `"human"`.
+- Optional: `gen_ai.evaluation.explanation` — brief reason.
+
+`apply=False` is an exact dry run — prints what would be emitted without touching telemetry. `apply=True` appends one event only to a valid, currently recording response span; it never overwrites feedback. Do not emit a new trace later to imitate correlation.
+
+Requires project-connected Application Insights, tracing packages, and governed retention. Reviewers need `Foundry User` plus Reader; template management needs `Foundry Project Manager`.
+
+**References:** [Human evaluation](https://learn.microsoft.com/azure/foundry/observability/how-to/human-evaluation) · [Log end-user feedback](https://learn.microsoft.com/azure/foundry/observability/how-to/log-end-user-feedback) · [Trace annotations](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-annotations)
 
 ### 24 — AI Red Teaming Agent
 
@@ -987,7 +1115,13 @@ AZURE_AI_PROJECT=<project-endpoint> \
   uv run python 01-plan-and-manage/24_red_teaming.py --apply
 ```
 
-The apply path uses only a fixed safe synthetic callback; no real model, tool, or application receives the generated attacks. Requires Python 3.10–3.13, `azure-ai-evaluation[redteam]`, Entra identity, Foundry project, and `Foundry User` for project managed identity. Scans bill and region support is preview-sensitive; verify before targeting a real nonproduction system.
+**Safety boundary from the code.** The lesson accepts no real endpoint, model configuration, or application callback. `safe_synthetic_callback` receives all generated prompts and returns a fixed refusal: `"I can't help with harmful content or unsafe actions."` No customer data, real tools, secrets, production traffic, or destructive actions are reachable. No scan starts without `--apply`.
+
+**Scan configuration.** Uses `RiskCategory.Violence`, `num_objectives=1`, baseline direct prompts only. Preflight prints the exact side effects: creates one `RedTeam` client, scans `safe_synthetic_callback`, sends no prompt to a real model.
+
+**Region support.** Currently: East US 2 and North Central US. AI Red Teaming Agent supports single-turn, text-only scenarios. Agentic risks need a cloud red-teaming environment; this small callback scan does not test them.
+
+**References:** [AI Red Teaming Agent](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent) · [Safety evaluations transparency note](https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note)
 
 ---
 
@@ -1026,7 +1160,7 @@ Server-side tracing is the starting point. Client-side tracing is additive — i
 
 **What this lesson is.** A local read-only preflight. It makes no Azure calls and changes nothing. It checks whether your environment variables are present, then prints the setup steps you must complete manually in the portal or via IaC before server-side Foundry tracing becomes active.
 
-**Why it runs before you do anything.** Enabling tracing is an explicit decision with cost and privacy implications.
+**Why it runs before you do anything.** Enabling tracing is an explicit decision with cost and privacy implications. Application Insights billing follows Azure Monitor pricing. Tracing is off by default — no data is collected until you connect the resource.
 
 **What server-side tracing gives you (zero code required):**
 
@@ -1050,17 +1184,32 @@ Also queryable in Azure Monitor Application Insights
 3. Assign `Log Analytics Reader` on the resource to anyone who needs to view traces. If the Log Analytics tables are protected, also assign `Privileged Monitoring Data Reader`.
 4. Run any hosted or prompt agent. Server-side traces appear in the **Traces** tab.
 
-**Sensitive content protection (preview).** Starting September 30, 2026, sensitive GenAI attributes (prompts, outputs, tool arguments) route only to the `AppGenAIContent` table. To apply this protection now:
+**Sensitive content in traces (from the code comments).**
+
+These attributes route to `AppGenAIContent` protected table after Sept 30, 2026:
+
+```text
+gen_ai.input.messages        — prompts and inputs sent to the model
+gen_ai.output.messages       — model responses
+gen_ai.system_instructions   — system prompts
+gen_ai.tool.call.arguments   — tool call inputs
+gen_ai.tool.call.result      — tool call outputs
+```
+
+To apply this protection now:
 
 ```bash
 az feature register --namespace Microsoft.Insights --name protectGenAISensitiveData
 ```
 
-Then set `AppGenAIContent` as a Protected table in Log Analytics and assign `Privileged Monitoring Data Reader` to authorized identities only. This is a subscription-level mutation — review before running.
+Then set `AppGenAIContent` as a Protected table in Log Analytics. This is a subscription-level mutation — review before running.
 
 ```bash
 uv run python 01-plan-and-manage/25_foundry_tracing_setup.py
+uv run python 01-plan-and-manage/25_foundry_tracing_setup.py --check-connection
 ```
+
+**References:** [Trace agent setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup) · [Trace agent concepts](https://learn.microsoft.com/azure/foundry/observability/concepts/trace-agent-concept) · [Sensitive content in traces](https://learn.microsoft.com/azure/foundry/observability/how-to/traces-sensitive-content) · [Observability concepts](https://learn.microsoft.com/azure/foundry/concepts/observability)
 
 ### 26 — Add client-side spans to instrument application code
 
@@ -1081,7 +1230,7 @@ Client-side tracing (manual, this lesson)
   spans — it does not connect a project or activate Foundry tracing.
 ```
 
-**What an OpenTelemetry span is.** A span is a named, timed record of one operation with start time, end time, and key-value attributes. Nested spans form a tree showing the full call path. This lesson creates one parent span around a Responses call (Flow B) and lets SDK auto-instrumentation create a child span for the model call itself (Flow A).
+**What an OpenTelemetry span is.** A span is a named, timed record of one operation with start time, end time, and key-value attributes. Nested spans form a tree showing the full call path. This lesson creates one parent span for business context (Flow B) and lets SDK auto-instrumentation create a child span for the model call itself (Flow A).
 
 **Before code.** `PROJECT_ENDPOINT` and `DEFAULT_MODEL` are required. `CONTENT_SAFETY_ENDPOINT` and `APPLICATIONINSIGHTS_CONNECTION_STRING` are optional: without them the App Insights connection string is fetched from the project telemetry API, and if that also fails, spans print to stdout.
 
@@ -1093,9 +1242,9 @@ uv run python 01-plan-and-manage/26_agent_tracing.py
 
 1. `os.environ.setdefault("AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING", "true")` enables GenAI instrumentation. Must be set **before** `AIProjectInstrumentor().instrument()`; without it, auto-instrumentation is silently a no-op.
 2. `AIProjectInstrumentor().instrument()` (Flow A) hooks into `openai.responses.create`. Every subsequent model call automatically gets a `chat <model>` child span with latency and token counts — no extra code needed per call.
-3. `resolve_connection_string(client)` tries `client.telemetry.get_application_insights_connection_string()` first, then `APPLICATIONINSIGHTS_CONNECTION_STRING` env var as fallback. This avoids hardcoding the connection string.
+3. `resolve_connection_string(client)` tries `client.telemetry.get_application_insights_connection_string()` (project API) first, then `APPLICATIONINSIGHTS_CONNECTION_STRING` env var as fallback. This avoids hardcoding the connection string.
 4. `setup_tracing_from_connection_string()` selects `AzureMonitorTraceExporter` when a connection string is present, or `ConsoleSpanExporter` for local learning.
-5. `tracer.start_as_current_span("northwind-support-response")` (Flow B) creates a manual parent span for business-level context. The auto-instrumented model call nests inside it as a child span.
+5. `tracer.start_as_current_span("northwind-support-response")` (Flow B) creates a manual parent span. The auto-instrumented model call nests inside it as a child span.
 6. Business attributes (`northwind.operation`) and token rollup go on the parent span; auto-span handles per-call `gen_ai.*` attributes automatically.
 7. Optional `_check_safety()` classifies the output; per-category `safety.<name>` severity goes on the parent span. Transport errors are recorded as span exceptions.
 
@@ -1105,13 +1254,13 @@ uv run python 01-plan-and-manage/26_agent_tracing.py
 - Azure Monitor → Transaction Search: find `northwind-support-response`; select it to see the child auto-span and all attributes.
 - Foundry portal → Traces tab: traces appear within 2–5 minutes.
 
-**Attributes never to add by default.** Prompts and model outputs can contain PII, secrets, and customer content. Do not add them as span attributes unless your telemetry schema, redaction rules, access controls, and retention are reviewed and approved. To enable content recording in development only: `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true`.
+**Attributes never to add by default.** Prompts and model outputs can contain PII, secrets, and customer content. Do not add them as span attributes without approved telemetry schema, redaction rules, access controls, and retention. To enable content recording in development only: `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true`.
 
 **Common beginner mistakes.**
 
 - Not setting `AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true` before `AIProjectInstrumentor().instrument()` — auto-instrumentation silently does nothing.
 - Calling `AIProjectInstrumentor().instrument()` after making model calls — it only instruments calls made after it runs.
-- Thinking this lesson enables server-side Foundry tracing — it does not; that requires connecting App Insights to the project in the portal (lesson 25).
+- Thinking this lesson enables server-side Foundry tracing — it does not; that requires connecting App Insights in the portal (lesson 25).
 
 ### Lessons 25 and 26 compared
 
@@ -1141,6 +1290,8 @@ Run 25 first, then 26.
 | Treat `protectGenAISensitiveData` as subscription mutation. | It is preview and intentionally not scripted. |
 | Download cluster-analysis CSV before leaving. | Preview clustering results are not persisted. |
 | Sanitize trace-to-dataset samples. | Production traces can contain customer and tool data. |
+
+**References:** [Client-side tracing](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-client-side) · [Framework tracing](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-framework) · [Trace data concepts](https://learn.microsoft.com/azure/foundry/observability/concepts/trace-data) · [Trace agent setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup)
 
 ---
 
@@ -1181,6 +1332,7 @@ Run 25 first, then 26.
 | PII annotation absent | Preview feature/guardrail not configured or unsupported | Validate deployment configuration and supported model/region. |
 | Task Adherence result is risky but tool still runs | API only returned analysis | Implement application block/confirmation/HITL decision before tool execution. |
 | No trace in Application Insights | Connection string unset, exporter/access issue, ingestion delay | Validate exporter configuration and telemetry-resource read permission; inspect local output. |
+| Blocklist match empty after update | New terms not yet propagated | Wait a few minutes and retry; propagation is not immediate. |
 
 ## CI/CD and operational release
 
@@ -1251,6 +1403,7 @@ Avoid using a single score as a deployment decision. A higher aggregate quality 
 | "Task Adherence blocks tools automatically." | False. It returns preview analysis; application enforces block/HITL. |
 | "Self-critique is a Foundry evaluator run." | False. Lesson 17 is an application pattern, not built-in evaluator execution. |
 | "Manual OpenTelemetry span proves Foundry tracing is configured." | False. Lesson 26 is application instrumentation only; lesson 25 is local preflight. |
+| "Guardrail severity scale and Content Safety API severity scale are the same." | False. Guardrail uses Safe/Low/Medium/High (4-level); Content Safety API uses 0–7 integer. |
 
 ## Objective coverage and limits
 
@@ -1260,31 +1413,81 @@ It does **not** prove production readiness, regional feature availability, compl
 
 ## References
 
-Local links:
+### Per-domain documentation
 
 - [Repository setup and endpoint topology](../README.md)
 - [AI-103 skills measured](../AI-103.md)
 - [Objective coverage map](../docs/coverage.md)
 - [Domain 2: Generative AI and agents](../02-generative-ai-and-agents/README.md)
 
-Microsoft documentation:
+### Foundry concepts
 
-- [Deployment types](https://learn.microsoft.com/azure/ai-foundry/foundry-models/concepts/deployment-types)
-- [Quota management](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/quota)
-- [Responses Model Router](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/responses-model-routing)
-- [Foundry RBAC](https://learn.microsoft.com/azure/ai-foundry/concepts/rbac-foundry)
-- [Prompt Shields and Spotlighting](https://learn.microsoft.com/azure/ai-foundry/openai/concepts/content-filter-prompt-shields)
-- [Task Adherence](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/task-adherence)
-- [Built-in evaluators](https://learn.microsoft.com/azure/ai-foundry/concepts/built-in-evaluators)
-- [Azure AI Content Safety](https://learn.microsoft.com/azure/ai-services/content-safety/)
-- [Foundry guardrails](https://learn.microsoft.com/azure/ai-foundry/guardrails/guardrails-overview)
-- [Foundry architecture](https://learn.microsoft.com/azure/ai-foundry/concepts/architecture)
-- [Foundry authentication](https://learn.microsoft.com/azure/ai-foundry/concepts/authentication-authorization)
-- [Private Link](https://learn.microsoft.com/azure/ai-foundry/how-to/configure-private-link)
-- [Foundry observability](https://learn.microsoft.com/azure/ai-foundry/observability/concepts/observability)
-- [Tracing setup](https://learn.microsoft.com/azure/ai-foundry/observability/how-to/trace-agent-setup)
-- [Agent evaluation](https://learn.microsoft.com/azure/ai-foundry/observability/how-to/evaluate-agent)
-- [Human evaluation](https://learn.microsoft.com/azure/ai-foundry/observability/how-to/human-evaluation)
-- [AI Red Teaming Agent](https://learn.microsoft.com/azure/ai-foundry/concepts/ai-red-teaming-agent)
-- [Bicep resource template](https://learn.microsoft.com/azure/ai-foundry/how-to/create-resource-template)
-- [Terraform resource deployment](https://learn.microsoft.com/azure/ai-foundry/how-to/create-resource-terraform)
+- [Architecture](https://learn.microsoft.com/azure/foundry/concepts/architecture)
+- [Deployments overview](https://learn.microsoft.com/azure/foundry/concepts/deployments-overview)
+- [Deployment types](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types)
+- [Authentication and authorization](https://learn.microsoft.com/azure/foundry/concepts/authentication-authorization-foundry)
+- [RBAC for Foundry](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry)
+- [Choose a build approach](https://learn.microsoft.com/azure/foundry/concepts/choose-build-approach)
+- [Manage costs](https://learn.microsoft.com/azure/foundry/concepts/manage-costs)
+- [Observability concepts](https://learn.microsoft.com/azure/foundry/concepts/observability)
+
+### Deployment and quota
+
+- [Create model deployments](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/create-model-deployments)
+- [Quotas and limits](https://learn.microsoft.com/azure/foundry/foundry-models/quotas-limits)
+- [Quota management](https://learn.microsoft.com/azure/foundry/openai/how-to/quota)
+- [Automate quota and deployments](https://learn.microsoft.com/azure/foundry/openai/how-to/automate-quota-deployments)
+- [Model deployment policy](https://learn.microsoft.com/azure/foundry/how-to/model-deployment-policy)
+
+### Model Router
+
+- [Model Router concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/model-router)
+- [How Model Router works](https://learn.microsoft.com/azure/foundry/openai/concepts/model-router-how-it-works)
+- [Model Router how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/model-router)
+
+### Guardrails and content safety
+
+- [Guardrails overview](https://learn.microsoft.com/azure/foundry/guardrails/guardrails-overview)
+- [Guardrail intervention points](https://learn.microsoft.com/azure/foundry/guardrails/intervention-points)
+- [How to create guardrails](https://learn.microsoft.com/azure/foundry/guardrails/how-to-create-guardrails)
+- [Task Adherence guardrail](https://learn.microsoft.com/azure/foundry/guardrails/task-adherence)
+- [Content filter severity levels](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-severity-levels)
+- [Default safety policies](https://learn.microsoft.com/azure/foundry/openai/concepts/default-safety-policies)
+- [Prompt Shields and Spotlighting](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-prompt-shields)
+- [Personal information filter](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-personal-information)
+- [Protected material detection](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-protected-material)
+- [Groundedness detection](https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-groundedness)
+- [Use blocklists](https://learn.microsoft.com/azure/foundry/openai/how-to/use-blocklists)
+
+### Evaluation
+
+- [Built-in evaluators](https://learn.microsoft.com/azure/foundry/concepts/built-in-evaluators)
+- [General-purpose evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/general-purpose-evaluators)
+- [Agent evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/agent-evaluators)
+- [Risk and safety evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/risk-safety-evaluators)
+- [Rubric evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/rubric-evaluators)
+- [Cloud evaluation](https://learn.microsoft.com/azure/foundry/how-to/develop/cloud-evaluation)
+- [Evaluate an agent](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-agent)
+- [View evaluation results](https://learn.microsoft.com/azure/foundry/how-to/evaluate-results)
+- [Monitor agents dashboard](https://learn.microsoft.com/azure/foundry/observability/how-to/how-to-monitor-agents-dashboard)
+
+### Observability and tracing
+
+- [Trace agent setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup)
+- [Client-side tracing](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-client-side)
+- [Framework tracing](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-framework)
+- [Sensitive content in traces](https://learn.microsoft.com/azure/foundry/observability/how-to/traces-sensitive-content)
+- [Trace annotations](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-annotations)
+- [Trace agent concepts](https://learn.microsoft.com/azure/foundry/observability/concepts/trace-agent-concept)
+- [Trace data concepts](https://learn.microsoft.com/azure/foundry/observability/concepts/trace-data)
+- [Human evaluation](https://learn.microsoft.com/azure/foundry/observability/how-to/human-evaluation)
+- [Log end-user feedback](https://learn.microsoft.com/azure/foundry/observability/how-to/log-end-user-feedback)
+
+### Security and advanced
+
+- [AI Red Teaming Agent](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent)
+- [Safety evaluations transparency note](https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note)
+- [Provenance disclosure](https://learn.microsoft.com/azure/foundry/responsible-ai/content-understanding/provenance-disclosure)
+- [Private Link](https://learn.microsoft.com/azure/foundry/how-to/configure-private-link)
+- [Bicep resource template](https://learn.microsoft.com/azure/foundry/how-to/create-resource-template) *(local docs: `how-to/create-resource-bicep`)*
+- [Terraform resource deployment](https://learn.microsoft.com/azure/foundry/how-to/create-resource-terraform)
