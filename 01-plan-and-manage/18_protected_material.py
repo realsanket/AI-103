@@ -18,11 +18,21 @@ from azure.core.rest import HttpRequest
 from _shared.content_safety_client import content_safety_client
 from _shared.config import settings
 
-_TEXT = (
+_ORIGINAL_TEXT = (
     "Northwind support guidance is original training text. It explains that refund "
     "requests are reviewed against the charge date, subscription plan, and account "
     "history. Support staff should confirm the invoice, state the available options, "
     "and escalate exceptions without reproducing third-party source material."
+)
+
+# A longer, well-known copyrighted excerpt used as an intentionally detection-friendly
+# example for the protected-material API. Keep it realistic and avoid shipping a
+# production copy of a proprietary source in a lesson.
+_PROTECTED_TEXT_EXAMPLE = (
+    "Hey Jude, don't make it bad. Take a sad song and make it better. Remember to "
+    "let her into your heart, then you can start to make it better. Hey Jude, don't "
+    "be afraid. You were made to go out and get her. The minute you let her under "
+    "your skin, then you begin to make it better."
 )
 
 
@@ -40,18 +50,19 @@ def detect_protected_material(client, endpoint: str, text: str) -> dict:
 
 def main(run: bool = False) -> None:
     if not run:
-        print("Preflight only. Re-run with --run to analyze synthetic English model output.")
+        print(
+            "Preflight only. Re-run with --run to compare a safe synthetic completion "
+            "against a known protected-material example."
+        )
         return
 
-    result = detect_protected_material(
-        content_safety_client(),
-        settings().require("CONTENT_SAFETY_ENDPOINT"),
-        _TEXT,
-    )
-    print(
-        "protected material detected:",
-        result["protectedMaterialAnalysis"]["detected"],
-    )
+    endpoint = settings().require("CONTENT_SAFETY_ENDPOINT")
+    for label, sample in {
+        "safe synthetic output": _ORIGINAL_TEXT,
+        "known protected example": _PROTECTED_TEXT_EXAMPLE,
+    }.items():
+        result = detect_protected_material(content_safety_client(), endpoint, sample)
+        print(f"{label}:", result["protectedMaterialAnalysis"]["detected"])
 
 
 if __name__ == "__main__":
