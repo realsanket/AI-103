@@ -629,6 +629,7 @@ It does **not** provision model deployments, agents, capability hosts, workload 
 ### Networking (deep dive)
 
 - [Access on-premises resources](https://learn.microsoft.com/azure/foundry/how-to/access-on-premises-resources)
+- [Managed virtual network](https://learn.microsoft.com/azure/foundry/how-to/managed-virtual-network)
 - [Add Foundry to Network Security Perimeter](https://learn.microsoft.com/azure/foundry/how-to/add-foundry-to-network-security-perimeter)
 - [Agents networking deep dive](https://learn.microsoft.com/azure/foundry/agents/concepts/agents-networking-deep-dive)
 - [Agent networking options](https://learn.microsoft.com/azure/foundry/agents/concepts/networking-options)

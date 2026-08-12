@@ -212,6 +212,8 @@ Preview features (Foundry IQ portal surfaces, Toolbox tool search, A2A, Routines
 | 15 | [Foundry toolbox preflight](15_foundry_toolbox_preflight.py) | List toolbox connections configured in this project | `--apply` reads project connections |
 | 16 | [Foundry IQ preflight](16_foundry_iq_preflight.py) | Verify Foundry IQ enterprise knowledge connection | `--apply` reads project connection |
 | 17 | [Agent optimizer](17_agent_optimizer.py) | Create optimizer dataset + submit optimization job | `--apply` submits cloud job (preview) |
+| 18 | [Custom code interpreter](18_custom_code_interpreter_preflight.py) | Validate MCP_SERVER_URL reachability for ACA-backed code interpreter | `--apply` probes endpoint |
+| 19 | [Azure Functions tool](19_azure_functions_tool_preflight.py) | Validate AzureFunctionTool queue definition + storage endpoint | `--apply` probes storage endpoint |
 
 ---
 
@@ -491,7 +493,7 @@ uv run python 08-advanced-agents-other/07_hosted_agent_deploy_preflight.py --app
 
 **What to watch.** Preflight: asset pass/fail. `--apply`: azd stream with `Endpoint: https://...` — use that URL in PROJECT_ENDPOINT for env-var and telemetry lessons.
 
-**References:** [Deploy hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent) · [Deploy hosted-agent code](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent-code) · [Hosted-agent contract](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-contract)
+**References:** [Deploy hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent) · [Deploy hosted-agent code](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent-code) · [Hosted-agent contract](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-contract) · [azure.yaml reference](https://learn.microsoft.com/azure/foundry/agents/concepts/azure-yaml-reference) · [Invoke hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/invoke-hosted-agent) · [Test hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/test-hosted-agent)
 
 ### 08 — Hosted agent env vars
 
@@ -509,7 +511,7 @@ uv run python 08-advanced-agents-other/08_hosted_agent_env_preflight.py --apply 
 
 **What to watch.** PATCH success. Confirm in portal: Foundry → agent → Settings → Environment variables. KV refs show the ref string, not the resolved secret.
 
-**References:** [Configure hosted-agent env variables](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-hosted-agent-env-variables) · [Hosted-agent permissions](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions)
+**References:** [Configure hosted-agent env variables](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-hosted-agent-env-variables) · [Hosted-agent permissions](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions) · [Monitor hosted-agent logs](https://learn.microsoft.com/azure/foundry/agents/how-to/monitor-hosted-agent-logs) · [Set up Key Vault connection](https://learn.microsoft.com/azure/foundry/how-to/set-up-key-vault-connection)
 
 ### 09 — MCP get started
 
@@ -693,6 +695,57 @@ uv run python 08-advanced-agents-other/17_agent_optimizer.py --apply --agent-nam
 
 ---
 
+## Stage 9 — Custom code interpreter + Azure Functions tool (lessons 18–19)
+
+These two lessons cover sandboxed Python execution and asynchronous function integration: the key patterns for agents that need custom compute or enterprise queue-based tools.
+
+### 18 — Custom code interpreter (ACA-backed)
+
+**Question answered:** Is my custom code interpreter MCP server endpoint reachable and correctly configured?
+
+**Background.** Custom code interpreter runs your Python code in an Azure Container Apps Dynamic Sessions sandbox — you choose the packages and compute. The interpreter exposes an MCP server at a `mcpServerEndpoint` URL output from your Bicep deployment. Agents connect via `MCPTool(server_url=MCP_SERVER_URL)` wrapped in a Toolbox. This is NOT the built-in code interpreter (which uses an Azure-managed sandbox with fixed packages) — it requires pre-provisioned ACA infrastructure. Preview feature registration required: `az feature register --namespace Microsoft.App --name SessionPoolsSupportMCP`.
+
+```bash
+uv run python 08-advanced-agents-other/18_custom_code_interpreter_preflight.py
+uv run python 08-advanced-agents-other/18_custom_code_interpreter_preflight.py --apply
+```
+
+**Code path.**
+1. Preflight: checks `MCP_SERVER_URL`, `MCP_CONNECTION_ID`, `PROJECT_ENDPOINT` set.
+2. Prints `MCPToolboxTool` + `MCPTool` definition (server_url, require_approval="never").
+3. `--apply`: HTTP GET to `MCP_SERVER_URL` → HTTP 200 or 405 = reachable; 401 = auth needed; 404 = wrong URL.
+
+**What to watch.** `[OK] HTTP 405` is the expected result — MCP root expects POST for JSON-RPC, not GET. 404 = Bicep deployment did not complete or `mcpServerEndpoint` not used. Always require `require_approval="never"` for code interpreter (runs in isolated session).
+
+**Exam cues.** Custom code interpreter = MCP tool over ACA Dynamic Sessions. Built-in code interpreter = zero-config managed sandbox. ACA session pool `poolManagementEndpoint` ≠ `mcpServerEndpoint` — use the latter.
+
+**References:** [Custom code interpreter how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/custom-code-interpreter) · [MCP tools how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/model-context-protocol) · [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview)
+
+---
+
+### 19 — Azure Functions tool (queue-based)
+
+**Question answered:** Is my Azure Function tool's queue endpoint reachable and is the AzureFunctionTool definition correct?
+
+**Background.** Azure Functions can serve as agent tools via queue-based integration: the agent writes a JSON message to an input queue, the function app processes it, and writes a result (with `CorrelationId`) to an output queue. This is asynchronous and decoupled — unlike function calling (lesson 35, domain 02), which executes Python in-process. AzureFunctionTool requires Standard agent setup (not Basic). The `CorrelationId` in the function response must match the incoming message — without it, the agent cannot match the result to the tool call.
+
+```bash
+uv run python 08-advanced-agents-other/19_azure_functions_tool_preflight.py
+uv run python 08-advanced-agents-other/19_azure_functions_tool_preflight.py --apply
+```
+
+**Code path.**
+1. Preflight: checks `STORAGE_QUEUE_ENDPOINT`, prints `AzureFunctionTool` definition with input/output queue bindings.
+2. `--apply`: HTTP GET to `STORAGE_QUEUE_ENDPOINT/?comp=list` → HTTP 403/401 = storage reachable (auth required); connection error = wrong URL or egress blocked.
+
+**What to watch.** `[OK] HTTP 403` — storage endpoint reachable (auth required, as expected). AzureFunctionTool definition: `input_binding.storage_queue.queue_name` ≠ `output_binding.storage_queue.queue_name`. Function response MUST include `CorrelationId` from the incoming message.
+
+**Exam cues.** AzureFunctionTool requires Standard agent setup. Queue-based = async. In-process function calling (lesson 35) = synchronous. `CorrelationId` is the match key — missing it = agent never receives the result.
+
+**References:** [Azure Functions tool how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/azure-functions) · [Function calling how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/function-calling)
+
+---
+
 ## Feature status and hard limits
 
 | Feature | Status | Practical boundary |
@@ -829,6 +882,10 @@ It does **not** create knowledge bases, publish to Microsoft 365 Copilot or Team
 - [Deploy hosted agent with private ACR](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent-private-azure-container-registry)
 - [Configure hosted-agent env variables](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-hosted-agent-env-variables)
 - [Configure hosted-agent telemetry](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-hosted-agent-telemetry)
+- [Invoke hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/invoke-hosted-agent)
+- [Monitor hosted-agent logs](https://learn.microsoft.com/azure/foundry/agents/how-to/monitor-hosted-agent-logs)
+- [Test hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/test-hosted-agent)
+- [azure.yaml reference](https://learn.microsoft.com/azure/foundry/agents/concepts/azure-yaml-reference)
 - [Debug hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/debug-hosted-agent)
 - [Agent Doctor](https://learn.microsoft.com/azure/foundry/agents/how-to/agent-doctor)
 - [Agent Inspector](https://learn.microsoft.com/azure/foundry/agents/how-to/agent-inspector)
@@ -860,6 +917,12 @@ It does **not** create knowledge bases, publish to Microsoft 365 Copilot or Team
 - [MCP available tools](https://learn.microsoft.com/azure/foundry/mcp/available-tools)
 - [Build your own MCP server](https://learn.microsoft.com/azure/foundry/mcp/build-your-own-mcp-server)
 - [MCP security best practices](https://learn.microsoft.com/azure/foundry/mcp/security-best-practices)
+
+### Custom code interpreter + Azure Functions tool
+
+- [Custom code interpreter how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/custom-code-interpreter)
+- [Azure Functions tool how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/azure-functions)
+- [Set up Key Vault connection](https://learn.microsoft.com/azure/foundry/how-to/set-up-key-vault-connection)
 
 ### Compliance and Responsible AI (agents)
 

@@ -933,6 +933,10 @@ It does **not** prove production readiness, current region/model availability, c
 - [Model router policy](https://learn.microsoft.com/azure/foundry/how-to/model-router-policy)
 - [Instant models](https://learn.microsoft.com/azure/foundry/concepts/instant-models)
 
+### Migration
+
+- [Model inference to OpenAI API migration](https://learn.microsoft.com/azure/foundry/how-to/model-inference-to-openai-migration)
+
 ### Foundry Models catalog
 
 - [Endpoints (model catalog)](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/endpoints)

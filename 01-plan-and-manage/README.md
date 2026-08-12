@@ -1353,7 +1353,7 @@ uv run python 01-plan-and-manage/28_guardrail_policy_preflight.py --policy-file 
 
 **What to watch.** `Policy JSON is structurally valid` + list of guardrail markers detected. Missing marker warning = policy doesn't reference any Foundry guardrail control (rewrite before uploading).
 
-**References:** [Quickstart: create guardrail policy](https://learn.microsoft.com/azure/foundry/control-plane/quickstart-create-guardrail-policy) · [Enforce limits on models](https://learn.microsoft.com/azure/foundry/control-plane/how-to-enforce-limits-models) · [Manage compliance + security](https://learn.microsoft.com/azure/foundry/control-plane/how-to-manage-compliance-security)
+**References:** [Quickstart: create guardrail policy](https://learn.microsoft.com/azure/foundry/control-plane/quickstart-create-guardrail-policy) · [Guardrails guided setup](https://learn.microsoft.com/azure/foundry/guardrails/guided-set-up) · [Enforce limits on models](https://learn.microsoft.com/azure/foundry/control-plane/how-to-enforce-limits-models) · [Manage compliance + security](https://learn.microsoft.com/azure/foundry/control-plane/how-to-manage-compliance-security)
 
 ### 29 — Cluster analysis triage reader
 
@@ -1408,7 +1408,7 @@ uv run python 01-plan-and-manage/30_evaluation_cicd_preflight.py --apply
 
 **What to watch.** Coherence score 1–5. `AuthenticationError` = missing `AZURE_CLIENT_ID` or no logged-in CLI session in CI.
 
-**References:** [Evaluate generative AI app](https://learn.microsoft.com/azure/foundry/how-to/evaluate-generative-ai-app) · [Evaluation GitHub Actions](https://learn.microsoft.com/azure/foundry/how-to/evaluation-github-action) · [Evaluation Azure DevOps](https://learn.microsoft.com/azure/foundry/how-to/evaluation-azure-devops) · [Built-in evaluators](https://learn.microsoft.com/azure/foundry/concepts/built-in-evaluators) · [azd evaluation](https://learn.microsoft.com/azure/foundry/observability/how-to/azure-developer-cli-evaluation)
+**References:** [Evaluate generative AI app](https://learn.microsoft.com/azure/foundry/how-to/evaluate-generative-ai-app) · [Evaluation GitHub Actions](https://learn.microsoft.com/azure/foundry/how-to/evaluation-github-action) · [Evaluation Azure DevOps](https://learn.microsoft.com/azure/foundry/how-to/evaluation-azure-devops) · [Built-in evaluators](https://learn.microsoft.com/azure/foundry/concepts/built-in-evaluators) · [Custom evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/custom-evaluators) · [azd evaluation](https://learn.microsoft.com/azure/foundry/observability/how-to/azure-developer-cli-evaluation)
 
 ---
 
@@ -1563,6 +1563,7 @@ It does **not** prove production readiness, regional feature availability, compl
 
 ### Foundry concepts
 
+- [What is Azure AI Foundry](https://learn.microsoft.com/azure/foundry/what-is-foundry)
 - [Architecture](https://learn.microsoft.com/azure/foundry/concepts/architecture)
 - [Deployments overview](https://learn.microsoft.com/azure/foundry/concepts/deployments-overview)
 - [Deployment types](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types)
@@ -1607,6 +1608,7 @@ It does **not** prove production readiness, regional feature availability, compl
 - [Agent evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/agent-evaluators)
 - [Risk and safety evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/risk-safety-evaluators)
 - [Rubric evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/rubric-evaluators)
+- [Custom evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/custom-evaluators)
 - [Cloud evaluation](https://learn.microsoft.com/azure/foundry/how-to/develop/cloud-evaluation)
 - [Evaluate an agent](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-agent)
 - [View evaluation results](https://learn.microsoft.com/azure/foundry/how-to/evaluate-results)

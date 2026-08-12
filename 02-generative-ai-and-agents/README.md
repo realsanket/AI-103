@@ -170,6 +170,8 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | 26 (`--apply`) | Toolbox version (persists; needs explicit `--delete-version`) |
 | 27 (`--apply`) | Temporary agent version (deleted in `finally`) |
 | 28–30 | Local/read-only; contained `deploy.py --apply` deploys to Azure |
+| 38 | Evaluator model tokens |
+| 39 (`--apply`) | Creates persistent webhook endpoint; secret shown once |
 
 ---
 
@@ -253,6 +255,8 @@ Need previous turns only inside one interaction?
 | 35 | [Function calling](35_openai_function_calling.py) | Two-step direct Responses API function call loop | `--apply` sends 2 requests |
 | 36 | [Reasoning models](36_openai_reasoning_models.py) | o-series thinking tokens: call o1/o3, report reasoning_tokens count | `--apply --model <o-deployment>` required |
 | 37 | [Web search tool](37_openai_web_search.py) | Built-in web_search_preview tool; print grounded answer + citations | `--apply` sends 1 request with Bing lookup |
+| 38 | [Structured outputs](38_openai_structured_outputs.py) | Pydantic beta.chat.completions.parse — typed Python object from model | `--apply` sends 1 request |
+| 39 | [Webhooks preflight](39_openai_webhooks_preflight.py) | Register webhook endpoint; print payload; `--apply` POSTs to REST API | **Read-only** until `--apply` |
 
 ---
 
@@ -394,6 +398,58 @@ uv run python 02-generative-ai-and-agents/37_openai_web_search.py --apply --quer
 **What to watch.** `output_text` reflects live information. `annotations` list holds cited Bing URLs. Empty annotations = model answered from training data without triggering search (short/obvious queries may not trigger web search).
 
 **References:** [Web search how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/web-search) · [Responses API](https://learn.microsoft.com/azure/foundry/openai/how-to/responses) · [Tool search](https://learn.microsoft.com/azure/foundry/openai/how-to/tool-search)
+
+---
+
+## Stage 10 — Structured outputs + webhooks (lessons 38–39)
+
+These two lessons cover distinct output-contract mechanisms: lesson 38 uses `beta.chat.completions.parse` to return a typed Pydantic object (not the Responses API json_schema mode from lessons 07/32); lesson 39 shows async push delivery via webhooks, which invert the polling pattern — the service calls your listener on events.
+
+### 38 — Structured outputs (Pydantic parse)
+
+**Question answered:** How do I get a typed Python object back from a model call, without writing a JSON parser?
+
+**Background.** `client.beta.chat.completions.parse(response_format=PydanticModel)` runs on the Chat Completions API and returns `completion.choices[0].message.parsed` — a fully typed Python instance. If the model refuses (safety, policy), `message.refusal` is set instead of `parsed`. This is distinct from lesson 07 (Responses API json_schema + strict=True) and lesson 32 (json_schema via responses.create): all three enforce schema, but different APIs and return different types.
+
+```bash
+uv run python 02-generative-ai-and-agents/38_openai_structured_outputs.py
+uv run python 02-generative-ai-and-agents/38_openai_structured_outputs.py --apply
+```
+
+**Code path.**
+1. Define `class CalendarEvent(BaseModel)` with `name: str`, `date: str`, `participants: list[str]`.
+2. `raw_client.beta.chat.completions.parse(model=..., messages=..., response_format=CalendarEvent)`.
+3. `completion.choices[0].message.parsed` → typed `CalendarEvent` instance.
+4. If `message.refusal` set → model refused extraction.
+
+**What to watch.** `parsed.name`, `parsed.date`, `parsed.participants` populated as Python objects. `finish_reason: stop` with no `refusal` confirms successful extraction.
+
+**Exam cues.** `beta.chat.completions.parse` uses Chat Completions API — NOT Responses API. Schema is encoded in Pydantic class, not a JSON dict. `message.parsed` is None if model refused; check `message.refusal` first.
+
+**References:** [Structured outputs](https://learn.microsoft.com/azure/foundry/openai/how-to/structured-outputs) · [JSON mode](https://learn.microsoft.com/azure/foundry/openai/how-to/json-mode)
+
+---
+
+### 39 — Webhooks preflight
+
+**Question answered:** How does my application receive notifications when an Azure OpenAI event fires, without polling?
+
+**Background.** Webhooks register a public HTTPS URL that Azure OpenAI calls on events (`response.completed`, `realtime.call.incoming`). Registration is via REST — no SDK wrapper. Each delivery is HMAC-signed; verify with `client.webhooks.unwrap(request.data, request.headers)`. This is NOT polling, NOT WebSocket, NOT a Responses API call — it is an outbound HTTP POST from Azure to your server.
+
+```bash
+uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py
+uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py --apply --webhook-url https://myapp.azurewebsites.net/webhook
+```
+
+**Code path.**
+1. Build `payload = {name, url, event_types}`.
+2. `POST /openai/v1/dashboard/webhook_endpoints` with `api-key` header.
+3. Response contains `id` (save for deletion), `secret` (store in Key Vault — shown once only).
+4. Listener verifies delivery: `client.webhooks.unwrap(request.data, request.headers)` → typed `event`.
+
+**What to watch.** `webhook_id` and `secret` in response. Return HTTP 200 from your listener to acknowledge — Azure retries on non-200. Verify `event.type` before processing.
+
+**References:** [Webhooks how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/webhooks)
 
 ---
 
@@ -561,7 +617,7 @@ uv run python 02-generative-ai-and-agents/07_structured_output.py
 
 **Exam cues.** Schema conformance does NOT prove extraction accuracy or business validity. Validate content, missing facts, and downstream constraints separately.
 
-**References:** [Responses API quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api) · [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
+**References:** [Responses API quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api) · [Structured outputs](https://learn.microsoft.com/azure/foundry/openai/how-to/structured-outputs) · [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
 
 ---
 
@@ -1396,6 +1452,12 @@ It does **not** fully implement: remote MCP OAuth/Entra setup, credential rotati
 - [Hosted-agent code deployment](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent-code)
 - [Hosted-agent CI/CD quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/set-up-cicd-hosted-agent)
 - [Hosted-agent telemetry](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-hosted-agent-telemetry)
+
+### Structured outputs and webhooks
+
+- [Structured outputs how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/structured-outputs)
+- [JSON mode how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/json-mode)
+- [Webhooks how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/webhooks)
 - [Enable A2A endpoint](https://learn.microsoft.com/azure/foundry/agents/how-to/enable-agent-to-agent-endpoint)
 - [Development lifecycle](https://learn.microsoft.com/azure/foundry/agents/concepts/development-lifecycle)
 
