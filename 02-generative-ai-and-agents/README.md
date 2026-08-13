@@ -493,19 +493,21 @@ uv run python 02-generative-ai-and-agents/09_prompt_agent_invoke.py
 
 ### 10 — Agent with built-in web search
 
-**Question answered:** How is a built-in tool persisted in an agent definition?
+**Question answered:** How is a built-in tool persisted in an agent definition and then exercised from a simple test call?
 
-**Background.** Lesson 04 attached web search ad-hoc per Responses call. This lesson stores it in a named Prompt Agent definition via `WebSearchTool()`. The stored definition is callable by name from any client without re-specifying the tool on each request. This lesson creates the definition — it does not invoke it.
+**Background.** Lesson 04 attached web search ad-hoc per Responses call. This lesson stores it in a named Prompt Agent definition via `WebSearchTool()`. The stored definition is callable by name from any client without re-specifying the tool on each request. This lesson both creates the definition and proves it works by sending one simple prompt through the agent reference.
 
 ```bash
 uv run python 02-generative-ai-and-agents/10_agent_web_search.py
 ```
 
 **Code path.**
-1. `client.agents.create_version(agent_name=AGENT_NAME, definition=PromptAgentDefinition(tools=[WebSearchTool()]))`
-2. Prints agent id, name, version
+1. `client.agents.create_version(agent_name=AGENT_NAME, definition=PromptAgentDefinition(model=..., instructions=..., tools=[WebSearchTool()]))`
+2. Builds an agent reference for the newly created version.
+3. Calls `openai.responses.create(..., extra_body={"agent_reference": reference})` with a simple question.
+4. Prints the agent id, name, version, and the returned response text.
 
-**What to watch in the output.** Agent id/name/version confirms the definition is stored. Nothing is invoked here — lesson 18 and multi-agent patterns consume stored agents by reference.
+**What to watch in the output.** The agent id/name/version confirms the definition is stored, and the response text shows that the stored agent can be invoked successfully. This is a lightweight smoke test, not a multi-step tool loop.
 
 **Exam cues.** Creating a new agent version costs accumulating version state. Web search queries leave your application's data boundary — confirm DPA, retention, residency, and cost before use.
 

@@ -19,7 +19,7 @@ unneeded agent versions.
 """
 from azure.ai.projects.models import PromptAgentDefinition, WebSearchTool
 
-from _shared.foundry_client import project_client
+from _shared.foundry_client import active_agent_reference, project_client
 from _shared.config import settings
 
 AGENT_NAME = "web-search-lab-agent"
@@ -42,19 +42,16 @@ def main() -> None:
     print(f"  ID      : {agent.id}")
     print(f"  Name    : {agent.name}")
     print(f"  Version : {agent.version}")
-#Added For testing calling the agent
-    response = client.agents.invoke(
-        agent_name=AGENT_NAME,
-        agent_version=agent.version,
-        input_messages=[{"role": "user", "content": "What is the latest news about AI?"}],
+
+    reference = active_agent_reference(agent)
+    openai = client.get_openai_client()
+    response = openai.responses.create(
+        input="What is the latest news about AI?",
+        extra_body={"agent_reference": reference},
     )
+
     print("Agent invoked:")
-    #tools called by the agent are executed in Foundry, and the output is returned to the client
-    #print tools
-    for tool in response.tools:
-        print(f"  Tool: {tool.name}")
-        print(f"    Output: {tool.output}")
-    print(f"  Response: {response.output_text}")
+    print(response.output_text)
 
 
 
