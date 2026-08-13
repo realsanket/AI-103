@@ -4,11 +4,13 @@
 Prerequisites: Python 3.12, `azure-ai-projects`, an existing Foundry project,
 agent, and Azure OpenAI chat-model deployment. Set
 `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, and
-`AZURE_AI_MODEL_DEPLOYMENT_NAME`; this lesson never reads keys. Your signed-in
-principal needs the Foundry User role. Batch evaluation supports many regions,
-but evaluator availability is narrower: risk and safety evaluators support
-East US 2, North Central US, France Central, Sweden Central, Switzerland West,
-and Australia East. Confirm current limits and region support before a run.
+`AZURE_AI_MODEL_DEPLOYMENT_NAME`; this lesson never reads keys. Create or
+confirm the Foundry project and agent first, verify the signed-in principal has
+the Foundry User role, and choose a supported region for the evaluators you
+plan to enable. Batch evaluation supports many regions, but evaluator
+availability is narrower: risk and safety evaluators support East US 2, North
+Central US, France Central, Sweden Central, Switzerland West, and Australia
+East. Confirm current limits and region support before a run.
 
 Use this after curating representative, edge-case, and safety test queries.
 It creates a dataset version, evaluation, and evaluation run. Agent calls and
@@ -39,6 +41,8 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+
+_SAMPLE_DATASET = Path("01-plan-and-manage/data/foundry_evaluation_sample.jsonl")
 
 
 def _setting(name: str) -> str:
@@ -91,15 +95,23 @@ def preflight(dataset: Path | None, rubric_name: str | None = None) -> str:
     criteria = ["builtin.task_adherence", "builtin.violence"]
     if rubric_name:
         criteria.insert(0, rubric_name)
+    dataset_path = dataset or _SAMPLE_DATASET
     return "\n".join(
         [
             "PREVIEW: no cloud resources created and no agent queries sent.",
-            f"Would upload dataset version from: {dataset or '<required with --apply>'}",
+            "Prerequisites checklist:",
+            "- Create or confirm a Foundry project and agent before any evaluation run.",
+            "- Configure AZURE_AI_PROJECT_ENDPOINT, AZURE_AI_AGENT_NAME, and AZURE_AI_MODEL_DEPLOYMENT_NAME.",
+            "- Verify the signed-in principal has the Foundry User role.",
+            "- Use a supported region for the evaluators you plan to enable.",
+            "- Prepare a JSONL dataset with a query field and keep it under the documented size limits.",
+            "- Sample dataset: 01-plan-and-manage/data/foundry_evaluation_sample.jsonl (copy and edit it for your scenario).",
+            f"Would upload dataset version from: {dataset_path}",
             "Would create Foundry evaluation: Northwind agent quality evaluation",
             f"Would create one run against agent: {_setting('AZURE_AI_AGENT_NAME')}",
             f"Would use model deployment: {_setting('AZURE_AI_MODEL_DEPLOYMENT_NAME')}",
             f"Would apply criteria: {', '.join(criteria)}",
-            "Run again with --apply to perform exactly these actions.",
+            "Run again with --apply only after the prerequisites above are in place.",
         ]
     )
 
@@ -157,10 +169,26 @@ def run(dataset: Path, rubric_name: str | None = None) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Create a reviewed Foundry evaluation run.")
-    parser.add_argument("--dataset", type=Path, help="JSONL rows with a query field.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Create a reviewed Foundry evaluation run after setting up a Foundry "
+            "project, agent, deployment, evaluator prerequisites, and a JSONL dataset."
+        )
+    )
+    parser.add_argument(
+        "--dataset",
+        type=Path,
+        help=(
+            "JSONL rows with a query field. Defaults to the sample dataset at "
+            "01-plan-and-manage/data/foundry_evaluation_sample.jsonl."
+        ),
+    )
     parser.add_argument("--rubric", help="Existing, reviewed Foundry rubric evaluator name.")
-    parser.add_argument("--apply", action="store_true", help="Perform listed cloud writes.")
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Perform listed cloud writes after prerequisites are confirmed.",
+    )
     args = parser.parse_args()
     if not args.apply:
         print(preflight(args.dataset, args.rubric))

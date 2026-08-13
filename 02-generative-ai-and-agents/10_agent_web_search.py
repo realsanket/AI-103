@@ -42,6 +42,20 @@ def main() -> None:
     print(f"  ID      : {agent.id}")
     print(f"  Name    : {agent.name}")
     print(f"  Version : {agent.version}")
+#Added For testing calling the agent
+    response = client.agents.invoke(
+        agent_name=AGENT_NAME,
+        agent_version=agent.version,
+        input_messages=[{"role": "user", "content": "What is the latest news about AI?"}],
+    )
+    print("Agent invoked:")
+    #tools called by the agent are executed in Foundry, and the output is returned to the client
+    #print tools
+    for tool in response.tools:
+        print(f"  Tool: {tool.name}")
+        print(f"    Output: {tool.output}")
+    print(f"  Response: {response.output_text}")
+
 
 
 if __name__ == "__main__":

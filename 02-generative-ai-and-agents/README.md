@@ -149,6 +149,9 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | Evaluation and observability | 21, 22, 23, 24 | 22 needs `--apply` for cloud run; 23 needs App Insights string |
 | External tool boundaries | 25, 26, 27 | Preflights safe; `--apply` creates/deletes cloud state |
 | Hosted deployment | 28, 29, 30 | Local-only; contained deployment uses explicit `--apply` |
+| OpenAI advanced + LangChain | 31, 32, 33, 34, 35 | All need `--apply`; 31 also needs `--model <embedding-deployment>` |
+| Reasoning + web search | 36, 37 | Both need `--apply`; 36 also needs `--model <o-deployment>` |
+| Structured outputs + webhooks | 38, 39 | Both need `--apply`; 39 `--apply` creates a persistent webhook endpoint |
 
 ### Costs and side effects
 
@@ -170,7 +173,14 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | 26 (`--apply`) | Toolbox version (persists; needs explicit `--delete-version`) |
 | 27 (`--apply`) | Temporary agent version (deleted in `finally`) |
 | 28–30 | Local/read-only; contained `deploy.py --apply` deploys to Azure |
-| 38 | Evaluator model tokens |
+| 31 (`--apply`) | Embedding tokens |
+| 32 (`--apply`) | Model tokens |
+| 33 (`--apply`) | Model tokens (2 requests) |
+| 34 (`--apply`) | Model tokens (3 requests) |
+| 35 (`--apply`) | Model tokens (2 requests) |
+| 36 (`--apply`) | Model + reasoning tokens |
+| 37 (`--apply`) | Model tokens + Bing search lookup |
+| 38 (`--apply`) | Model tokens |
 | 39 (`--apply`) | Creates persistent webhook endpoint; secret shown once |
 
 ---
@@ -257,199 +267,6 @@ Need previous turns only inside one interaction?
 | 37 | [Web search tool](37_openai_web_search.py) | Built-in web_search_preview tool; print grounded answer + citations | `--apply` sends 1 request with Bing lookup |
 | 38 | [Structured outputs](38_openai_structured_outputs.py) | Pydantic beta.chat.completions.parse — typed Python object from model | `--apply` sends 1 request |
 | 39 | [Webhooks preflight](39_openai_webhooks_preflight.py) | Register webhook endpoint; print payload; `--apply` POSTs to REST API | **Read-only** until `--apply` |
-
----
-
-## Stage 8 — OpenAI advanced + LangChain patterns (lessons 31–35)
-
-Lessons 31–35 deepen the Responses API and LangChain integration started in stages 1–4. They add dense signal: embeddings (vector foundations), structured output enforcement (json_schema), cost optimisation (prompt caching), multi-turn memory, and the raw function-calling loop that underlies every agent tool.
-
-### 31 — Embeddings
-
-**Question answered:** How do I get a vector representation of text for semantic search or RAG?
-
-**Background.** Embeddings are fixed-length float vectors that encode semantic meaning. Same embedding model → same vector space → comparable. Different model or version → incompatible index. Embedding deployments are separate from chat deployments.
-
-```bash
-uv run python 02-generative-ai-and-agents/31_openai_embeddings.py
-uv run python 02-generative-ai-and-agents/31_openai_embeddings.py --apply --model <embeddings-deployment>
-```
-
-**Code path.** `openai_client().embeddings.create(model=deployment, input=[texts])` → per item: `len(embedding)`, first-4 values, magnitude.
-
-**What to watch.** `dim: 1536` (small/ada) or `3072` (large). Magnitude ≈ 1.0 (normalized). All inputs share same dim — mismatch means wrong deployment. Compare with domain 05 lessons 02-03 which use server-side vectorization via Search.
-
-**References:** [Embeddings](https://learn.microsoft.com/azure/foundry/openai/how-to/embeddings)
-
-### 32 — JSON schema mode
-
-**Question answered:** How do I enforce a typed schema on model output, not just valid JSON?
-
-**Background.** `json_schema` with `strict: true` constrains structure + types at the service layer. Failure to match schema raises a service error rather than returning an invalid shape. Stronger than older `json_mode` (valid JSON, any shape).
-
-```bash
-uv run python 02-generative-ai-and-agents/32_openai_json_mode.py
-uv run python 02-generative-ai-and-agents/32_openai_json_mode.py --apply
-```
-
-**Code path.** `responses.create(response_format={"type": "json_schema", "json_schema": {"name": ..., "strict": True, "schema": SCHEMA}})` → `json.loads(output_text)`.
-
-**What to watch.** All schema fields present with correct types. `additionalProperties: false` enforces no extra fields. Compare with lesson 07 (Pydantic wrapper over same mechanism).
-
-**References:** [JSON mode](https://learn.microsoft.com/azure/foundry/openai/how-to/json-mode)
-
-### 33 — Prompt caching
-
-**Question answered:** How do prompt cache hits reduce token cost, and how do I verify them?
-
-**Background.** Repeated long prefix tokens (system instructions, RAG blocks, few-shot examples) are cached at service side. Cache hits surface as `usage.input_tokens_details.cached_tokens`. Minimum prefix varies by model (~1024 tokens for gpt-4o). Prefix must be byte-identical.
-
-```bash
-uv run python 02-generative-ai-and-agents/33_openai_prompt_caching.py
-uv run python 02-generative-ai-and-agents/33_openai_prompt_caching.py --apply
-```
-
-**Code path.** Two `responses.create()` calls with same long system prompt + different user messages. Print `cached_tokens` from each `usage.input_tokens_details`.
-
-**What to watch.** Call 1 `cached_tokens: 0` (cold). Call 2 `cached_tokens > 0` (warm, ~50% cheaper). If both 0: prefix too short or cache TTL expired.
-
-**References:** [Prompt caching](https://learn.microsoft.com/azure/foundry/openai/how-to/prompt-caching) · [Latency](https://learn.microsoft.com/azure/foundry/openai/how-to/latency)
-
-### 34 — LangChain memory
-
-**Question answered:** How do I maintain multi-turn conversation state with LangChain?
-
-**Background.** Beyond single-turn calls (lesson 19), production agents need conversation history. `RunnableWithMessageHistory` wraps a chain with a session-scoped `ChatMessageHistory`. In-memory for this demo — production uses Redis, Cosmos DB, or Foundry Memory (lesson 14).
-
-```bash
-uv run python 02-generative-ai-and-agents/34_langchain_memory.py
-uv run python 02-generative-ai-and-agents/34_langchain_memory.py --apply
-```
-
-**Code path.** `AzureChatOpenAI` + `ChatMessageHistory` store + `RunnableWithMessageHistory`. Three turns; same `session_id` key threads history. Turn 3 asks about a fact from turn 1 — should answer without re-prompting.
-
-**What to watch.** Turn 3 correctly references context from turn 1. Compare with lesson 13 (`previous_response_id` native approach) — LangChain adds middleware but same underlying state.
-
-**References:** [LangChain memory](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-memory) · [LangChain models](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-models)
-
-### 35 — Direct function calling
-
-**Question answered:** What does the raw two-step Responses API function-calling loop look like?
-
-**Background.** Lesson 11 wraps function tools in a prompt agent. This lesson shows the raw pattern: send tool schema → model returns `function_call` item → app executes tool locally → send `function_call_output` back → model returns final text. Foundation for all agent tool behavior.
-
-```bash
-uv run python 02-generative-ai-and-agents/35_openai_function_calling.py
-uv run python 02-generative-ai-and-agents/35_openai_function_calling.py --apply
-```
-
-**Code path.** Step 1: `responses.create(tools=[weather_tool])` → `output` contains `function_call`. Step 2: `_fake_weather(city)` locally. Step 3: `responses.create(input=[function_call_output], previous_response_id=r1.id)` → final `output_text`.
-
-**What to watch.** Step 1 prints `Tool call: get_weather({city: "Seattle"})`. Step 3 prints a weather sentence integrating the fake result. Model extracted city from prompt — never asked user.
-
-**References:** [Function calling](https://learn.microsoft.com/azure/foundry/openai/how-to/function-calling)
-
----
-
-## Stage 9 — Reasoning models + grounded web search (lessons 36–37)
-
-Reasoning models and live web search are the two Responses API capabilities most absent from traditional chat completions training. Lesson 36 proves thinking tokens are real and billable; lesson 37 proves grounding in live Bing results without a Bing API key.
-
-### 36 — Reasoning models (o-series)
-
-**Question answered:** How many thinking tokens did the model spend reasoning through this problem?
-
-**Background.** o1, o3, and o3-mini generate an internal chain of thought before answering. Thinking tokens appear in `usage.output_tokens_details.reasoning_tokens` — they are billed at output token rates but not shown in `output_text`. `reasoning_effort` (low/medium/high) controls the thinking budget. Higher effort improves accuracy on complex problems at higher cost. This is NOT the same as prompting the model to "think step by step" — reasoning happens inside the model before output begins.
-
-```bash
-uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py
-uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py --apply --model o3-mini
-uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py --apply --model o3-mini --effort high
-```
-
-**Code path.**
-1. `openai_client().responses.create(model=O_MODEL, input=prompt, reasoning={"effort": effort})`.
-2. `usage.output_tokens_details.reasoning_tokens` → thinking token count.
-3. `output_text` → final answer only (thinking chain not exposed).
-
-**What to watch.** `reasoning_tokens > 0` confirms reasoning is active. Compare `reasoning_tokens` between `low` and `high` effort to see the budget difference.
-
-**References:** [Reasoning models](https://learn.microsoft.com/azure/foundry/openai/how-to/reasoning) · [Responses API](https://learn.microsoft.com/azure/foundry/openai/how-to/responses) · [Working with models](https://learn.microsoft.com/azure/foundry/openai/how-to/working-with-models)
-
----
-
-### 37 — Built-in web search
-
-**Question answered:** How does the Responses API ground an answer in live Bing results without a Bing API key?
-
-**Background.** Adding `{"type": "web_search_preview"}` to the `tools` list activates the built-in Bing search tool. The model decides when to call it, sends a query to Bing, receives top results, and uses them as context for the answer. URL citations appear in `annotations` on output items. This is NOT the same as the Bing Search SDK, Azure AI Search, or an agent with a Bing connection — it is a zero-config built-in for the Responses API only.
-
-```bash
-uv run python 02-generative-ai-and-agents/37_openai_web_search.py
-uv run python 02-generative-ai-and-agents/37_openai_web_search.py --apply
-uv run python 02-generative-ai-and-agents/37_openai_web_search.py --apply --query "Latest Azure AI Foundry SDK release notes"
-```
-
-**Code path.**
-1. `openai_client().responses.create(model=..., input=query, tools=[{"type": "web_search_preview"}])`.
-2. `response.output_text` → grounded answer.
-3. Iterate `response.output` items → collect `annotation.url` entries → print citations.
-
-**What to watch.** `output_text` reflects live information. `annotations` list holds cited Bing URLs. Empty annotations = model answered from training data without triggering search (short/obvious queries may not trigger web search).
-
-**References:** [Web search how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/web-search) · [Responses API](https://learn.microsoft.com/azure/foundry/openai/how-to/responses) · [Tool search](https://learn.microsoft.com/azure/foundry/openai/how-to/tool-search)
-
----
-
-## Stage 10 — Structured outputs + webhooks (lessons 38–39)
-
-These two lessons cover distinct output-contract mechanisms: lesson 38 uses `beta.chat.completions.parse` to return a typed Pydantic object (not the Responses API json_schema mode from lessons 07/32); lesson 39 shows async push delivery via webhooks, which invert the polling pattern — the service calls your listener on events.
-
-### 38 — Structured outputs (Pydantic parse)
-
-**Question answered:** How do I get a typed Python object back from a model call, without writing a JSON parser?
-
-**Background.** `client.beta.chat.completions.parse(response_format=PydanticModel)` runs on the Chat Completions API and returns `completion.choices[0].message.parsed` — a fully typed Python instance. If the model refuses (safety, policy), `message.refusal` is set instead of `parsed`. This is distinct from lesson 07 (Responses API json_schema + strict=True) and lesson 32 (json_schema via responses.create): all three enforce schema, but different APIs and return different types.
-
-```bash
-uv run python 02-generative-ai-and-agents/38_openai_structured_outputs.py
-uv run python 02-generative-ai-and-agents/38_openai_structured_outputs.py --apply
-```
-
-**Code path.**
-1. Define `class CalendarEvent(BaseModel)` with `name: str`, `date: str`, `participants: list[str]`.
-2. `raw_client.beta.chat.completions.parse(model=..., messages=..., response_format=CalendarEvent)`.
-3. `completion.choices[0].message.parsed` → typed `CalendarEvent` instance.
-4. If `message.refusal` set → model refused extraction.
-
-**What to watch.** `parsed.name`, `parsed.date`, `parsed.participants` populated as Python objects. `finish_reason: stop` with no `refusal` confirms successful extraction.
-
-**Exam cues.** `beta.chat.completions.parse` uses Chat Completions API — NOT Responses API. Schema is encoded in Pydantic class, not a JSON dict. `message.parsed` is None if model refused; check `message.refusal` first.
-
-**References:** [Structured outputs](https://learn.microsoft.com/azure/foundry/openai/how-to/structured-outputs) · [JSON mode](https://learn.microsoft.com/azure/foundry/openai/how-to/json-mode)
-
----
-
-### 39 — Webhooks preflight
-
-**Question answered:** How does my application receive notifications when an Azure OpenAI event fires, without polling?
-
-**Background.** Webhooks register a public HTTPS URL that Azure OpenAI calls on events (`response.completed`, `realtime.call.incoming`). Registration is via REST — no SDK wrapper. Each delivery is HMAC-signed; verify with `client.webhooks.unwrap(request.data, request.headers)`. This is NOT polling, NOT WebSocket, NOT a Responses API call — it is an outbound HTTP POST from Azure to your server.
-
-```bash
-uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py
-uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py --apply --webhook-url https://myapp.azurewebsites.net/webhook
-```
-
-**Code path.**
-1. Build `payload = {name, url, event_types}`.
-2. `POST /openai/v1/dashboard/webhook_endpoints` with `api-key` header.
-3. Response contains `id` (save for deletion), `secret` (store in Key Vault — shown once only).
-4. Listener verifies delivery: `client.webhooks.unwrap(request.data, request.headers)` → typed `event`.
-
-**What to watch.** `webhook_id` and `secret` in response. Return HTTP 200 from your listener to acknowledge — Azure retries on non-200. Verify `event.type` before processing.
-
-**References:** [Webhooks how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/webhooks)
 
 ---
 
@@ -1247,6 +1064,199 @@ python deploy.py --apply  # deploy only after environment review
 **Exam cues.** OIDC login can succeed while deployment identity lacks Foundry Project Manager, ACR, or resource permissions. Smoke test must exercise the deployed endpoint, identity, required tool egress, safe failure, and observability — not only build success.
 
 **References:** [Hosted-agent CI/CD quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/set-up-cicd-hosted-agent) · [Deploy hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent) · [Hosted-agent code deployment](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent-code)
+
+---
+
+## Stage 8 — OpenAI advanced + LangChain patterns (lessons 31–35)
+
+Lessons 31–35 deepen the Responses API and LangChain integration started in stages 1–4. They add dense signal: embeddings (vector foundations), structured output enforcement (json_schema), cost optimisation (prompt caching), multi-turn memory, and the raw function-calling loop that underlies every agent tool.
+
+### 31 — Embeddings
+
+**Question answered:** How do I get a vector representation of text for semantic search or RAG?
+
+**Background.** Embeddings are fixed-length float vectors that encode semantic meaning. Same embedding model → same vector space → comparable. Different model or version → incompatible index. Embedding deployments are separate from chat deployments.
+
+```bash
+uv run python 02-generative-ai-and-agents/31_openai_embeddings.py
+uv run python 02-generative-ai-and-agents/31_openai_embeddings.py --apply --model <embeddings-deployment>
+```
+
+**Code path.** `openai_client().embeddings.create(model=deployment, input=[texts])` → per item: `len(embedding)`, first-4 values, magnitude.
+
+**What to watch.** `dim: 1536` (small/ada) or `3072` (large). Magnitude ≈ 1.0 (normalized). All inputs share same dim — mismatch means wrong deployment. Compare with domain 05 lessons 02-03 which use server-side vectorization via Search.
+
+**References:** [Embeddings](https://learn.microsoft.com/azure/foundry/openai/how-to/embeddings)
+
+### 32 — JSON schema mode
+
+**Question answered:** How do I enforce a typed schema on model output, not just valid JSON?
+
+**Background.** `json_schema` with `strict: true` constrains structure + types at the service layer. Failure to match schema raises a service error rather than returning an invalid shape. Stronger than older `json_mode` (valid JSON, any shape).
+
+```bash
+uv run python 02-generative-ai-and-agents/32_openai_json_mode.py
+uv run python 02-generative-ai-and-agents/32_openai_json_mode.py --apply
+```
+
+**Code path.** `responses.create(response_format={"type": "json_schema", "json_schema": {"name": ..., "strict": True, "schema": SCHEMA}})` → `json.loads(output_text)`.
+
+**What to watch.** All schema fields present with correct types. `additionalProperties: false` enforces no extra fields. Compare with lesson 07 (Pydantic wrapper over same mechanism).
+
+**References:** [JSON mode](https://learn.microsoft.com/azure/foundry/openai/how-to/json-mode)
+
+### 33 — Prompt caching
+
+**Question answered:** How do prompt cache hits reduce token cost, and how do I verify them?
+
+**Background.** Repeated long prefix tokens (system instructions, RAG blocks, few-shot examples) are cached at service side. Cache hits surface as `usage.input_tokens_details.cached_tokens`. Minimum prefix varies by model (~1024 tokens for gpt-4o). Prefix must be byte-identical.
+
+```bash
+uv run python 02-generative-ai-and-agents/33_openai_prompt_caching.py
+uv run python 02-generative-ai-and-agents/33_openai_prompt_caching.py --apply
+```
+
+**Code path.** Two `responses.create()` calls with same long system prompt + different user messages. Print `cached_tokens` from each `usage.input_tokens_details`.
+
+**What to watch.** Call 1 `cached_tokens: 0` (cold). Call 2 `cached_tokens > 0` (warm, ~50% cheaper). If both 0: prefix too short or cache TTL expired.
+
+**References:** [Prompt caching](https://learn.microsoft.com/azure/foundry/openai/how-to/prompt-caching) · [Latency](https://learn.microsoft.com/azure/foundry/openai/how-to/latency)
+
+### 34 — LangChain memory
+
+**Question answered:** How do I maintain multi-turn conversation state with LangChain?
+
+**Background.** Beyond single-turn calls (lesson 19), production agents need conversation history. `RunnableWithMessageHistory` wraps a chain with a session-scoped `ChatMessageHistory`. In-memory for this demo — production uses Redis, Cosmos DB, or Foundry Memory (lesson 14).
+
+```bash
+uv run python 02-generative-ai-and-agents/34_langchain_memory.py
+uv run python 02-generative-ai-and-agents/34_langchain_memory.py --apply
+```
+
+**Code path.** `AzureChatOpenAI` + `ChatMessageHistory` store + `RunnableWithMessageHistory`. Three turns; same `session_id` key threads history. Turn 3 asks about a fact from turn 1 — should answer without re-prompting.
+
+**What to watch.** Turn 3 correctly references context from turn 1. Compare with lesson 13 (`previous_response_id` native approach) — LangChain adds middleware but same underlying state.
+
+**References:** [LangChain memory](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-memory) · [LangChain models](https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-models)
+
+### 35 — Direct function calling
+
+**Question answered:** What does the raw two-step Responses API function-calling loop look like?
+
+**Background.** Lesson 11 wraps function tools in a prompt agent. This lesson shows the raw pattern: send tool schema → model returns `function_call` item → app executes tool locally → send `function_call_output` back → model returns final text. Foundation for all agent tool behavior.
+
+```bash
+uv run python 02-generative-ai-and-agents/35_openai_function_calling.py
+uv run python 02-generative-ai-and-agents/35_openai_function_calling.py --apply
+```
+
+**Code path.** Step 1: `responses.create(tools=[weather_tool])` → `output` contains `function_call`. Step 2: `_fake_weather(city)` locally. Step 3: `responses.create(input=[function_call_output], previous_response_id=r1.id)` → final `output_text`.
+
+**What to watch.** Step 1 prints `Tool call: get_weather({city: "Seattle"})`. Step 3 prints a weather sentence integrating the fake result. Model extracted city from prompt — never asked user.
+
+**References:** [Function calling](https://learn.microsoft.com/azure/foundry/openai/how-to/function-calling)
+
+---
+
+## Stage 9 — Reasoning models + grounded web search (lessons 36–37)
+
+Reasoning models and live web search are the two Responses API capabilities most absent from traditional chat completions training. Lesson 36 proves thinking tokens are real and billable; lesson 37 proves grounding in live Bing results without a Bing API key.
+
+### 36 — Reasoning models (o-series)
+
+**Question answered:** How many thinking tokens did the model spend reasoning through this problem?
+
+**Background.** o1, o3, and o3-mini generate an internal chain of thought before answering. Thinking tokens appear in `usage.output_tokens_details.reasoning_tokens` — they are billed at output token rates but not shown in `output_text`. `reasoning_effort` (low/medium/high) controls the thinking budget. Higher effort improves accuracy on complex problems at higher cost. This is NOT the same as prompting the model to "think step by step" — reasoning happens inside the model before output begins.
+
+```bash
+uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py
+uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py --apply --model o3-mini
+uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py --apply --model o3-mini --effort high
+```
+
+**Code path.**
+1. `openai_client().responses.create(model=O_MODEL, input=prompt, reasoning={"effort": effort})`.
+2. `usage.output_tokens_details.reasoning_tokens` → thinking token count.
+3. `output_text` → final answer only (thinking chain not exposed).
+
+**What to watch.** `reasoning_tokens > 0` confirms reasoning is active. Compare `reasoning_tokens` between `low` and `high` effort to see the budget difference.
+
+**References:** [Reasoning models](https://learn.microsoft.com/azure/foundry/openai/how-to/reasoning) · [Responses API](https://learn.microsoft.com/azure/foundry/openai/how-to/responses) · [Working with models](https://learn.microsoft.com/azure/foundry/openai/how-to/working-with-models)
+
+---
+
+### 37 — Built-in web search
+
+**Question answered:** How does the Responses API ground an answer in live Bing results without a Bing API key?
+
+**Background.** Adding `{"type": "web_search_preview"}` to the `tools` list activates the built-in Bing search tool. The model decides when to call it, sends a query to Bing, receives top results, and uses them as context for the answer. URL citations appear in `annotations` on output items. This is NOT the same as the Bing Search SDK, Azure AI Search, or an agent with a Bing connection — it is a zero-config built-in for the Responses API only.
+
+```bash
+uv run python 02-generative-ai-and-agents/37_openai_web_search.py
+uv run python 02-generative-ai-and-agents/37_openai_web_search.py --apply
+uv run python 02-generative-ai-and-agents/37_openai_web_search.py --apply --query "Latest Azure AI Foundry SDK release notes"
+```
+
+**Code path.**
+1. `openai_client().responses.create(model=..., input=query, tools=[{"type": "web_search_preview"}])`.
+2. `response.output_text` → grounded answer.
+3. Iterate `response.output` items → collect `annotation.url` entries → print citations.
+
+**What to watch.** `output_text` reflects live information. `annotations` list holds cited Bing URLs. Empty annotations = model answered from training data without triggering search (short/obvious queries may not trigger web search).
+
+**References:** [Web search how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/web-search) · [Responses API](https://learn.microsoft.com/azure/foundry/openai/how-to/responses) · [Tool search](https://learn.microsoft.com/azure/foundry/openai/how-to/tool-search)
+
+---
+
+## Stage 10 — Structured outputs + webhooks (lessons 38–39)
+
+These two lessons cover distinct output-contract mechanisms: lesson 38 uses `beta.chat.completions.parse` to return a typed Pydantic object (not the Responses API json_schema mode from lessons 07/32); lesson 39 shows async push delivery via webhooks, which invert the polling pattern — the service calls your listener on events.
+
+### 38 — Structured outputs (Pydantic parse)
+
+**Question answered:** How do I get a typed Python object back from a model call, without writing a JSON parser?
+
+**Background.** `client.beta.chat.completions.parse(response_format=PydanticModel)` runs on the Chat Completions API and returns `completion.choices[0].message.parsed` — a fully typed Python instance. If the model refuses (safety, policy), `message.refusal` is set instead of `parsed`. This is distinct from lesson 07 (Responses API json_schema + strict=True) and lesson 32 (json_schema via responses.create): all three enforce schema, but different APIs and return different types.
+
+```bash
+uv run python 02-generative-ai-and-agents/38_openai_structured_outputs.py
+uv run python 02-generative-ai-and-agents/38_openai_structured_outputs.py --apply
+```
+
+**Code path.**
+1. Define `class CalendarEvent(BaseModel)` with `name: str`, `date: str`, `participants: list[str]`.
+2. `raw_client.beta.chat.completions.parse(model=..., messages=..., response_format=CalendarEvent)`.
+3. `completion.choices[0].message.parsed` → typed `CalendarEvent` instance.
+4. If `message.refusal` set → model refused extraction.
+
+**What to watch.** `parsed.name`, `parsed.date`, `parsed.participants` populated as Python objects. `finish_reason: stop` with no `refusal` confirms successful extraction.
+
+**Exam cues.** `beta.chat.completions.parse` uses Chat Completions API — NOT Responses API. Schema is encoded in Pydantic class, not a JSON dict. `message.parsed` is None if model refused; check `message.refusal` first.
+
+**References:** [Structured outputs](https://learn.microsoft.com/azure/foundry/openai/how-to/structured-outputs) · [JSON mode](https://learn.microsoft.com/azure/foundry/openai/how-to/json-mode)
+
+---
+
+### 39 — Webhooks preflight
+
+**Question answered:** How does my application receive notifications when an Azure OpenAI event fires, without polling?
+
+**Background.** Webhooks register a public HTTPS URL that Azure OpenAI calls on events (`response.completed`, `realtime.call.incoming`). Registration is via REST — no SDK wrapper. Each delivery is HMAC-signed; verify with `client.webhooks.unwrap(request.data, request.headers)`. This is NOT polling, NOT WebSocket, NOT a Responses API call — it is an outbound HTTP POST from Azure to your server.
+
+```bash
+uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py
+uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py --apply --webhook-url https://myapp.azurewebsites.net/webhook
+```
+
+**Code path.**
+1. Build `payload = {name, url, event_types}`.
+2. `POST /openai/v1/dashboard/webhook_endpoints` with `api-key` header.
+3. Response contains `id` (save for deletion), `secret` (store in Key Vault — shown once only).
+4. Listener verifies delivery: `client.webhooks.unwrap(request.data, request.headers)` → typed `event`.
+
+**What to watch.** `webhook_id` and `secret` in response. Return HTTP 200 from your listener to acknowledge — Azure retries on non-200. Verify `event.type` before processing.
+
+**References:** [Webhooks how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/webhooks)
 
 ---
 
