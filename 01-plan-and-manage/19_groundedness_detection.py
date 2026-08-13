@@ -23,7 +23,15 @@ _SOURCE = (
     "Northwind Pro subscribers can request a refund within 30 days of the charge "
     "date. Requests after 30 days are reviewed case by case by the billing team."
 )
-_TEXT = "Northwind Pro subscribers always receive a refund within 60 days."
+# This is intentionally unsupported relative to the source policy so the groundedness
+# API has a clear claim to flag when run against Azure.
+_SUPPORTED_TEXT = (
+    "Northwind Pro subscribers can request a refund within 30 days of the charge date."
+)
+_UNSUPPORTED_TEXT = (
+    "Northwind Pro subscribers always receive a refund within 60 days, regardless "
+    "of the charge date or billing review."
+)
 
 
 def detect_groundedness(
@@ -58,21 +66,21 @@ def detect_groundedness(
 def main(run: bool = False) -> None:
     if not run:
         print(
-            "Preflight only. Re-run with --run to compare synthetic output to "
-            "a synthetic policy source."
+            "Preflight only. Re-run with --run to compare grounded vs unsupported "
+            "claims against a synthetic policy source."
         )
         return
 
-    result = detect_groundedness(
-        content_safety_client(),
-        settings().require("CONTENT_SAFETY_ENDPOINT"),
-        _TEXT,
-        [_SOURCE],
-    )
-    print("ungrounded detected:", result["ungroundedDetected"])
-    print("ungrounded percentage:", result["ungroundedPercentage"])
-    for detail in result.get("ungroundedDetails", []):
-        print("unsupported span:", detail["text"])
+    endpoint = settings().require("CONTENT_SAFETY_ENDPOINT")
+    for label, sample in {
+        "grounded claim": _SUPPORTED_TEXT,
+        "unsupported claim": _UNSUPPORTED_TEXT,
+    }.items():
+        result = detect_groundedness(content_safety_client(), endpoint, sample, [_SOURCE])
+        print(f"{label}: ungrounded detected =", result["ungroundedDetected"])
+        print(f"{label}: ungrounded percentage =", result["ungroundedPercentage"])
+        for detail in result.get("ungroundedDetails", []):
+            print(f"{label}: unsupported span =", detail["text"])
 
 
 if __name__ == "__main__":
