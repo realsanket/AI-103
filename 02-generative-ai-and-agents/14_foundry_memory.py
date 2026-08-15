@@ -146,34 +146,45 @@ def _print_response_items(prefix: str, resp) -> None:
     """Print all output items — tool calls + message text — so tool usage is visible."""
     for item in resp.output:
         item_type = getattr(item, "type", None)
-        if item_type == "tool_use":
-            name = getattr(item, "name", "?")
-            raw = getattr(item, "input", None) or getattr(item, "arguments", {})
+
+        if item_type == "memory_command_preview_call":
+            # Model issuing a remember/forget command to the memory store
+            raw = getattr(item, "arguments", None) or getattr(item, "input", None) or {}
             try:
-                args = json.dumps(raw, separators=(",", ":")) if not isinstance(raw, str) else raw
+                args = json.loads(raw) if isinstance(raw, str) else raw
             except Exception:
-                args = str(raw)
-            print(f"{prefix} [tool_call] {name}({args[:120]})")
-        elif item_type == "tool_result":
-            content = getattr(item, "content", None)
-            print(f"{prefix} [tool_result] {str(content)[:120]}")
-        elif item_type == "memory_command_call":
-            raw_args = getattr(item, "arguments", "{}")
-            try:
-                args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
-            except Exception:
-                args = raw_args
+                args = raw
             action = args.get("action", "?") if isinstance(args, dict) else "?"
-            content = args.get("content", "") if isinstance(args, dict) else ""
-            print(f"{prefix} [memory_command] action={action}  content={content!r}")
+            content = args.get("content", "") if isinstance(args, dict) else str(args)
+            status = getattr(item, "status", "?")
+            print(f"{prefix} [memory_command] action={action}  status={status}  content={str(content)[:100]!r}")
+
+        elif item_type == "memory_command_preview_call_output":
+            # Result of the remember/forget command
+            status = getattr(item, "status", "?")
+            print(f"{prefix} [memory_command_output] status={status}")
+
+        elif item_type == "memory_search_call":
+            # Model searching existing memories before responding
+            raw = getattr(item, "query", None) or getattr(item, "arguments", None) or {}
+            status = getattr(item, "status", "?")
+            print(f"{prefix} [memory_search] query={str(raw)[:80]!r}  status={status}")
+
+        elif item_type == "memory_search_call_output":
+            results = getattr(item, "output", None) or getattr(item, "content", None)
+            print(f"{prefix} [memory_search_output] {str(results)[:120]}")
+
         elif item_type == "message":
             content = getattr(item, "content", None)
             if content:
                 text = content[0].text if hasattr(content[0], "text") else str(content[0])
                 print(f"{prefix} {text}")
+
         else:
-            # Catch any other item types (e.g. reasoning, function_call)
-            print(f"{prefix} [{item_type}] {str(item)[:120]}")
+            # Show type + id so unknown items are still informative
+            item_id = getattr(item, "id", "")
+            status = getattr(item, "status", "")
+            print(f"{prefix} [{item_type}] id={item_id[:40]}  status={status}")
 
 
 def _pause(label: str, enabled: bool) -> None:
