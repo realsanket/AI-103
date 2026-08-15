@@ -417,11 +417,12 @@ def main() -> None:
         _run_direct_api(project, args.store_name, args.user_id)
 
     finally:
-        print("\n=== Cleanup ===")
-        if agent_version:
-            _cleanup(project, agent_version)
-        else:
-            print("[cleanup] Agent was not created — nothing to delete.")
+        print("\n=== Cleanup (disabled — re-enable after portal inspection) ===")
+        # if agent_version:
+        #     _cleanup(project, agent_version)
+        # else:
+        #     print("[cleanup] Agent was not created — nothing to delete.")
+        pass
 
 
 if __name__ == "__main__":
