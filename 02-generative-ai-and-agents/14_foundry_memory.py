@@ -279,7 +279,20 @@ def _run_direct_api(project, store_name: str, user_id: str) -> None:
         items=[msg1],
         update_delay=0,  # trigger immediately, no inactivity wait
     )
-    update_result = update_poller.result()
+    try:
+        update_result = update_poller.result()
+    except Exception as e:
+        msg = str(e)
+        if "401" in msg or "Authentication" in msg:
+            print(f"[update] FAIL — 401 from memory service backend.")
+            print("  begin_update_memories runs server-side: the project's managed identity")
+            print("  calls the model on your behalf. Fix:")
+            print("  → Enable system-assigned managed identity on the Foundry project.")
+            print("  → Assign 'Cognitive Services OpenAI User' to that MI on the OpenAI resource.")
+            print(f"  Raw error: {msg[:300]}")
+        else:
+            print(f"[update] FAIL — {msg[:300]}")
+        return
     ops = getattr(update_result, "memory_operations", []) or []
     print(f"[update] {len(ops)} memory operation(s):")
     for op in ops:
@@ -390,19 +403,25 @@ def main() -> None:
     for st in stores:
         print(f"  - {st.name}  (id={getattr(st, 'id', '?')}, description={getattr(st, 'description', '')})")
 
-    print("\n=== Part 2: Agent conversation recall ===")
-    agent_version = _run_agent_conversation(
-        project, args.store_name, args.user_id, args.skip_wait, chat_model
-    )
+    agent_version = None
+    try:
+        print("\n=== Part 2: Agent conversation recall ===")
+        agent_version = _run_agent_conversation(
+            project, args.store_name, args.user_id, args.skip_wait, chat_model
+        )
 
-    print("\n=== Part 3: Remember / forget commands ===")
-    _run_remember_forget(project, args.store_name, args.user_id, chat_model)
+        print("\n=== Part 3: Remember / forget commands ===")
+        _run_remember_forget(project, args.store_name, args.user_id, chat_model)
 
-    print("\n=== Part 4: Direct API — update + search ===")
-    _run_direct_api(project, args.store_name, args.user_id)
+        print("\n=== Part 4: Direct API — update + search ===")
+        _run_direct_api(project, args.store_name, args.user_id)
 
-    # print("\n=== Cleanup ===")
-    # _cleanup(project, agent_version)
+    finally:
+        print("\n=== Cleanup ===")
+        if agent_version:
+            _cleanup(project, agent_version)
+        else:
+            print("[cleanup] Agent was not created — nothing to delete.")
 
 
 if __name__ == "__main__":
