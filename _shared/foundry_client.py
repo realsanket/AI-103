@@ -14,6 +14,7 @@ def project_client() -> AIProjectClient:
 def resolve_project_client(
     endpoint_override: str | None = None,
     api_key: str | None = None,
+    allow_preview: bool = False,
 ) -> AIProjectClient:
     """Return an AIProjectClient, optionally with an endpoint override.
 
@@ -37,7 +38,7 @@ def resolve_project_client(
             stacklevel=2,
         )
     endpoint = endpoint_override or settings().require("PROJECT_ENDPOINT")
-    return AIProjectClient(endpoint=endpoint, credential=DefaultAzureCredential())
+    return AIProjectClient(endpoint=endpoint, credential=DefaultAzureCredential(), allow_preview=allow_preview)
 
 
 def active_agent_reference(agent) -> dict[str, str]:

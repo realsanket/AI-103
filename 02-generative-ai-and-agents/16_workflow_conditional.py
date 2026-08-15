@@ -27,10 +27,10 @@ Beginner note:
 """
 from pathlib import Path
 
-from azure.ai.projects.models import PromptAgentDefinition
+from azure.ai.projects.models import PromptAgentDefinition, WorkflowAgentDefinition
 
 from _shared.config import settings
-from _shared.foundry_client import active_agent_reference, project_client
+from _shared.foundry_client import active_agent_reference, project_client, resolve_project_client
 
 WORKFLOW_NAME = "wf-Triage"
 WORKFLOW_FILE = Path(__file__).parent / "workflows" / "wf_triage.yml"
@@ -79,16 +79,16 @@ def _verify_intake_exists(project) -> None:
 
 
 def main() -> None:
-    client = project_client()
+    # allow_preview=True injects Foundry-Features: WorkflowAgents=V1Preview header automatically
+    client = resolve_project_client(allow_preview=True)
     _verify_intake_exists(client)
     _ensure_leaf_agents(client)
 
     yaml_text = WORKFLOW_FILE.read_text()
 
-    # Preview surface varies by SDK version.
     workflow = client.agents.create_version(
         agent_name=WORKFLOW_NAME,
-        definition={"kind": "workflow", "definition": yaml_text},
+        definition=WorkflowAgentDefinition(workflow=yaml_text),
     )
     active_agent_reference(workflow)
     print(f"Workflow {workflow.name} v{workflow.version} version created.")

@@ -14,12 +14,9 @@ artifact; workflows retire on December 1, 2026. This script:
 import json
 from pathlib import Path
 
-from azure.ai.projects.models import PromptAgentDefinition
-
 from _shared.config import settings
-from _shared.foundry_client import active_agent_reference, project_client
+from _shared.foundry_client import project_client
 
-AGENT_NAME = "wf-IntakeAgent"
 SCHEMA_FILE = Path(__file__).parent / "workflows" / "wf_intake_schema.json"
 
 _SAMPLE_TICKET = (
@@ -27,26 +24,23 @@ _SAMPLE_TICKET = (
     "and get my $99 back. The dashboard is much slower than the demo showed."
 )
 
+_INSTRUCTIONS = (
+    "You are the Northwind support intake agent. Classify the customer's "
+    "message into one triage result. Only output the JSON schema requested."
+)
+
 
 def main() -> None:
     schema_wrapper = json.loads(SCHEMA_FILE.read_text())
 
     project = project_client()
-    agent = project.agents.create_version(
-        agent_name=AGENT_NAME,
-        definition=PromptAgentDefinition(
-            model=settings().default_model,
-            instructions=(
-                "You are the Northwind support intake agent. Classify the customer's "
-                "message into one triage result. Only output the JSON schema requested."
-            ),
-        ),
-    )
-    ref = active_agent_reference(agent)
     openai = project.get_openai_client()
+    # structured output (text.format) is not allowed with agent_reference —
+    # use model directly so the response is schema-bound
     r = openai.responses.create(
+        model=settings().default_model,
+        instructions=_INSTRUCTIONS,
         input=_SAMPLE_TICKET,
-        extra_body={"agent_reference": ref},
         text={"format": {"type": "json_schema", **schema_wrapper}},
     )
     triage = json.loads(r.output_text)
