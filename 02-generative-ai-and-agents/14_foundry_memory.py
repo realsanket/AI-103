@@ -142,7 +142,12 @@ def _ensure_store(project, store_name: str, chat_model: str, embedding_model: st
 # Part 2 — Agent conversation recall
 # ---------------------------------------------------------------------------
 
-def _run_agent_conversation(project, store_name: str, user_id: str, skip_wait: bool, chat_model: str) -> str:
+def _pause(label: str, enabled: bool) -> None:
+    if enabled:
+        input(f"\n[pause] {label} — inspect portal, then press Enter to continue...\n")
+
+
+def _run_agent_conversation(project, store_name: str, user_id: str, skip_wait: bool, chat_model: str, pause: bool = False) -> str:
     from azure.ai.projects.models import MemorySearchPreviewTool, PromptAgentDefinition
 
     agent = project.agents.create_version(
@@ -179,6 +184,7 @@ def _run_agent_conversation(project, store_name: str, user_id: str, skip_wait: b
         extra_headers=headers,
     )
     print(f"[conv1] {resp1.output_text}")
+    _pause("Conv1 sent — check portal (scope=user-lesson-14); memory not extracted yet (debounce pending)", pause)
 
     # Wait for debounce — memory writes happen after update_delay seconds of inactivity
     if skip_wait:
@@ -196,6 +202,7 @@ def _run_agent_conversation(project, store_name: str, user_id: str, skip_wait: b
         extra_headers=headers,
     )
     print(f"[conv2] {resp2.output_text}")
+    _pause("Conv2 done — check portal (scope=user-lesson-14); memories should now be visible", pause)
 
     return str(agent.version)
 
@@ -379,6 +386,8 @@ def main() -> None:
                         help="Run live cloud calls (creates/modifies cloud resources)")
     parser.add_argument("--skip-wait", action="store_true",
                         help="Skip 65s debounce wait (recall turn may miss the preference)")
+    parser.add_argument("--pause", action="store_true",
+                        help="Pause between parts so you can inspect the portal at each step")
     parser.add_argument("--store-name", default=_DEFAULT_STORE)
     parser.add_argument("--user-id", default=_DEFAULT_USER)
     add_lesson_overrides(parser)   # --project-endpoint, --chat-model, --embedding-model
@@ -405,16 +414,22 @@ def main() -> None:
 
     agent_version = None
     try:
+        _pause(f"Part 1 done — store '{args.store_name}' ready; check portal before agent runs", args.pause)
+
         print("\n=== Part 2: Agent conversation recall ===")
         agent_version = _run_agent_conversation(
-            project, args.store_name, args.user_id, args.skip_wait, chat_model
+            project, args.store_name, args.user_id, args.skip_wait, chat_model, pause=args.pause
         )
 
         print("\n=== Part 3: Remember / forget commands ===")
+        _pause("About to run remember/forget (Part 3)", args.pause)
         _run_remember_forget(project, args.store_name, args.user_id, chat_model)
+        _pause("Part 3 done — check portal for aisle-seat / forget changes", args.pause)
 
         print("\n=== Part 4: Direct API — update + search ===")
+        _pause("About to run direct API update (Part 4)", args.pause)
         _run_direct_api(project, args.store_name, args.user_id)
+        _pause("Part 4 done — check portal for coffee preferences", args.pause)
 
     finally:
         print("\n=== Cleanup (disabled — re-enable after portal inspection) ===")
