@@ -35,7 +35,7 @@ Prerequisites / env vars:
   --apply           — runs cloud calls; creates persistent memory store + ephemeral agent
   --skip-wait       — skip 65-second debounce wait (recall turn may miss the preference)
   --store-name      — override memory store name (default: ai-103-memory-lesson)
-  --user-id         — x-memory-user-id header value and API scope (default: user-lesson-14)
+  --user-id         — x-memory-user-id header value and API scope (default: user_lesson_14)
 """
 import argparse
 import json
@@ -56,7 +56,7 @@ from _shared.foundry_client import resolve_project_client  # noqa: E402
 
 _AGENT_NAME = "ai-103-memory-lesson-agent"
 _DEFAULT_STORE = "ai-103-memory-lesson"
-_DEFAULT_USER = "user-lesson-14"
+_DEFAULT_USER = "user_lesson_14"
 
 
 def preflight(store_name: str, user_id: str) -> None:
@@ -87,7 +87,7 @@ def preflight(store_name: str, user_id: str) -> None:
     print("Scope rules:")
     print("  Tool scope = '{{$userId}}'  → resolves from x-memory-user-id header per request")
     print("  API scope  = explicit string → you pass it in each begin_update/search call")
-    print(f"  This lesson uses scope='{user_id}' for direct API calls")
+    print(f"  This lesson uses scope='{user_id}' for direct API calls (A-Z, a-z, 0-9, -, _ only)")
     print(f"  and x-memory-user-id: {user_id} header for agent conversations")
     print()
     print("Four API surfaces covered:")
