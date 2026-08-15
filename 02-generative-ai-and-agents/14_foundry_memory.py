@@ -142,6 +142,40 @@ def _ensure_store(project, store_name: str, chat_model: str, embedding_model: st
 # Part 2 — Agent conversation recall
 # ---------------------------------------------------------------------------
 
+def _print_response_items(prefix: str, resp) -> None:
+    """Print all output items — tool calls + message text — so tool usage is visible."""
+    for item in resp.output:
+        item_type = getattr(item, "type", None)
+        if item_type == "tool_use":
+            name = getattr(item, "name", "?")
+            raw = getattr(item, "input", None) or getattr(item, "arguments", {})
+            try:
+                args = json.dumps(raw, separators=(",", ":")) if not isinstance(raw, str) else raw
+            except Exception:
+                args = str(raw)
+            print(f"{prefix} [tool_call] {name}({args[:120]})")
+        elif item_type == "tool_result":
+            content = getattr(item, "content", None)
+            print(f"{prefix} [tool_result] {str(content)[:120]}")
+        elif item_type == "memory_command_call":
+            raw_args = getattr(item, "arguments", "{}")
+            try:
+                args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+            except Exception:
+                args = raw_args
+            action = args.get("action", "?") if isinstance(args, dict) else "?"
+            content = args.get("content", "") if isinstance(args, dict) else ""
+            print(f"{prefix} [memory_command] action={action}  content={content!r}")
+        elif item_type == "message":
+            content = getattr(item, "content", None)
+            if content:
+                text = content[0].text if hasattr(content[0], "text") else str(content[0])
+                print(f"{prefix} {text}")
+        else:
+            # Catch any other item types (e.g. reasoning, function_call)
+            print(f"{prefix} [{item_type}] {str(item)[:120]}")
+
+
 def _pause(label: str, enabled: bool) -> None:
     if enabled:
         input(f"\n[pause] {label} — inspect portal, then press Enter to continue...\n")
@@ -183,7 +217,7 @@ def _run_agent_conversation(project, store_name: str, user_id: str, skip_wait: b
         extra_body={"agent_reference": agent_ref},
         extra_headers=headers,
     )
-    print(f"[conv1] {resp1.output_text}")
+    _print_response_items("[conv1]", resp1)
     _pause("Conv1 sent — check portal (scope=user-lesson-14); memory not extracted yet (debounce pending)", pause)
 
     # Wait for debounce — memory writes happen after update_delay seconds of inactivity
@@ -201,7 +235,7 @@ def _run_agent_conversation(project, store_name: str, user_id: str, skip_wait: b
         extra_body={"agent_reference": agent_ref},
         extra_headers=headers,
     )
-    print(f"[conv2] {resp2.output_text}")
+    _print_response_items("[conv2]", resp2)
     _pause("Conv2 done — check portal (scope=user-lesson-14); memories should now be visible", pause)
 
     return str(agent.version)
