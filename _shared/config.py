@@ -192,11 +192,14 @@ SAMPLE_DATA = Path(__file__).resolve().parent / "sample_data"
 # ---------------------------------------------------------------------------
 
 def add_lesson_overrides(parser) -> None:
-    """Add --project-endpoint, --chat-model, --embedding-model to any argparse parser.
+    """Add --project-endpoint, --api-key, --chat-model, --embedding-model to any argparse parser.
 
     Lessons that need to target a different Foundry project or model deployment
     (e.g. testing a preview feature in a specific region) call this once and then
     pass args to resolve_models() and _shared.foundry_client.resolve_project_client().
+
+    --api-key uses AzureKeyCredential instead of DefaultAzureCredential. Useful when
+    server-side LROs (e.g. begin_update_memories) need key-based auth to call the model.
     """
     parser.add_argument(
         "--project-endpoint",
@@ -204,6 +207,14 @@ def add_lesson_overrides(parser) -> None:
         metavar="URL",
         help="Override PROJECT_ENDPOINT for this run only "
              "(falls back to PROJECT_ENDPOINT env var).",
+    )
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        metavar="KEY",
+        help="Use AzureKeyCredential instead of DefaultAzureCredential. "
+             "Pass the resource API key shown in the Foundry portal. "
+             "Never commit this value — pass via shell only.",
     )
     parser.add_argument(
         "--chat-model",

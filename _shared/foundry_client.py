@@ -11,11 +11,16 @@ def project_client() -> AIProjectClient:
     )
 
 
-def resolve_project_client(endpoint_override: str | None = None) -> AIProjectClient:
-    """Return an AIProjectClient for the given endpoint, or PROJECT_ENDPOINT if None.
+def resolve_project_client(
+    endpoint_override: str | None = None,
+    api_key: str | None = None,
+) -> AIProjectClient:
+    """Return an AIProjectClient, optionally with an endpoint override.
 
-    Use this in lessons that accept --project-endpoint so the override flows through
-    a single call rather than duplicating AIProjectClient construction everywhere.
+    AIProjectClient requires a proper bearer token (audience https://ai.azure.com).
+    api_key is accepted as a parameter for API compatibility but ignored — the
+    portal API key is for openai.azure.com (api-key header) only and cannot be
+    used as a bearer token for the Foundry project SDK.
 
     Example:
         from _shared.config import add_lesson_overrides
@@ -24,6 +29,13 @@ def resolve_project_client(endpoint_override: str | None = None) -> AIProjectCli
         args = parser.parse_args()
         project = resolve_project_client(args.project_endpoint)
     """
+    if api_key:
+        import warnings
+        warnings.warn(
+            "--api-key is not supported for AIProjectClient (requires bearer token "
+            "with audience https://ai.azure.com). Falling back to DefaultAzureCredential.",
+            stacklevel=2,
+        )
     endpoint = endpoint_override or settings().require("PROJECT_ENDPOINT")
     return AIProjectClient(endpoint=endpoint, credential=DefaultAzureCredential())
 

@@ -393,7 +393,7 @@ def main() -> None:
 
     project = resolve_project_client(args.project_endpoint)
     if args.project_endpoint:
-        print(f"[project] Using override endpoint: {args.project_endpoint}")
+        print(f"[project] endpoint={args.project_endpoint}")
 
     print("=== Part 1: Memory store ===")
     _ensure_store(project, args.store_name, chat_model, embedding_model)
