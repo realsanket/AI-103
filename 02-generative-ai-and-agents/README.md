@@ -162,7 +162,7 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | 08, 10–16 | Agent versions (persist); model tokens |
 | 09, 11, 18 | Agent invocation + function-tool round trips; model tokens |
 | 12 | Agent invocation + OpenAPI backend calls; model tokens |
-| 14 | Memory store + preview memory state; embedding tokens |
+| 14 (`--apply`) | Memory store (persists; delete manually); scope data cleaned up; embedding + chat tokens; begin_update_memories LRO |
 | 17 | Model tokens via PROJECT_ENDPOINT |
 | 19–20 | Model + embedding tokens via AZURE_OPENAI_ENDPOINT |
 | 21 | Evaluator model tokens (local SDK, no cloud state) |
@@ -241,7 +241,7 @@ Need previous turns only inside one interaction?
 | 11 | `11_agent_function_tools.py` | End-to-end create + invoke + function loop | Agent version + model tokens |
 | 12 | `12_agent_openapi_tools.py` | Agent with OpenAPI tool and deployed Function backend | Agent version + model + API tokens |
 | 13 | `13_conversation_thread.py` | Multi-turn conversation via `conversation.id` | Agent version + model tokens |
-| 14 | `14_foundry_memory.py` | Preview memory store with user-scoped recall | Memory store (preview) |
+| 14 | `14_foundry_memory.py` | Memory store lifecycle + agent recall + remember/forget + direct API update/search | Memory store persists (preview); scope cleaned up |
 | 15 | `15_workflow_intake.py` | Intake agent producing structured triage JSON | Agent version + model tokens |
 | 16 | `16_workflow_conditional.py` | Preview YAML conditional workflow definition | Agent versions + preview workflow |
 | 17 | `17_agent_framework_local.py` | Local Agent Framework call to Foundry model | Model tokens via PROJECT_ENDPOINT |
@@ -598,25 +598,64 @@ uv run python 02-generative-ai-and-agents/13_conversation_thread.py
 
 ### 14 — Foundry Memory (preview)
 
-**Question answered:** How can preview memory recall a scoped user preference across conversations?
+**Question answered:** How do memory stores persist preferences across sessions, and how do direct memory APIs differ from agent-mediated recall?
 
-**Background.** Foundry Memory is a preview service that extracts facts from conversations asynchronously and retrieves them in later conversations using `MemorySearchPreviewTool`. Records are partitioned by the `x-memory-user-id` header through `{{$userId}}` scope. Writes are debounced — immediate recall is not guaranteed. This is NOT a source-of-truth customer system or PII consent solution.
+**Background.** Foundry Memory is a preview managed service that extracts user preferences and conversation facts from agent interactions and retrieves them in later conversations. Three surfaces exist: (1) `MemorySearchPreviewTool` on an agent — the model calls it automatically per turn; (2) remember/forget commands — `responses.create` with the memory tool where the model returns `memory_command_call` items for explicit user instructions; (3) direct `begin_update_memories` and `search_memories` APIs — synchronous fact injection and retrieval without an agent involved. Writes via the agent tool are **debounced** — a preference stated in one turn may not be recalled immediately. Direct `update_delay=0` bypasses debouncing. This is NOT a database, consent platform, or PII vault.
 
 ```bash
+# Preflight — check env vars + print API structure
 uv run python 02-generative-ai-and-agents/14_foundry_memory.py
+
+# Full flow — all 4 parts + cleanup
+uv run python 02-generative-ai-and-agents/14_foundry_memory.py --apply
+
+# Skip 65-second debounce wait (recall may miss the preference)
+uv run python 02-generative-ai-and-agents/14_foundry_memory.py --apply --skip-wait
 ```
 
 **Code path.**
-1. `project.beta.memory_stores.create(name=…, definition=MemoryStoreDefaultDefinition(chat_model=…, embedding_model=…))`
-2. Creates prompt agent with `MemorySearchPreviewTool(memory_store_name=…)`
-3. First conversation with `x-memory-user-id: user-sarah-chen` → model stores stated preference
-4. Waits 65 seconds (demonstration, not guarantee); second conversation in same scope → model may recall preference
 
-**What to watch in the output.** After the wait, the second conversation may echo the stored preference. It may not — async extraction is non-deterministic. Never invent a recalled fact not present in retrieved memory.
+*Part 1 — store lifecycle:*
+1. `project.beta.memory_stores.list()` — reuse if name matches; else create.
+2. `MemoryStoreDefaultOptions(chat_summary_enabled=True, user_profile_enabled=True, procedural_memory_enabled=True, default_ttl_seconds=timedelta(days=30), user_profile_details=...)`.
+3. `project.beta.memory_stores.create(name, definition=MemoryStoreDefaultDefinition(chat_model, embedding_model, options=...), description=...)`.
 
-**Exam cues.** Preview API surface (`project.beta`). Memory writes are asynchronous and debounced. 65-second wait is illustrative, not a SLA. Uses `EMBEDDING_MODEL` — must be a valid embedding deployment.
+*Part 2 — agent conversation recall:*
+4. `MemorySearchPreviewTool(memory_store_name=..., scope="{{$userId}}", update_delay=1)` — scope resolved from `x-memory-user-id` header per request.
+5. `project.agents.create_version(agent_name, definition=PromptAgentDefinition(..., tools=[tool]))`.
+6. Conv 1: `openai.conversations.create()` → `responses.create(input=..., conversation=conv.id, extra_headers={"x-memory-user-id": user_id})` — states preference.
+7. Sleep 65s (debounce). Conv 2: new conversation, same header → model may recall preference.
 
-**References:** [Memory concept](https://learn.microsoft.com/azure/foundry/agents/concepts/what-is-memory) · [Memory usage how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/memory-usage)
+*Part 3 — remember/forget commands:*
+8. `responses.create(model=..., tools=[{"type": "memory_search_preview", "memory_store_name": ..., "scope": user_id}], input="Remember that...")`.
+9. Iterate `response.output` → items with `type == "memory_command_call"` show `arguments` (action + content) and `status`.
+
+*Part 4 — direct API:*
+10. `project.beta.memory_stores.begin_update_memories(name, scope, items=[msg_dict], update_delay=0).result()` → `.memory_operations` list.
+11. Chain: second call with `previous_update_id=update_poller.update_id`.
+12. `project.beta.memory_stores.search_memories(name, scope, items=[query_dict], options=MemorySearchOptions(max_memories=5))` → `.memories` list.
+
+*Cleanup:*
+13. `project.beta.memory_stores.delete_scope(name, scope)` — removes test user's data; store persists.
+14. `project.agents.delete_version(agent_name, agent_version)` — removes ephemeral agent.
+
+**What to watch in the output.**
+- Conv 2 answer: model may or may not echo the stored preference — async extraction is non-deterministic. Never invent a fact not retrieved from memory.
+- `memory_command_call` items in Part 3 output: `action=remember` or `action=forget`, `status=completed`.
+- `memory_operations` in Part 4: each shows `kind` (e.g. `upsert`) + `memory_id` + `content` extracted by the service.
+- `memories` in search: ranked by semantic similarity to the query; `memory_id` + `content` of each stored fact.
+
+**Exam cues.**
+- `project.beta` surface = preview; shape can change between SDK versions.
+- `scope="{{$userId}}"` in tool → resolved per-request from `x-memory-user-id` header. Static scope string for direct API calls — must match exactly.
+- `update_delay=1` means 1 second of inactivity before extraction. Default is 300 (5 min). Use 0 only in `begin_update_memories` for immediate injection.
+- `memory_command_call` appears in `response.output`, not `output_text` — parse the output list.
+- `begin_update_memories` is a long-running operation (LRO) — call `.result()` or fire-and-forget.
+- TTL `default_ttl_seconds` is set at store creation only (in current preview). Recreate store to change TTL.
+- `procedural_memory_enabled` enables step-by-step instruction storage (e.g. "always greet user by name").
+- Deleting scope removes one user's data; deleting store removes all data across all scopes (irreversible).
+
+**References:** [Memory concept](https://learn.microsoft.com/azure/foundry/agents/concepts/what-is-memory) · [Memory usage how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/memory-usage) · [Memory quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/quickstart-memory-hosted-agent)
 
 ---
 
@@ -1271,7 +1310,7 @@ uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py --appl
 | Conversation threads | GA | Turn-scoped context; not durable profile memory |
 | Built-in tools (web, code, file) | GA | Managed service-side execution; usage and residency apply |
 | Function tools / OpenAPI tools | GA | App executes; model requests; backend must be deployed and reachable |
-| Foundry Memory | Preview | Async/debounced writes; not guaranteed retrieval; `project.beta` surface |
+| Foundry Memory | Preview | Async/debounced writes via agent tool (update_delay); synchronous via begin_update_memories (update_delay=0); `project.beta` surface; TTL set at creation only |
 | Workflows | Preview → retiring Dec 1, 2026 | Study as artifact; migrate to Agent Framework/hosted agent |
 | Agent Framework | GA | Local process; not deployed; no packaging, identity, or lifecycle |
 | Multi-agent (agent-as-tool) | GA | Application-controlled pattern; not A2A |
@@ -1368,6 +1407,10 @@ Commit code, prompts, schemas, infrastructure, evaluation fixtures
 | "MCP = Toolbox = A2A = function calling" | Distinct integration layers solving different problems |
 | "Conversation = memory" | Conversation is turn context; Memory is preview durable extraction |
 | "65 seconds = guaranteed memory recall" | Async debounced extraction is non-deterministic |
+| "update_delay=0 in tool = immediate write" | `update_delay=0` bypasses debounce in `begin_update_memories` API only; agent tool uses `update_delay` seconds of inactivity |
+| "memory_command_call appears in output_text" | It appears as an item in `response.output` list, not in `output_text` |
+| "scope={{$userId}} resolves everywhere" | Only when using the agent tool + `x-memory-user-id` header; direct API calls require explicit scope string |
+| "TTL can be updated after store creation" | Current preview: TTL set at creation only; recreate store to change |
 | "Workflow YAML = long-term runtime" | Workflows retire December 1, 2026 |
 | "Local Agent Framework = hosted agent" | Local process does not deploy or host anything |
 | "One evaluator result = cloud evaluation" | Local SDK call ≠ persisted Foundry run with dataset |
@@ -1417,6 +1460,7 @@ It does **not** fully implement: remote MCP OAuth/Entra setup, credential rotati
 
 - [Memory concept](https://learn.microsoft.com/azure/foundry/agents/concepts/what-is-memory)
 - [Memory usage how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/memory-usage)
+- [Memory quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/quickstart-memory-hosted-agent)
 - [Workflow concept](https://learn.microsoft.com/azure/foundry/agents/concepts/workflow)
 - [Isolate sessions per user](https://learn.microsoft.com/azure/foundry/agents/how-to/isolate-sessions-per-user)
 

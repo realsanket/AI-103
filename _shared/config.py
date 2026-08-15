@@ -185,3 +185,50 @@ def settings() -> Settings:
 
 # Convenience path for sample data — every lesson can `from _shared.config import SAMPLE_DATA`
 SAMPLE_DATA = Path(__file__).resolve().parent / "sample_data"
+
+
+# ---------------------------------------------------------------------------
+# Per-lesson override helpers — reusable across all lessons
+# ---------------------------------------------------------------------------
+
+def add_lesson_overrides(parser) -> None:
+    """Add --project-endpoint, --chat-model, --embedding-model to any argparse parser.
+
+    Lessons that need to target a different Foundry project or model deployment
+    (e.g. testing a preview feature in a specific region) call this once and then
+    pass args to resolve_models() and _shared.foundry_client.resolve_project_client().
+    """
+    parser.add_argument(
+        "--project-endpoint",
+        default=None,
+        metavar="URL",
+        help="Override PROJECT_ENDPOINT for this run only "
+             "(falls back to PROJECT_ENDPOINT env var).",
+    )
+    parser.add_argument(
+        "--chat-model",
+        default=None,
+        metavar="DEPLOYMENT",
+        help="Override chat deployment name (falls back to DEFAULT_MODEL env var).",
+    )
+    parser.add_argument(
+        "--embedding-model",
+        default=None,
+        metavar="DEPLOYMENT",
+        help="Override embedding deployment name (falls back to EMBEDDING_MODEL env var).",
+    )
+
+
+def resolve_models(args) -> tuple[str, str]:
+    """Return (chat_model, embedding_model) from CLI args with settings() fallback.
+
+    Args:
+        args: argparse.Namespace produced after calling add_lesson_overrides(parser).
+
+    Returns:
+        (chat_model, embedding_model) — never empty strings; raises if fallback also unset.
+    """
+    s = settings()
+    chat = getattr(args, "chat_model", None) or s.default_model
+    embed = getattr(args, "embedding_model", None) or s.embedding_model
+    return chat, embed
