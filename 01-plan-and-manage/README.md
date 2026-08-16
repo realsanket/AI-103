@@ -1512,7 +1512,7 @@ Control Plane centralizes fleet visibility, compliance, and cross-project govern
 
 **Question answered:** Which Foundry accounts + deployments exist across my subscription right now?
 
-**Background.** Portal Control Plane's Assets pane discovers agents/models/tools across all Foundry accounts in a subscription with a permissions-aware merge. No dedicated Control Plane SDK exists — this lab reproduces the static-inventory slice via `CognitiveServicesManagementClient.accounts.list_by_subscription()` + per-account `.deployments.list()`. Portal view additionally joins App Insights runs/cost/error-rate data; this CLI stays static.
+**Background.** Portal Control Plane's Assets pane discovers agents/models/tools across all Foundry accounts in a subscription with a permissions-aware merge. No dedicated Control Plane SDK exists — this lab reproduces the static-inventory slice via `CognitiveServicesManagementClient.accounts.list()` + per-account `.deployments.list()`. Portal view additionally joins App Insights runs/cost/error-rate data; this CLI stays static.
 
 ```bash
 # Preflight
@@ -1523,7 +1523,7 @@ uv run python 01-plan-and-manage/27_control_plane_fleet_inventory.py --apply
 ```
 
 **Code path.**
-1. `client.accounts.list_by_subscription()` → filter to `kind in ("AIServices", "OpenAI")`.
+1. `client.accounts.list()` → filter to `kind in ("AIServices", "OpenAI")`.
 2. Extract resource group from account ID; `client.deployments.list(rg, name)` per account.
 3. Print (account, region, deployment, model, sku, capacity) row per deployment.
 

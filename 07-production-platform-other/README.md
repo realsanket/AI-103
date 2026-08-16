@@ -457,7 +457,7 @@ uv run python 07-production-platform-other/08_byo_storage_preflight.py --run
 
 **Question answered:** Is the standby Foundry account deployed in the secondary region?
 
-**Background.** Lesson 06 validates guidance markers in this README. This lesson validates actual cloud state: reads subscription accounts and confirms at least one `AIServices` account exists in the requested secondary region. Proves IaC ran in both regions.
+**Background.** Lesson 06 validates guidance markers in this README. This lesson validates actual cloud state with `CognitiveServicesManagementClient.accounts.list()`: reads subscription accounts and confirms at least one `AIServices` account exists in the requested secondary region. Proves IaC ran in both regions.
 
 ```bash
 uv run python 07-production-platform-other/09_dr_verify_preflight.py

@@ -7,8 +7,8 @@ Control Plane SDK — the underlying data comes from
 `CognitiveServicesManagementClient` iterating accounts + deployments.
 
 This lab reproduces the "fleet inventory" view read-only. Default preflight
-validates env; `--apply` calls `.accounts.list_by_subscription()` then per
-account `.deployments.list()`. Prints one row per (account, deployment).
+validates env; `--apply` calls `.accounts.list()` then per account
+`.deployments.list()`. Prints one row per (account, deployment).
 
 Caller needs subscription `Reader` or `Cognitive Services Usages Reader`.
 Portal Control Plane also merges Application Insights runs/cost data — this
@@ -16,7 +16,7 @@ CLI view intentionally shows only static inventory (no telemetry join).
 
 Code path:
   --apply: CognitiveServicesManagementClient(cred, sub).accounts
-  .list_by_subscription() → for each Foundry-kind account: .deployments.list
+  .list() → for each Foundry-kind account: .deployments.list
   (rg, name) → print (account, region, deployment, model, sku, capacity).
 
 What to watch. Preflight: env status. `--apply`: table of every Foundry
@@ -47,7 +47,7 @@ def apply() -> None:
     client = CognitiveServicesManagementClient(DefaultAzureCredential(), sub)
     print(f"{'account':<30} {'region':<15} {'deployment':<28} {'model':<28} {'sku':<18} {'cap':>4}")
     print("-" * 125)
-    for account in client.accounts.list_by_subscription():
+    for account in client.accounts.list():
         if not account.kind or account.kind not in ("AIServices", "OpenAI"):
             continue
         rg = account.id.split("/resourceGroups/")[1].split("/")[0]

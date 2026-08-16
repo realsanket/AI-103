@@ -14,7 +14,7 @@ Recovery exercise is still manual: deploy agents, rebuild indexes, switch
 traffic. This lesson only proves the IaC has run in both regions.
 
 Code path:
-  --run: CognitiveServicesManagementClient.accounts.list_by_subscription()
+  --run: CognitiveServicesManagementClient.accounts.list()
   → filter kind == primary kind + location == secondary region → print.
 
 What to watch. Preflight: env status. `--run`: one or more accounts in the
@@ -52,7 +52,7 @@ def run(secondary_region: str) -> None:
     primary_name = foundry_account_name(current.require("FOUNDRY_ENDPOINT"))
     primary_kind = None
     results = []
-    for account in client.accounts.list_by_subscription():
+    for account in client.accounts.list():
         if account.name == primary_name:
             primary_kind = account.kind
         if account.location and account.location.replace(" ", "").lower() == secondary_region.lower():
