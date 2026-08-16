@@ -7,9 +7,17 @@ single-turn attacks and calculates attack success rates across harm categories.
 Run this before promoting a model to production — a clean scan is not a
 guarantee, but an unscanned model has unknown safety posture.
 
+Complete lesson 24 first. Lesson 24 uses an unreachable synthetic target to
+teach the pipeline safely; this lesson crosses the next boundary by sending
+generated probes to the real deployment named by DEFAULT_MODEL. It still does
+not test application prompts, retrieval, tools, authorization, or agent actions.
+
 Default preflight checks env vars and prints the scan scope. --apply uses
 azure.ai.evaluation.red_team.RedTeam to run a minimal probe (one Violence
 objective with baseline and Base64 attacks) and prints attack success rates.
+One objective becomes two attack-response pairs here: the direct baseline and
+the Base64-transformed version. Base64 is an obfuscation strategy, not a risk
+category and not evidence of sophisticated coverage.
 
 Code path:
   preflight: validate PROJECT_ENDPOINT + AZURE_OPENAI_ENDPOINT + DEFAULT_MODEL.
@@ -18,7 +26,9 @@ Code path:
   target=model_config, attack_strategies=[Base64]) → print ASR per category.
 
 What to watch. Attack success rate (ASR) is a percentage; lower is safer.
-Review every successful attack before tuning mitigations or promotion.
+Review every successful attack before tuning mitigations or promotion. A 0%
+ASR over two pairs is a smoke result, not a safety claim. Generated adversarial
+text and local result artifacts can be sensitive; restrict access and retention.
 
 Prerequisites / env vars:
   PROJECT_ENDPOINT       — Foundry project HTTPS URL for hosted evaluation
@@ -60,6 +70,14 @@ def preflight() -> None:
     print()
     print("Scan scope: adversarial single-turn text generated from curated objectives.")
     print("Apply scope: one Violence objective with baseline and Base64 attacks.")
+    print("How the probe works:")
+    print("  1. Objective: define the unsafe behavior to probe (Violence).")
+    print("  2. Baseline: send the direct adversarial query to the target.")
+    print("  3. Strategy: Base64 transforms the same objective to test obfuscation.")
+    print("  4. Evaluator: label whether each response is a successful attack.")
+    print("  5. Scorecard: summarize successful attacks as ASR.")
+    print("One objective produces two attack-response pairs in this configuration.")
+    print("A 0% ASR on two pairs is not proof that the model or application is safe.")
     print("Run --apply to execute this minimal billable probe.")
 
 

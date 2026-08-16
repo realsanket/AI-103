@@ -7,7 +7,7 @@ finds weaknesses to investigate; it is not a runtime guardrail, a compliance
 certificate, or proof that an application is safe.
 
 This is the beginner lab before lesson 31. Its target is a fixed callback that
-always refuses, so learners can inspect the objective → target → evaluator →
+always refuses, so learners can inspect the objective -> target -> evaluator ->
 scorecard flow without exposing a real model, agent, tool, or customer system.
 
 Use this only to verify local SDK wiring and result flow before a reviewed
@@ -32,7 +32,7 @@ callback refused this tiny sample. Generated adversarial text and result
 artifacts still require controlled access, retention, and human review.
 
 Prerequisites / env vars:
-  AZURE_AI_PROJECT  — Foundry project used by hosted safety evaluation
+  PROJECT_ENDPOINT  — Foundry project used by hosted safety evaluation
   --apply           — run the one-objective billable synthetic scan
   Python 3.12–3.13  — repository and PyRIT-supported interpreter
 """
@@ -40,8 +40,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
 import sys
+
+from _shared.config import settings
 
 
 def safe_synthetic_callback(_: str) -> str:
@@ -51,9 +52,11 @@ def safe_synthetic_callback(_: str) -> str:
 
 def preflight() -> str:
     """Return exact scan side effect without creating a red-team client."""
+    project_status = "configured" if settings().project_endpoint else "missing"
     return "\n".join(
         [
             "PREVIEW: no red-team scan started and no prompts generated.",
+            f"PROJECT_ENDPOINT: {project_status}.",
             "Learning map: objective -> strategy -> target -> evaluator -> scorecard.",
             "- Objective: the unsafe behavior the probe tries to surface.",
             "- Target: the system receiving the probe; here it is a fixed refusal callback.",
@@ -62,7 +65,8 @@ def preflight() -> str:
             "Would create one RedTeam client for configured Foundry project.",
             "Would scan only safe_synthetic_callback.",
             "Would use one Violence objective and baseline direct prompts only.",
-            "Would send no prompt to a real model, endpoint, tool, or application.",
+            "Would send no generated attack to a real target model, tool, or application.",
+            "Foundry-hosted generation and evaluation still process the synthetic pair.",
             "Expected ASR: 0%; this validates wiring, not a real system's safety.",
             "Run again with --apply to perform exactly these actions.",
         ]
@@ -74,7 +78,7 @@ async def run_safe_scan() -> None:
     from azure.ai.evaluation.red_team import RedTeam, RiskCategory
     from azure.identity import DefaultAzureCredential
 
-    project = os.environ["AZURE_AI_PROJECT"]
+    project = settings().require("PROJECT_ENDPOINT")
     red_team = RedTeam(
         azure_ai_project=project,
         credential=DefaultAzureCredential(),
@@ -95,10 +99,10 @@ def main() -> None:
     if not args.apply:
         print(preflight())
         return
-    if sys.version_info[:2] not in {(3, 10), (3, 11), (3, 12), (3, 13)}:
-        parser.error("AI Red Teaming Agent requires Python 3.10 through 3.13.")
-    if not os.environ.get("AZURE_AI_PROJECT"):
-        parser.error("AZURE_AI_PROJECT is required with --apply.")
+    if sys.version_info[:2] not in {(3, 12), (3, 13)}:
+        parser.error("This repository's AI red-team lesson requires Python 3.12 or 3.13.")
+    if not settings().project_endpoint:
+        parser.error("PROJECT_ENDPOINT is required with --apply.")
     asyncio.run(run_safe_scan())
 
 

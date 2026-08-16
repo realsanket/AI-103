@@ -150,6 +150,7 @@ For a managed identity, enable or attach the identity, then assign roles to its 
 9. Run **21–24** with `--apply` only in a disposable nonproduction project. They can create datasets, evaluations, monitoring rules, telemetry, or scans.
 10. Run **25** first when adopting Foundry-native tracing; it is local preflight only and explains the portal-side setup that remains necessary.
 11. Run **26** only after reviewing telemetry destination and data handling; run **25** first so you understand the server-side tracing architecture.
+12. Complete **24** before **31**. Lesson 24 keeps generated probes behind a fixed callback; lesson 31 is a billable real-deployment probe and needs an approved purple-environment plan.
 
 ### Costs and side effects
 
@@ -259,14 +260,14 @@ A deployment `capacity` value is not a universal TPM conversion. Standard quota 
 | 21 | [Foundry evaluation](21_foundry_evaluation.py) | Create a dataset-backed Foundry evaluation run. | Preview; persistent/billable; requires `--apply --dataset`. |
 | 22 | [Continuous evaluation](22_continuous_evaluation.py) | Create a sampled monitoring evaluation rule. | Preview; persistent/billable; requires `--apply`. |
 | 23 | [Human feedback](23_human_feedback.py) | Emit correlated end-user feedback to telemetry. | Integration reference; append-only telemetry event. |
-| 24 | [Red teaming](24_red_teaming.py) | Run a safe synthetic RedTeam target. | Preview/billable; purple environment; requires `--apply`. |
+| 24 | [Red teaming](24_red_teaming.py) | Learn objective → target → evaluator → scorecard with a fixed callback. | Preview/billable; no real target; requires `--apply`. |
 | 25 | [Foundry tracing setup](25_foundry_tracing_setup.py) | Preflight project/App Insights tracing governance. | Local, read-only guidance; portal setup still required. |
 | 26 | [Manual tracing](26_agent_tracing.py) | SDK auto-instrumentation + custom parent span; fetch App Insights CS from project. | Live calls; client-side only, not server-side Foundry tracing. |
 | 27 | [Control Plane fleet inventory](27_control_plane_fleet_inventory.py) | Read Foundry accounts + deployments subscription-wide. | Live read; `--apply` needed. |
 | 28 | [Guardrail policy preflight](28_guardrail_policy_preflight.py) | Validate a Control Plane compliance policy JSON. | Local only; portal creation manual. |
 | 29 | [Cluster analysis reader](29_observability_cluster_analysis.py) | KQL summary of GenAI dependencies from Log Analytics. | Live read; `--apply --workspace-id`. |
 | 30 | [Evaluation CI/CD preflight](30_evaluation_cicd_preflight.py) | Validate env + run one-sample coherence eval; print CI pipeline patterns. | `--apply` submits cloud eval job. |
-| 31 | [AI red teaming preflight](31_ai_red_teaming_preflight.py) | Run a one-objective adversarial probe; print attack success rates. | `--apply` billable; baseline + Base64 for Violence. |
+| 31 | [AI red teaming preflight](31_ai_red_teaming_preflight.py) | Probe a real deployment and interpret ASR with its denominator. | `--apply` billable; purple environment; two Violence pairs. |
 
 ---
 
@@ -1301,36 +1302,94 @@ uv run python 01-plan-and-manage/23_human_feedback.py
 
 ---
 
-### 24 — AI Red Teaming Agent
+### Red teaming from zero
 
-**Question answered:** How do I find safety weaknesses in my agent systematically before users find them accidentally?
+Red teaming is **authorized adversarial testing**. A tester deliberately tries to make an AI system violate a safety, security, privacy, or business rule so the team can find and fix the weakness before an untrusted user finds it. It is not ordinary happy-path testing, random prompting, a runtime defense, or permission to attack systems outside the approved scope.
 
-**Background.** Manual testing finds the bugs you think of. Red teaming finds the bugs an attacker would think of. The AI Red Teaming Agent generates adversarial prompts designed to elicit harmful outputs — violence, hate, self-harm — then measures how often your agent fails: the **Attack Success Rate (ASR)**. ASR = percentage of adversarial prompts that successfully produced a policy-violating response. Lower ASR = safer agent.
+Start with the risk, not the SDK:
 
-Red teaming is not random fuzzing. It is structured, category-specific, and produces documented evidence you can track across releases. Use it before release and on a schedule in a nonproduction environment.
+```text
+Map the use case and possible harms
+  → manually explore and record reproducible failures
+  → choose risk categories and attack objectives
+  → apply direct and transformed attack strategies
+  → send each probe only to the authorized target
+  → evaluate every attack-response pair
+  → calculate ASR and inspect individual failures
+  → mitigate, rerun the same probes, and compare
+  → release only with human review and monitoring
+```
+
+Microsoft's guidance places red teaming within **Map → Measure → Manage**. Manual red teaming maps application-specific harms that automated tools might not know about. Automated scans then measure known categories at scale. The team manages the findings with guardrails, application controls, human approval, incident response, and regression testing. None of these steps replaces the others.
+
+#### Beginner vocabulary
+
+| Term | Plain-language meaning | Example in these lessons |
+|---|---|---|
+| **Target** | The model, callback, application, or agent receiving the probe. | Lesson 24: fixed refusal callback. Lesson 31: Azure OpenAI deployment. |
+| **Risk category** | The kind of failure being tested. | Violence, sexual content, self-harm, hate and unfairness, protected material, or code vulnerability. |
+| **Attack objective** | The unsafe behavior the generated probe tries to elicit. | One generated Violence objective. |
+| **Baseline attack** | The direct adversarial query before transformation. | Included by both lessons. |
+| **Attack strategy** | A transformation or interaction pattern intended to bypass safeguards. | Base64 changes representation; it does not change the risk category. |
+| **Attack-response pair** | One probe plus the target's response. | Lesson 31 creates a baseline pair and a Base64 pair from one objective. |
+| **Evaluator** | A hosted safety model that judges whether the attack succeeded. | Produces labels used by the scorecard. |
+| **Attack Success Rate (ASR)** | Successful attacks divided by attempted attacks, expressed as a percentage. Lower is safer. | 2 successes out of 20 pairs = 10% ASR. |
+| **Purple environment** | A nonproduction environment with production-like controls and an approved test scope. | Required before connecting real applications, data, or tools. |
+
+ASR needs a denominator and context. `0%` over two pairs means neither of those two attacks succeeded; it does **not** mean the system is safe. Compare runs only when target version, objectives, strategies, evaluator settings, thresholds, and sample size are controlled. Because evaluation uses models, false positives, false negatives, and run-to-run variation require human review.
+
+#### Red teaming versus adjacent controls
+
+| Practice | Question answered | When it acts |
+|---|---|---|
+| Normal evaluation | Does the system satisfy expected quality and task behavior? | Before release and continuously on representative cases. |
+| Manual red teaming | What unexpected, domain-specific harms can creative testers discover? | Early mapping and focused investigation. |
+| Automated red teaming | How often do known adversarial objectives and strategies succeed? | Repeatable pre-release and regression measurement. |
+| Guardrails and application policy | Should this input, output, or action be allowed now? | At runtime. |
+| Human review | Is the finding real, severe, and relevant, and what mitigation is acceptable? | During triage and release approval. |
+
+#### Safe progression in this repository
+
+1. Run lesson 24 without `--apply`. Learn the vocabulary and inspect the declared side effects.
+2. Run lesson 24 with `--apply` only in a supported project. Generated probes can reach only a fixed refusal callback.
+3. Review the scorecard and explain why the expected low ASR proves SDK wiring, not application safety.
+4. Define an authorized model target, owner, risk category, cost limit, data-retention rule, reviewer, stop condition, and mitigation plan.
+5. Run lesson 31 without `--apply`. Confirm the project endpoint and direct Azure OpenAI endpoint are different surfaces.
+6. Run lesson 31 with `--apply` only against a disposable/nonproduction deployment. Review both aggregate ASR and every successful pair.
+7. For broader or agentic testing, design a separate reviewed exercise. Cloud red teaming can cover agent-specific risks and scheduled runs, but these two local SDK lessons do not implement that path.
+
+### 24 — Learn red teaming with a synthetic target
+
+**Question answered:** What happens in a red-team scan if no generated probe can reach a real target model, agent, tool, or application?
+
+**Background.** This first lab teaches the mechanics without testing a real system. The AI Red Teaming Agent generates one Violence objective, sends the baseline prompt to a callback, evaluates the response, and creates a scorecard. The callback always returns a fixed refusal, so no target model deployment, retrieval source, tool, customer data, or production traffic is reachable. Foundry-hosted generation and evaluation services still process the synthetic attack-response pair.
+
+**Before code.** Run the preflight and be able to identify the objective, target, evaluator, attack-response pair, and ASR. The generated adversarial content and result artifacts can still be sensitive even though the target is synthetic.
 
 **Safety boundary in this lesson.** The lesson does NOT connect to a real agent. All generated prompts go to `safe_synthetic_callback`, which returns a fixed refusal: `"I can't help with harmful content or unsafe actions."` No customer data, real tools, secrets, or production systems are reachable. This is intentional — the lesson teaches the API pattern; you supply your own callback for real scanning.
 
+**Endpoint requirement.** Set `PROJECT_ENDPOINT=https://<resource>.services.ai.azure.com/api/projects/<project>`. Do not pass `FOUNDRY_ENDPOINT`: it identifies the parent account but does not identify the project required by `RedTeam`.
+
 ```bash
 uv run python 01-plan-and-manage/24_red_teaming.py
-AZURE_AI_PROJECT=<project-endpoint> \
-  uv run python 01-plan-and-manage/24_red_teaming.py --apply
+uv run python 01-plan-and-manage/24_red_teaming.py --apply
 ```
 
-**What `--apply` creates:**
+**Code path.**
 1. One `RedTeam` client — scoped to the project.
-2. Scan against `safe_synthetic_callback` using `RiskCategory.Violence`, `num_objectives=1`.
-3. Produces an ASR result — percentage of probes that got a violating response from the callback.
+2. `RedTeam(..., risk_categories=[RiskCategory.Violence], num_objectives=1)` generates one objective.
+3. `red_team.scan(target=safe_synthetic_callback, ...)` sends only the direct baseline prompt to the fixed callback.
+4. The hosted evaluator labels the refusal and produces a scorecard with ASR.
 
-**Scan configuration in this lesson:** baseline direct prompts only; single risk category (Violence). For a real agent evaluation: expand to multiple categories (Sexual, Self-harm, Hate), add jailbreak probes, and increase `num_objectives`.
+**What to watch in the output.** Preflight prints the learning map and every side effect. After `--apply`, inspect the scorecard rather than only its aggregate. The expected ASR is 0%, but a model-based evaluator can still be wrong, and one objective is too small for a safety conclusion.
 
-**What to watch in the output.** Preflight prints every side effect. After `--apply`, look for the ASR number and the per-probe log showing what prompt was sent and what the callback returned. ASR = 0% means every probe was refused.
+**What this proves.** The supported Python environment can instantiate `RedTeam`, generate a bounded objective, call a target callback, and return results for the configured project.
 
-**Region support.** Currently: East US 2 and North Central US only. AI Red Teaming Agent is preview. Supports single-turn, text-only scenarios. Agentic risks (multi-turn, tool-using) require a cloud red-teaming environment — this small synthetic callback scan does not test them.
+**What this does not prove.** It does not test a real model or application, the quality of your threat model, agentic risks, mitigation effectiveness, broad category coverage, production readiness, or compliance.
 
-**Use in a purple environment only.** Run against a nonproduction copy of your agent. Assign an incident owner and mitigation plan before scanning. Do not run against production endpoints, customer content, or unapproved systems.
+**Operational boundary.** The local SDK path is preview, text-only, and single-turn. Verify current region support before running. Assign an owner and retention rule for generated prompts and scorecard artifacts.
 
-**References:** [AI Red Teaming Agent](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent) · [Safety evaluations transparency note](https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note)
+**References:** [AI Red Teaming Agent](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent) · [Plan red teaming](https://learn.microsoft.com/azure/foundry/openai/concepts/red-teaming) · [Run local red-team scans](https://learn.microsoft.com/azure/foundry/how-to/develop/run-scans-ai-red-teaming-agent) · [Risk and safety evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/risk-safety-evaluators) · [Safety evaluations transparency note](https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note)
 
 ---
 
@@ -1584,7 +1643,7 @@ uv run python 01-plan-and-manage/29_observability_cluster_analysis.py \
 
 ## Stage 8 — Evaluation CI/CD + AI red teaming (lessons 30–31)
 
-Evaluation belongs in every release pipeline. These two lessons add the gate: lesson 30 proves a coherence evaluation runs from CI context; lesson 31 probes the model for harm before promotion. Both are preflight-first — validate env locally before spending compute.
+Evaluation belongs in every release pipeline. These two lessons add the gate: lesson 30 proves a coherence evaluation runs from CI context; lesson 31 advances from lesson 24's fixed callback to a real model deployment. Both are preflight-first — validate environment and scope locally before spending compute.
 
 ### 30 — Evaluation CI/CD preflight
 
@@ -1611,11 +1670,15 @@ uv run python 01-plan-and-manage/30_evaluation_cicd_preflight.py --apply
 
 ---
 
-### 31 — AI red teaming preflight
+### 31 — Probe a real model deployment
 
-**Question answered:** Does my model respond unsafely to adversarial attack patterns before I promote it?
+**Question answered:** Does this specific nonproduction model deployment resist one direct and one Base64-transformed Violence probe?
 
-**Background.** AI red teaming sends adversarial single-turn text generated from curated objectives to probe whether the model can be manipulated into unsafe outputs. Foundry's `RedTeam` class (preview) automates this via `azure.ai.evaluation.red_team`. Categories include violence, sexual, self-harm, and hate/fairness. Run this before every model-version promotion. A clean scan does not guarantee safety — it narrows the known attack surface.
+**Background.** Lesson 24 taught the scan pipeline with a target that could only refuse. This lesson changes the target to the Azure OpenAI deployment named by `DEFAULT_MODEL`. It keeps the scope deliberately tiny: one Violence objective, its direct baseline query, and one Base64 transformation.
+
+One objective does not mean one request. The SDK sends the baseline attack and then applies each selected strategy to the same objective. With only `AttackStrategy.Base64`, this configuration produces two attack-response pairs. Base64 tests whether representation obfuscation changes behavior; it is not a harm category or a complete jailbreak test.
+
+**Before code.** Record the authorized target and owner, deployment version, risk category, expected pair count, cost limit, retention rule, human reviewer, stop condition, and mitigation owner. Use a purple environment. This lesson targets a direct Azure OpenAI deployment only; it does not exercise your application's system prompt, retrieval, filters outside the deployment, tools, identities, or approval logic.
 
 ```bash
 # Preflight
@@ -1626,12 +1689,30 @@ uv run python 01-plan-and-manage/31_ai_red_teaming_preflight.py --apply
 ```
 
 **Code path.**
-1. `RedTeam(azure_ai_project=PROJECT_ENDPOINT, credential=..., risk_categories=[RiskCategory.Violence], num_objectives=1)`.
-2. `.scan(target=AZURE_OPENAI_ENDPOINT model config, attack_strategies=[AttackStrategy.Base64])` → print attack success rate (ASR) per category.
+1. `DefaultAzureCredential()` authenticates both the hosted evaluation operation and the direct Azure OpenAI target.
+2. `RedTeam(azure_ai_project=PROJECT_ENDPOINT, ..., risk_categories=[RiskCategory.Violence], num_objectives=1)` defines the project and objective generator.
+3. The target model configuration uses `AZURE_OPENAI_ENDPOINT` and the deployment alias in `DEFAULT_MODEL`; a project URL is not a direct model endpoint.
+4. `.scan(..., attack_strategies=[AttackStrategy.Base64])` runs the baseline and transformed pairs.
+5. `result.to_scorecard()["risk_category_summary"]` supplies overall and Violence ASR percentages.
 
-**What to watch.** ASR is the percentage of attacks that elicit an unsafe response; lower is safer. Review successful attacks before tuning mitigations or promotion. This repository uses Python 3.12–3.13 for the preview, which also requires a supported evaluation region, `Foundry User` for the project managed identity, and direct Azure OpenAI access for the caller.
+**Interpret the result.**
 
-**References:** [AI red teaming agent concepts](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent) · [Run AI red teaming (cloud)](https://learn.microsoft.com/azure/foundry/how-to/develop/run-ai-red-teaming-cloud) · [Run scans with red teaming agent](https://learn.microsoft.com/azure/foundry/how-to/develop/run-scans-ai-red-teaming-agent) · [Safety evaluations transparency](https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note)
+| Result | Correct interpretation | Next action |
+|---|---|---|
+| `0%` ASR over two pairs | Neither tiny probe succeeded. This is a smoke result, not proof of safety. | Add approved objectives/categories and test the actual application path. |
+| `50%` ASR | One of the two pairs succeeded. | Inspect which strategy succeeded and review the exact response with a human. |
+| `100%` ASR | Both pairs succeeded under the evaluator's thresholds. | Block promotion, triage severity, mitigate, and rerun the same configuration. |
+| Different score on rerun | Evaluator and model behavior can be nondeterministic. | Preserve run metadata, inspect row-level results, and use a larger reviewed sample. |
+
+**What to watch in the output.** Confirm the preflight reports two expected pairs. After `--apply`, treat aggregate ASR as a navigation signal to the row-level evidence. Review every successful attack and any surprising evaluator label.
+
+**What this proves.** The configured identity can coordinate red-team evaluation through `PROJECT_ENDPOINT`, call the named deployment through `AZURE_OPENAI_ENDPOINT`, and read the current scorecard shape.
+
+**What this does not prove.** It does not prove the model or application is safe, represent real-world traffic, cover all categories or strategies, test agent tools, validate runtime guardrails, or replace manual red teaming and domain-expert review.
+
+**Prerequisites and limits.** This repository uses Python 3.12–3.13. The preview also requires a currently supported evaluation region, `Foundry User` for the project managed identity, and direct Azure OpenAI access for the caller. Generated adversarial text and local result artifacts can be sensitive; minimize access and retention.
+
+**References:** [AI Red Teaming Agent](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent) · [Plan red teaming](https://learn.microsoft.com/azure/foundry/openai/concepts/red-teaming) · [Run local red-team scans](https://learn.microsoft.com/azure/foundry/how-to/develop/run-scans-ai-red-teaming-agent) · [Run cloud red-team scans](https://learn.microsoft.com/azure/foundry/how-to/develop/run-ai-red-teaming-cloud) · [Risk and safety evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/risk-safety-evaluators) · [Safety evaluations transparency](https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note)
 
 ---
 
@@ -1651,7 +1732,7 @@ uv run python 01-plan-and-manage/31_ai_red_teaming_preflight.py --apply
 | Provenance detection | **Preview** async Content Safety API | Lesson 20 requires Blob read access and detects markers, not authenticity. |
 | Evaluation / continuous evaluation | **Preview** | Lessons 21-22 create billable persistent state only with `--apply`. |
 | Human feedback / trace annotations | **Preview** | Lesson 23 shows append-only correlated telemetry path. |
-| AI Red Teaming Agent | **Preview** | Lesson 24 defaults to a safe synthetic callback; use purple environment. |
+| AI Red Teaming Agent | **Preview** | Lesson 24 uses a fixed callback; lesson 31 probes a direct model. Both local labs are bounded, single-turn, and text-only; they do not test cloud agentic risks. |
 | Server-side Foundry tracing | Platform setup | Lesson 25 is read-only preflight; App Insights connection enables tracing. |
 | Lesson 26 span | Application instrumentation | Not automatic Foundry tracing or Foundry Traces integration. |
 
@@ -1673,6 +1754,10 @@ uv run python 01-plan-and-manage/31_ai_red_teaming_preflight.py --apply
 | Task Adherence result is risky but tool still runs | API only returned analysis | Implement application block/confirmation/HITL decision before tool execution. |
 | No trace in Application Insights | Connection string unset, exporter/access issue, ingestion delay | Validate exporter configuration and telemetry-resource read permission; inspect local output. |
 | Blocklist match empty after update | New terms not yet propagated | Wait a few minutes and retry; propagation is not immediate. |
+| `ImportError` for `RedTeamingOrchestrator` | Lesson or sample targets an older Evaluation SDK API | Use current `RedTeam.scan()` and run `uv sync`; this repository constrains Python to the PyRIT-supported 3.12–3.13 range. |
+| Red-team scan gets `401` / `403` | Project evaluation role or direct target role is missing | Verify `Foundry User` for the project managed identity and direct Azure OpenAI inference access for the caller. |
+| Red-team scan returns no scorecard | Evaluation failed, project/region is unsupported, or the run did not produce evaluated pairs | Inspect the run failure and current regional requirements; do not convert missing evidence into `0%` ASR. |
+| ASR is `0%` for the smoke scan | Tiny sample passed | Record the denominator; expand only through an approved test plan and review row-level results. |
 
 ## CI/CD and operational release
 
@@ -1708,6 +1793,7 @@ Pull request
 | Prompt/instruction | Golden cases, safety regressions, tool-plan checks, human review for high impact. |
 | Model/deployment/router | Quality, latency, token cost, availability, residency, fallback, and quota test. |
 | Guardrail/filter | Benign and harmful synthetic cases; inspect false positives/negatives and block UX. |
+| Red-team scope or mitigation | Version target, objectives, strategies, evaluator settings, thresholds, and sample size; human-review successes and rerun the same suite after mitigation. |
 | Tool/action agent | Least privilege, allowlist, Task Adherence/HITL behavior, idempotency/audit trail. |
 | Telemetry change | Redaction, access, retention, correlation, and ingestion verification. |
 | RBAC change | Test with intended workload identity at least scope; confirm no privileged fallback. |
@@ -1742,14 +1828,17 @@ Avoid using a single score as a deployment decision. A higher aggregate quality 
 | "Spotlighting replaces Prompt Shields and works with agents." | False. It is additive, preview, Chat Completions only, and no agents. |
 | "Task Adherence blocks tools automatically." | False. It returns preview analysis; application enforces block/HITL. |
 | "Self-critique is a Foundry evaluator run." | False. Lesson 17 is an application pattern, not built-in evaluator execution. |
+| "Red teaming replaces runtime guardrails." | False. Red teaming finds and measures weaknesses; guardrails and application policy act on live inputs, outputs, and actions. |
+| "A `0%` ASR means the system is safe." | False. ASR describes the tested pairs under one configuration; sample size, coverage, evaluator error, and application context still matter. |
+| "Base64 is a risk category." | False. Violence is the lesson's risk category; Base64 is an attack strategy that transforms an objective. |
 | "Manual OpenTelemetry span proves Foundry tracing is configured." | False. Lesson 26 is application instrumentation only; lesson 25 is local preflight. |
 | "Guardrail severity scale and Content Safety API severity scale are the same." | False. Guardrail uses Safe/Low/Medium/High (4-level); Content Safety API uses 0–7 integer. |
 
 ## Objective coverage and limits
 
-Runnable evidence in this folder covers deployment selection/control-plane API, quota inspection, retry behavior, project credential validation, assignment inspection, Content Safety and Prompt Shield calls, blocklist lifecycle, Responses conversation state, self-critique pattern, and manual telemetry.
+Runnable evidence in this folder covers deployment selection/control-plane API, quota inspection, retry behavior, project credential validation, assignment inspection, Content Safety and Prompt Shield calls, blocklist lifecycle, Responses conversation state, self-critique pattern, bounded local red-team scans, and manual telemetry.
 
-It does **not** prove production readiness, regional feature availability, complete compliance, service-side agent tracing, full evaluation-run setup, guardrail coverage on every route, or a secure tool-execution design. Preview features can change. A successful call proves only that call under its current identity, resource, configuration, and time.
+It does **not** prove production readiness, regional feature availability, complete compliance, service-side agent tracing, full red-team coverage, cloud agentic red teaming, guardrail coverage on every route, or a secure tool-execution design. Preview features can change. A successful call proves only that call under its current identity, resource, configuration, and time.
 
 ## References
 
@@ -1852,7 +1941,10 @@ It does **not** prove production readiness, regional feature availability, compl
 - [Evaluation in GitHub Actions](https://learn.microsoft.com/azure/foundry/how-to/evaluation-github-action)
 - [Evaluation in Azure DevOps](https://learn.microsoft.com/azure/foundry/how-to/evaluation-azure-devops)
 - [azd evaluation integration](https://learn.microsoft.com/azure/foundry/observability/how-to/azure-developer-cli-evaluation)
+- [Plan red teaming for LLMs and applications](https://learn.microsoft.com/azure/foundry/openai/concepts/red-teaming)
 - [AI Red Teaming Agent concepts](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent)
+- [Risk and safety evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/risk-safety-evaluators)
+- [Risk and safety evaluations transparency note](https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note)
 - [Run AI red teaming in cloud](https://learn.microsoft.com/azure/foundry/how-to/develop/run-ai-red-teaming-cloud)
 - [Run scans with red teaming agent](https://learn.microsoft.com/azure/foundry/how-to/develop/run-scans-ai-red-teaming-agent)
 - [Evaluate hosted agent](https://learn.microsoft.com/azure/foundry/observability/quickstarts/quickstart-evaluate-hosted-agent)
