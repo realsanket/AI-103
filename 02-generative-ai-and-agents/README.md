@@ -170,7 +170,7 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | 23 | Model tokens; App Insights spans if connection string set |
 | 24 | Local only; `--check-connection` calls project telemetry API |
 | 25 (`--apply`) | Temporary agent version (deleted in `finally`) |
-| 26 (`--apply`) | Toolbox version (persists; needs explicit `--delete-version`) |
+| 26 (`--apply`, `--invoke`) | Toolbox version persists; invocation uses model tokens and can call tools with their own cost/data boundaries |
 | 27 (`--apply`) | Temporary agent version (deleted in `finally`) |
 | 28–30 | Local/read-only; contained `deploy.py --apply` deploys to Azure |
 | 31 (`--apply`) | Embedding tokens |
@@ -253,7 +253,7 @@ Need previous turns only inside one interaction?
 | 23 | `23_langchain_tracing.py` | LangChain agent with OpenTelemetry export | Model tokens; optional App Insights spans |
 | 24 | `24_production_observability_preflight.py` | Observability config guide and preflight | **Read-only**; `--check-connection` calls telemetry API |
 | 25 | `25_mcp_tool_preflight.py` | MCP tool preflight; `--apply --approve` for reviewed read calls | **Read-only** until `--apply` |
-| 26 | `26_toolbox_tool_catalog_preflight.py` | Toolbox preflight; `--apply` publishes version | **Read-only** until `--apply` |
+| 26 | `26_toolbox_tool_catalog_preflight.py` | Publish a Toolbox version, connect through MCP, and run a local agent | **Read-only** until `--apply` or `--invoke` |
 | 27 | `27_agent_azure_ai_search_preflight.py` | AI Search agent preflight; `--apply` tests integration | **Read-only** until `--apply` |
 | 28 | `28_hosted_agent_responses.py` | Validate Responses hosted-agent runtime contract | Local only |
 | 29 | `29_hosted_agent_a2a.py` | Verify A2A boundary — Responses ≠ A2A | Local only |
@@ -972,29 +972,101 @@ uv run python 02-generative-ai-and-agents/25_mcp_tool_preflight.py --apply --app
 
 ### 26 — Toolbox and tool catalog
 
-**Question answered:** How does Foundry Toolbox govern a reusable, versioned tool collection?
+**Question answered:** How do I publish a governed tool collection and call it from an Agent Framework agent?
 
-**Background.** Foundry Toolbox packages a curated tool collection behind one versioned MCP-compatible endpoint. It centralizes connection management, governance, and discovery. `ToolSearchToolboxTool` helps the model discover relevant tools from a large catalog without sending every definition as tokens — it does NOT validate tool authorization. Toolbox is NOT an arbitrary MCP server you operate; it is Foundry-managed.
+**Background.** Foundry Toolbox packages a curated tool collection behind one MCP-compatible endpoint. Teams build and version tools centrally; MCP-compatible runtimes discover and invoke them without embedding every backend integration in agent code. Toolbox centralizes connection management, authentication, governance, observability, and version rollout, but it does not authorize a business action merely because a tool schema exists.
+
+```text
+Developer identity
+  → create immutable Toolbox version
+  → test version-specific MCP endpoint
+  → review tools, auth, data flow, and results
+  → promote a tested version as default
+
+Local or hosted agent
+  → FoundryChatClient calls DEFAULT_MODEL
+  → MCPStreamableHTTPTool discovers Toolbox tools
+  → Entra token authenticates each MCP request
+  → Toolbox selects its configured connection/identity for the downstream tool
+  → tool result returns to the model
+```
+
+#### Build, discover, consume, and govern
+
+| Lifecycle area | Toolbox responsibility | Application responsibility |
+|---|---|---|
+| Build | Store curated tool definitions and immutable versions. | Review contracts, owners, descriptions, schemas, and downstream effects. |
+| Discover | Expose tools through MCP; Tool Search can expose `tool_search` and `call_tool` instead of every definition. | Give the model enough intent and context to select correctly; do not assume selection is authorization. |
+| Consume | Offer one MCP-compatible endpoint to Agent Framework and other MCP clients. | Authenticate to the endpoint, constrain prompts, validate results, and close sessions. |
+| Govern | Centralize connections, credential handling, guardrails, versioning, and telemetry. | Enforce tenant/business policy, human approval, idempotency, rate limits, and incident response. |
+
+`ToolSearchToolboxTool` reduces context cost for larger catalogs. It does not inspect whether a caller is allowed to perform the discovered operation and it does not make write tools safe.
+
+#### Endpoint contract
+
+| Endpoint | Shape | Use |
+|---|---|---|
+| Developer | `{PROJECT_ENDPOINT}/toolboxes/{name}/versions/{version}/mcp?api-version=v1` | Test one immutable version before promotion. |
+| Consumer | `{PROJECT_ENDPOINT}/toolboxes/{name}/mcp?api-version=v1` | Follow the toolbox's current default version in a reviewed deployed consumer. |
+
+The lesson deliberately invokes the **developer endpoint**. This prevents a default-version change from silently changing the lab while you test. The first version becomes default automatically; later versions must be tested and promoted through the supported management workflow.
+
+#### Authentication layers
+
+1. `DefaultAzureCredential` identifies the local developer or deployed workload.
+2. `get_bearer_token_provider(..., "https://ai.azure.com/.default")` acquires the Foundry data-plane token.
+3. `_ToolboxAuth` requests a fresh token for every MCP HTTP request instead of caching a raw secret in source.
+4. Toolbox applies the connection/authentication configured for each downstream tool. That identity can differ from the identity connecting to Toolbox.
+
+Grant `Foundry User` at the project to identities that manage or consume the toolbox as required by the scenario. Downstream systems still need least-privilege authorization for project managed identity, agent identity, user passthrough, OAuth, or connection-based authentication.
+
+The current Agent Framework import is `from agent_framework.foundry import FoundryChatClient`. Current `api-version=v1` Toolbox examples do not send the older `Foundry-Features: Toolboxes=V1Preview` header; use the current SDK/docs contract instead of copying a stale preview header.
 
 ```bash
 # No-cloud preflight:
 uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py
+
 # Publish version (persists — record the printed version):
 uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py --apply
+
+# Test an existing immutable version with the local Agent Framework agent:
+uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py \
+  --invoke --toolbox-version 1 \
+  --prompt "What tools are available? Explain what each one is for."
+
+# Create a version and immediately test that returned version:
+uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py \
+  --apply --invoke \
+  --prompt "Find current public information about Microsoft Foundry Toolbox."
+
 # Delete version (only after checking consumers):
 uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py --apply --delete-version <version>
 ```
 
 **Code path.**
-1. `catalog_tools()` → `[WebSearchToolboxTool(…), ToolSearchToolboxTool(…)]`
-2. `--apply`: `client.toolboxes.create_version(name=TOOLBOX_NAME, tools=catalog_tools())` → prints version
-3. `--apply --delete-version`: `client.toolboxes.delete_version(name=…, version=…)` → prints deletion confirmation
+1. `catalog_tools()` returns named `WebSearchToolboxTool` plus `ToolSearchToolboxTool`.
+2. `--apply` calls `client.toolboxes.create_version(...)` and prints the immutable version plus both endpoint shapes.
+3. `toolbox_mcp_url(..., version)` constructs the developer endpoint with required `api-version=v1`.
+4. `_ToolboxAuth` injects a fresh `https://ai.azure.com/.default` bearer token into each MCP request.
+5. `MCPStreamableHTTPTool(..., load_prompts=False)` discovers the Toolbox tools without loading MCP prompt templates.
+6. `FoundryChatClient(project_endpoint=PROJECT_ENDPOINT, model=DEFAULT_MODEL)` creates an ephemeral local agent with the MCP tool.
+7. `await agent.run(prompt)` lets the model discover and call relevant tools, then prints `response.text`.
+8. `finally` closes the MCP session, HTTP client, and credential even when invocation fails.
+9. `--apply --delete-version` calls `client.toolboxes.delete_version(...)`; it cannot be combined with invocation.
 
-**What to watch in the output.** Version number from `create_version`. Record it before cleanup — deletion requires the exact version string.
+**What to watch in the output.** Publishing prints the version-specific developer endpoint and default consumer endpoint. Invocation prints the exact endpoint and deployment before the response. A response describing tools proves the MCP connection and model loop; it does not prove every downstream tool can authenticate or safely execute.
 
-**Exam cues.** Toolbox versions persist. Deleting a referenced version breaks consumers. Pin or promote tested versions in downstream agents before removing old ones.
+**Safety and cost boundary.**
 
-**References:** [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview) · [Toolbox how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox) · [Tool catalog](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-catalog)
+- `--invoke` is a real model request. The model might call Web Search, which can send approved prompt content outside your Foundry data boundary and incur tool costs.
+- Treat a model tool request as a proposal. Validate caller, tenant, arguments, business rules, timeout, idempotency, and approval before consequential actions.
+- Do not send secrets, customer content, privileged instructions, or regulated data merely to test discovery.
+- Version deletion can break agents pinned to that version. Default promotion can change every consumer endpoint user without an agent redeployment.
+- A local Agent Framework agent is not a persisted prompt agent or deployed hosted agent. Production runtime identity and network access need separate validation.
+
+**Exam cues.** Toolbox is Foundry-homed but MCP-compatible, so it is not limited to Foundry-hosted agents. Toolbox versions are immutable. Developer endpoints pin a version; consumer endpoints follow default. MCP authentication to Toolbox is separate from each downstream tool's authentication. Tool Search improves discovery/context use, not authorization.
+
+**References:** [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview) · [Toolbox how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox) · [Toolbox quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/quickstart-toolbox-agent) · [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication) · [Tool Search](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-search) · [Tool catalog](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-catalog) · [Agent Framework Responses quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api)
 
 ---
 
@@ -1429,7 +1501,7 @@ Commit code, prompts, schemas, infrastructure, evaluation fixtures
 
 ## Objective coverage and limits
 
-Domain 2 covers: direct Responses API calls; built-in managed tools (web search, code interpreter, file search, structured output); Prompt Agent creation, invocation, function tools, OpenAPI tools, conversation threads, Foundry Memory, and workflow preview; local Microsoft Agent Framework, multi-agent routing, LangChain agents, and LangGraph RAG; local SDK evaluation, cloud evaluation runs, LangChain tracing, and production observability preflight; MCP tool integration with approval, Toolbox versioning, and Azure AI Search agent integration; and Responses hosted-agent contract validation, A2A boundary verification, and OIDC CI/CD reference.
+Domain 2 covers: direct Responses API calls; built-in managed tools (web search, code interpreter, file search, structured output); Prompt Agent creation, invocation, function tools, OpenAPI tools, conversation threads, Foundry Memory, and workflow preview; local Microsoft Agent Framework, multi-agent routing, LangChain agents, and LangGraph RAG; local SDK evaluation, cloud evaluation runs, LangChain tracing, and production observability preflight; MCP tool integration with approval, Toolbox versioning and local Agent Framework consumption, and Azure AI Search agent integration; and Responses hosted-agent contract validation, A2A boundary verification, and OIDC CI/CD reference.
 
 It does **not** fully implement: remote MCP OAuth/Entra setup, credential rotation, or server lifecycle; incoming A2A endpoint deployment, delegated-identity policy, or task lifecycle; Azure AI Search ingestion, ACL/security trimming, reranking, or index lifecycle; hosted-agent private networking, supply-chain policy, scaling, or incident operations; cloud-evaluation completion polling, continuous evaluation, or safety/RAG evaluator selection; human approval workflows for write tools, idempotent writes, or durable queues.
 
@@ -1495,6 +1567,11 @@ It does **not** fully implement: remote MCP OAuth/Entra setup, credential rotati
 - [MCP authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication)
 - [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview)
 - [Toolbox how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox)
+- [Toolbox quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/quickstart-toolbox-agent)
+- [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication)
+- [Tool Search](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-search)
+- [Tool catalog](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-catalog)
+- [Agent Framework Responses quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api)
 - [Azure AI Search tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/ai-search)
 - [AI Search agentic retrieval index](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-create-index)
 
