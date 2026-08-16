@@ -171,7 +171,7 @@ For a managed identity, enable or attach the identity, then assign roles to its 
 | 28 | Local JSON validation only; no cloud call. |
 | 29 | Live KQL read on Log Analytics; needs `Log Analytics Reader` on workspace. |
 | 30 | Local preflight + optional cloud eval; `--apply` calls CoherenceEvaluator against one sample. |
-| 31 | Local preflight + optional red-team probe; `--apply` runs 1-attack scan (billed compute). |
+| 31 | Local preflight + optional red-team probe; `--apply` runs one objective with baseline and Base64 attacks (billed compute). |
 
 Provisioned deployments reserve PTU capacity and incur hourly capacity cost while present, including idle time. A PTU is reserved throughput capacity, **not a prepaid token bucket** and not per-token billing. PTU quota approval does not guarantee capacity in every requested region.
 
@@ -266,7 +266,7 @@ A deployment `capacity` value is not a universal TPM conversion. Standard quota 
 | 28 | [Guardrail policy preflight](28_guardrail_policy_preflight.py) | Validate a Control Plane compliance policy JSON. | Local only; portal creation manual. |
 | 29 | [Cluster analysis reader](29_observability_cluster_analysis.py) | KQL summary of GenAI dependencies from Log Analytics. | Live read; `--apply --workspace-id`. |
 | 30 | [Evaluation CI/CD preflight](30_evaluation_cicd_preflight.py) | Validate env + run one-sample coherence eval; print CI pipeline patterns. | `--apply` submits cloud eval job. |
-| 31 | [AI red teaming preflight](31_ai_red_teaming_preflight.py) | Run adversarial 1-attack probe; print risk scores per harm category. | `--apply` billable; 1 attack × 1 category. |
+| 31 | [AI red teaming preflight](31_ai_red_teaming_preflight.py) | Run a one-objective adversarial probe; print attack success rates. | `--apply` billable; baseline + Base64 for Violence. |
 
 ---
 
@@ -1613,23 +1613,23 @@ uv run python 01-plan-and-manage/30_evaluation_cicd_preflight.py --apply
 
 ### 31 — AI red teaming preflight
 
-**Question answered:** Does my model respond unsafely to adversarial adversarial attack patterns before I promote it?
+**Question answered:** Does my model respond unsafely to adversarial attack patterns before I promote it?
 
-**Background.** AI red teaming sends adversarial multi-turn prompts (not real harmful content) to probe whether the model can be manipulated into unsafe outputs. Foundry's `RedTeamingOrchestrator` (preview) automates this via `azure.ai.evaluation.red_team`. Categories include violence, sexual, self-harm, and hate/fairness. Run this before every model-version promotion. A clean scan does not guarantee safety — it narrows the known attack surface.
+**Background.** AI red teaming sends adversarial single-turn text generated from curated objectives to probe whether the model can be manipulated into unsafe outputs. Foundry's `RedTeam` class (preview) automates this via `azure.ai.evaluation.red_team`. Categories include violence, sexual, self-harm, and hate/fairness. Run this before every model-version promotion. A clean scan does not guarantee safety — it narrows the known attack surface.
 
 ```bash
 # Preflight
 uv run python 01-plan-and-manage/31_ai_red_teaming_preflight.py
 
-# Run minimal probe (1 attack × 1 category)
+# Run one Violence objective with baseline and Base64 attacks
 uv run python 01-plan-and-manage/31_ai_red_teaming_preflight.py --apply
 ```
 
 **Code path.**
-1. `RedTeamingOrchestrator(azure_ai_project=..., credential=..., target=model_config, attack_strategies=[BASE64], risk_categories=[VIOLENCE], num_objectives=1)`.
-2. `.orchestrate()` → print `risk_scores` per category.
+1. `RedTeam(azure_ai_project=PROJECT_ENDPOINT, credential=..., risk_categories=[RiskCategory.Violence], num_objectives=1)`.
+2. `.scan(target=AZURE_OPENAI_ENDPOINT model config, attack_strategies=[AttackStrategy.Base64])` → print attack success rate (ASR) per category.
 
-**What to watch.** `risk_score` 0.0 = no harm detected, 1.0 = harm surfaced. High score = content filter tuning needed before promotion.
+**What to watch.** ASR is the percentage of attacks that elicit an unsafe response; lower is safer. Review successful attacks before tuning mitigations or promotion. This repository uses Python 3.12–3.13 for the preview, which also requires a supported evaluation region, `Foundry User` for the project managed identity, and direct Azure OpenAI access for the caller.
 
 **References:** [AI red teaming agent concepts](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent) · [Run AI red teaming (cloud)](https://learn.microsoft.com/azure/foundry/how-to/develop/run-ai-red-teaming-cloud) · [Run scans with red teaming agent](https://learn.microsoft.com/azure/foundry/how-to/develop/run-scans-ai-red-teaming-agent) · [Safety evaluations transparency](https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note)
 

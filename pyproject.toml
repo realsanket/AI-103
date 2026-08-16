@@ -2,7 +2,7 @@
 name = "ai-103"
 version = "0.1.0"
 description = "AI-103 exam prep — runnable lessons for all 5 exam domains"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     # Core Azure identity + config
     "azure-identity>=1.19.0",

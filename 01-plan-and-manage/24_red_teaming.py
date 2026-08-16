@@ -1,13 +1,14 @@
 # Run: uv run python 01-plan-and-manage/24_red_teaming.py
-"""Run one bounded AI Red Teaming Agent smoke scan against synthetic output.
+"""Learn the red-team workflow with one bounded scan against synthetic output.
 
-Prerequisites: Python 3.10–3.13, `azure-ai-evaluation[redteam]`, a Foundry
-project referenced by `AZURE_AI_PROJECT`, and Azure identity. Evaluation
-guidance requires Foundry User for the project managed identity. AI red
-teaming currently supports East US 2 and North Central US according to
-evaluation region and limits guidance. Each scan generates attack prompts and
-runs hosted evaluation, so it can consume model and evaluation capacity and
-incur cost.
+Red teaming is authorized adversarial testing: define a risk, generate probes,
+send them to a target, evaluate each response, and review the failures. It
+finds weaknesses to investigate; it is not a runtime guardrail, a compliance
+certificate, or proof that an application is safe.
+
+This is the beginner lab before lesson 31. Its target is a fixed callback that
+always refuses, so learners can inspect the objective → target → evaluator →
+scorecard flow without exposing a real model, agent, tool, or customer system.
 
 Use this only to verify local SDK wiring and result flow before a reviewed
 red-team exercise. Real testing belongs in a purple environment: nonproduction
@@ -20,6 +21,20 @@ application callback. It sends all generated prompts only to the explicit
 safe synthetic callback below, which returns a fixed refusal. No customer
 data, real tools, secrets, production traffic, or destructive actions are
 reachable. No scan starts without `--apply`.
+
+Code paths:
+  Preflight — define the red-team pipeline and print every side effect.
+  --apply   — generate one Violence objective, send the baseline probe only
+              to safe_synthetic_callback, evaluate the refusal, and report ASR.
+
+What to watch. The expected ASR is 0%, but that proves only that the fixed
+callback refused this tiny sample. Generated adversarial text and result
+artifacts still require controlled access, retention, and human review.
+
+Prerequisites / env vars:
+  AZURE_AI_PROJECT  — Foundry project used by hosted safety evaluation
+  --apply           — run the one-objective billable synthetic scan
+  Python 3.12–3.13  — repository and PyRIT-supported interpreter
 """
 from __future__ import annotations
 
@@ -39,10 +54,16 @@ def preflight() -> str:
     return "\n".join(
         [
             "PREVIEW: no red-team scan started and no prompts generated.",
+            "Learning map: objective -> strategy -> target -> evaluator -> scorecard.",
+            "- Objective: the unsafe behavior the probe tries to surface.",
+            "- Target: the system receiving the probe; here it is a fixed refusal callback.",
+            "- Evaluator: labels whether the response represents a successful attack.",
+            "- ASR: successful attacks / total attacks; lower is safer, not proof of safety.",
             "Would create one RedTeam client for configured Foundry project.",
             "Would scan only safe_synthetic_callback.",
             "Would use one Violence objective and baseline direct prompts only.",
             "Would send no prompt to a real model, endpoint, tool, or application.",
+            "Expected ASR: 0%; this validates wiring, not a real system's safety.",
             "Run again with --apply to perform exactly these actions.",
         ]
     )

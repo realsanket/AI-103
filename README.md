@@ -66,7 +66,7 @@ Do not exchange these endpoints:
 
 ### Install and authenticate
 
-Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/), and [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli).
+Prerequisites: Python 3.12 or 3.13, [uv](https://docs.astral.sh/uv/), and [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli). Python 3.14 isn't supported because the red-team dependency currently requires Python earlier than 3.14.
 
 ```bash
 uv sync

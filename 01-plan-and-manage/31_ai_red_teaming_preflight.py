@@ -1,35 +1,36 @@
 # Run: uv run python 01-plan-and-manage/31_ai_red_teaming_preflight.py [--apply]
-"""Configure and run an AI red-teaming scan against a Foundry-hosted model.
+"""Configure and run an AI red-teaming scan against an Azure OpenAI deployment.
 
 AI red teaming probes model endpoints with adversarial prompts to surface
-safety risks before production deployment. Foundry's red-teaming orchestrator
-sends multi-turn attacks and scores responses across harm categories. Run this
-before promoting a model to production — a clean scan is not a guarantee, but
-an unscanned model has unknown safety posture.
+safety risks before production deployment. The AI Red Teaming Agent sends
+single-turn attacks and calculates attack success rates across harm categories.
+Run this before promoting a model to production — a clean scan is not a
+guarantee, but an unscanned model has unknown safety posture.
 
 Default preflight checks env vars and prints the scan scope. --apply uses
-azure.ai.evaluation.red_team.RedTeamingOrchestrator to run a minimal probe
-(1 attack, violence category) and prints the risk scores.
+azure.ai.evaluation.red_team.RedTeam to run a minimal probe (one Violence
+objective with baseline and Base64 attacks) and prints attack success rates.
 
 Code path:
-  preflight: validate PROJECT_ENDPOINT + DEFAULT_MODEL + AZURE_SUBSCRIPTION_ID.
-  --apply: RedTeamingOrchestrator(azure_ai_project=..., credential=...,
-  target=model_config, attack_strategies=[BASE64], risk_categories=[VIOLENCE],
-  num_objectives=1).orchestrate() → print risk_scores per category.
+  preflight: validate PROJECT_ENDPOINT + AZURE_OPENAI_ENDPOINT + DEFAULT_MODEL.
+  --apply: RedTeam(azure_ai_project=..., credential=...,
+  risk_categories=[Violence], num_objectives=1).scan(
+  target=model_config, attack_strategies=[Base64]) → print ASR per category.
 
-What to watch. risk_score per category: 0.0 = no harm detected, 1.0 = harm.
-High scores = content filter tuning needed before promotion.
+What to watch. Attack success rate (ASR) is a percentage; lower is safer.
+Review every successful attack before tuning mitigations or promotion.
 
 Prerequisites / env vars:
-  PROJECT_ENDPOINT          — Foundry project HTTPS URL
-  DEFAULT_MODEL             — deployed chat model to probe
-  AZURE_SUBSCRIPTION_ID     — subscription for scan resource
-  AZURE_RESOURCE_GROUP      — resource group (optional)
-  AZURE_PROJECT_NAME        — project name (optional)
-  --apply                   — run minimal red-team probe
+  PROJECT_ENDPOINT       — Foundry project HTTPS URL for hosted evaluation
+  AZURE_OPENAI_ENDPOINT  — direct Azure OpenAI target endpoint
+  DEFAULT_MODEL          — deployed chat model to probe
+  Python 3.12–3.13       — repository and PyRIT-supported interpreter
+  --apply                — run minimal red-team probe
 """
 import argparse
-import os
+import asyncio
+import sys
+from collections.abc import Mapping
 
 from _shared.config import settings
 
@@ -38,9 +39,15 @@ def preflight() -> None:
     current = settings()
     checks = {
         "PROJECT_ENDPOINT configured": bool(current.project_endpoint),
+        "AZURE_OPENAI_ENDPOINT configured": bool(current.azure_openai_endpoint),
         "DEFAULT_MODEL configured": bool(current.default_model),
-        "AZURE_SUBSCRIPTION_ID set": bool(os.environ.get("AZURE_SUBSCRIPTION_ID")),
         "PROJECT_ENDPOINT is HTTPS": (current.project_endpoint or "").startswith("https://"),
+        "AZURE_OPENAI_ENDPOINT is HTTPS": (
+            current.azure_openai_endpoint or ""
+        ).startswith("https://"),
+        "Python version is 3.12 or 3.13": (3, 12)
+        <= sys.version_info[:2]
+        <= (3, 13),
     }
     print("AI red teaming preflight:")
     all_pass = True
@@ -51,44 +58,68 @@ def preflight() -> None:
         print(f"  [{status}] {check}")
     print("Overall: PASS" if all_pass else "Overall: FAIL")
     print()
-    print("Scan scope: adversarial multi-turn conversations (not real harmful content).")
-    print("Categories: violence, sexual, self-harm, hate/fairness.")
-    print("Attack strategies: direct, indirect, BASE64, role-play, and more.")
-    print("Run --apply to execute a minimal 1-attack probe.")
+    print("Scan scope: adversarial single-turn text generated from curated objectives.")
+    print("Apply scope: one Violence objective with baseline and Base64 attacks.")
+    print("Run --apply to execute this minimal billable probe.")
 
 
-def apply() -> None:
-    from azure.ai.evaluation.red_team import AttackStrategy, RedTeamingOrchestrator, RiskCategory
+def _attack_success_rates(scorecard: object) -> dict[str, float]:
+    if not isinstance(scorecard, Mapping):
+        raise RuntimeError("Red-team scan returned no scorecard.")
+    summaries = scorecard.get("risk_category_summary")
+    if not isinstance(summaries, list) or not summaries:
+        raise RuntimeError("Red-team scorecard has no risk-category summary.")
+    summary = summaries[0]
+    if not isinstance(summary, Mapping):
+        raise RuntimeError("Red-team risk-category summary is invalid.")
+    rates = {
+        key.removesuffix("_asr"): float(value)
+        for key, value in summary.items()
+        if isinstance(key, str)
+        and key.endswith("_asr")
+        and isinstance(value, (int, float))
+    }
+    if not rates:
+        raise RuntimeError("Red-team scorecard has no attack success rates.")
+    return rates
+
+
+async def run_scan() -> None:
+    from azure.ai.evaluation.red_team import AttackStrategy, RedTeam, RiskCategory
     from azure.identity import DefaultAzureCredential
 
     current = settings()
-    endpoint = current.require("PROJECT_ENDPOINT")
+    project_endpoint = current.require("PROJECT_ENDPOINT")
+    azure_openai_endpoint = current.require("AZURE_OPENAI_ENDPOINT")
     model = current.require("DEFAULT_MODEL")
+    credential = DefaultAzureCredential()
 
     target_config = {
-        "azure_endpoint": endpoint,
+        "azure_endpoint": azure_openai_endpoint,
         "azure_deployment": model,
-        "api_version": "2024-10-21",
-    }
-    azure_ai_project = {
-        "subscription_id": os.environ.get("AZURE_SUBSCRIPTION_ID", ""),
-        "resource_group_name": os.environ.get("AZURE_RESOURCE_GROUP", ""),
-        "project_name": os.environ.get("AZURE_PROJECT_NAME", ""),
+        "credential": credential,
     }
 
-    orchestrator = RedTeamingOrchestrator(
-        azure_ai_project=azure_ai_project,
-        credential=DefaultAzureCredential(),
-        target=target_config,
-        attack_strategies=[AttackStrategy.BASE64],
-        risk_categories=[RiskCategory.VIOLENCE],
+    red_team = RedTeam(
+        azure_ai_project=project_endpoint,
+        credential=credential,
+        risk_categories=[RiskCategory.Violence],
         num_objectives=1,
     )
-    result = orchestrator.orchestrate()
-    print("Red team scan results:")
-    for category, score in (result.get("risk_scores") or {}).items():
-        print(f"  {category}: {score:.3f}")
+    result = await red_team.scan(
+        target=target_config,
+        scan_name="ai-103-minimal-red-team-probe",
+        attack_strategies=[AttackStrategy.Base64],
+    )
+    rates = _attack_success_rates(result.to_scorecard())
+    print("Red team scan results (attack success rate; lower is safer):")
+    for category, rate in rates.items():
+        print(f"  {category.replace('_', ' ')}: {rate:.2f}%")
     print("Scan complete.")
+
+
+def apply() -> None:
+    asyncio.run(run_scan())
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -98,6 +129,8 @@ def main(argv: list[str] | None = None) -> None:
     if not args.apply:
         preflight()
         return
+    if not (3, 12) <= sys.version_info[:2] <= (3, 13):
+        parser.error("This repository's AI red-team lesson requires Python 3.12 or 3.13.")
     apply()
 
 
