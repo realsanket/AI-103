@@ -36,52 +36,42 @@ _TOOL_DEFINITIONS = [
 
 
 def agent_conversation() -> dict:
-    """Return evaluator-format messages for one complete, redacted agent turn."""
+    """Return evaluator-format data for one complete, redacted agent turn.
+
+    TaskAdherenceEvaluator and ToolCallAccuracyEvaluator expect:
+      query      — plain string (the user's question)
+      response   — plain string (full agent response text including tool call narrative)
+      tool_calls — list of dicts in OpenAI tool_call format
+      tool_definitions — list of function definition dicts
+    Passing query as a list of messages causes 'Conversation history could not be
+    parsed' fallback and degrades evaluator accuracy.
+    """
     return {
-        "query": [
-            {
-                "role": "system",
-                "content": "You are a Northwind support agent. Use tools for policy facts.",
-            },
-            {"role": "user", "content": _QUERY},
-        ],
-        "response": [
-            {
-                "role": "assistant",
-                "content": [{"type": "text", "text": "I will check the current policy."}],
-            },
-            {"role": "assistant", "content": [_TOOL_CALL]},
-            {
-                "role": "tool",
-                "tool_call_id": _TOOL_CALL["tool_call_id"],
-                "content": [
-                    {
-                        "type": "tool_result",
-                        "tool_result": "Pro plans can be refunded within 30 days of charge.",
-                    }
-                ],
-            },
-            {
-                "role": "assistant",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Pro plans can be refunded within 30 days of the charge date.",
-                    }
-                ],
-            },
-        ],
+        "query": _QUERY,
+        "response": (
+            "I will check the current policy.\n"
+            "[TOOL_CALL] get_refund_policy()\n"
+            "[TOOL_RESULT] Pro plans can be refunded within 30 days of charge.\n"
+            "Pro plans can be refunded within 30 days of the charge date."
+        ),
         "tool_calls": [_TOOL_CALL],
         "tool_definitions": _TOOL_DEFINITIONS,
     }
 
 
 def model_config() -> dict[str, str]:
-    """Return Azure OpenAI evaluator configuration without reading secrets."""
+    """Return Azure OpenAI evaluator configuration without reading secrets.
+
+    azure.ai.evaluation's prompty layer sends max_tokens which gpt-5 family
+    models reject (they require max_completion_tokens). Use a gpt-4.x judge
+    deployment that still accepts max_tokens until the SDK is updated.
+    """
     current = settings()
+    # gpt-4.1 accepts max_tokens; gpt-5.x rejects it (SDK bug — prompty layer hardcodes max_tokens)
+    judge = "gpt-4.1"
     return {
         "azure_endpoint": current.require("AZURE_OPENAI_ENDPOINT"),
-        "azure_deployment": current.default_model,
+        "azure_deployment": judge,
         "api_version": "2024-10-21",
     }
 
