@@ -1000,7 +1000,81 @@ Local or hosted agent
 | Consume | Offer one MCP-compatible endpoint to Agent Framework and other MCP clients. | Authenticate to the endpoint, constrain prompts, validate results, and close sessions. |
 | Govern | Centralize connections, credential handling, guardrails, versioning, and telemetry. | Enforce tenant/business policy, human approval, idempotency, rate limits, and incident response. |
 
-`ToolSearchToolboxTool` reduces context cost for larger catalogs. It does not inspect whether a caller is allowed to perform the discovered operation and it does not make write tools safe.
+#### Resource model
+
+| Resource | What it represents | Boundary to remember |
+|---|---|---|
+| **Toolbox** | Named project resource that groups reusable capabilities behind one MCP-compatible endpoint. | It is not the agent and does not decide whether a business action is authorized. |
+| **Toolbox version** | Immutable snapshot of tool and skill configuration. | A change creates a new version; do not mutate assumptions about an existing version. |
+| **Default version** | Version served by the unversioned consumer endpoint. | Changing it can alter every consumer without redeploying agent code. |
+| **Tool definition** | Contract that describes a callable capability and its configuration. | Good schema/description improves selection but does not validate arguments or outcomes. |
+| **Project connection** | Foundry-managed reference to downstream endpoint and authentication configuration. | Connection authentication is separate from agent-to-Toolbox authentication. |
+| **Skill (preview)** | Versioned reusable instructions/workflow describing how to perform a task. | A skill describes **how**; a tool provides **what can be called**. |
+| **Tool/skill catalog** | Curated discovery source for approved reusable capabilities. | Catalog inclusion improves discovery and reuse; it is not runtime permission. |
+| **MCP endpoint** | JSON-RPC tool discovery/invocation surface consumed by compatible runtimes. | The caller needs a Foundry token and still inherits every downstream data boundary. |
+
+#### When to use Toolbox
+
+| Situation | Starting choice | Why |
+|---|---|---|
+| Several agents need the same governed tools | Toolbox | Define/version once, then reuse through one endpoint. |
+| Tool credentials and policy must be managed centrally | Toolbox + project connections | Keeps downstream secrets/auth configuration out of agent source. |
+| A large catalog would consume too many prompt tokens | Toolbox + Tool Search (preview) | Exposes discovery/call meta-tools rather than every full definition. |
+| One local Python function belongs to one application | Function tool | Toolbox does not host arbitrary client-side Python functions. |
+| One agent needs a single direct built-in tool | Direct integration can be simpler | Avoid a management layer that adds no reuse/governance value. |
+| Another agent performs a delegated task | A2A, optionally packaged in Toolbox | Delegation has identity/task lifecycle beyond a normal function call. |
+| Production action needs human approval | Toolbox plus application/agent approval policy | Toolbox availability alone must never authorize the consequence. |
+
+#### What can go in a Toolbox?
+
+This is the current documentation map, not a claim that every tool works in every region, model, network mode, or tenant. Verify the linked tool documentation before adding it.
+
+| Capability | Toolbox support | Direct support | Status / important prerequisite |
+|---|---:|---:|---|
+| Remote MCP server | Yes | Yes | Configure no auth, keys, managed identity, OAuth, or user passthrough as supported. |
+| Web search | Yes | Yes | Queries can leave the Foundry data boundary; review terms, residency, and cost. |
+| Azure AI Search | Yes | Yes | Existing service/index/connection and least-privilege Search RBAC required. |
+| Code interpreter | Yes | Yes | Sandboxed execution; govern uploaded data, output retention, and compute cost. |
+| File search | Yes | Yes | Requires uploaded files/vector stores and lifecycle/ACL review. |
+| OpenAPI | Yes | Yes | Requires a valid contract, reachable backend, and configured authentication. |
+| A2A | Yes | Yes | **Preview**; delegated agent identity, task authority, and lifecycle need review. |
+| Browser automation | Yes | Yes | Availability/network support is constrained; treat browser authority as high risk. |
+| Fabric IQ | Yes | Yes | Connection, tenant, and network prerequisites apply; verify current availability. |
+| Work IQ | Yes | Yes | **Preview**; Microsoft 365 identity/data governance applies. |
+| Tool Search | Yes | No | **Preview and Toolbox-only**; exposes `tool_search` and `call_tool`. |
+| Skills | Yes | No | **Preview and Toolbox-only**; versioned reusable workflows/instructions. |
+| Reminder tool | Yes | No | Toolbox-only in current support table; verify current service availability. |
+| Function calling | No | Yes | Client application executes functions; Toolbox does not host local code. |
+| Grounding with Bing | No | Yes | Distinct from Toolbox Web Search and its data/connection contract. |
+| Computer use | No | Yes | Direct-only and high authority; sandboxing/approval are mandatory design concerns. |
+| Image generation | No | Yes | Direct model tool, not a Toolbox capability. |
+| SharePoint | No | Yes | Direct integration with Microsoft 365 identity/content boundaries. |
+| Fabric data agent | No | Yes | Direct integration; distinct from Fabric IQ. |
+| Azure Functions | No | Yes | Direct tool integration; Toolbox can instead expose a suitable OpenAPI/MCP contract. |
+
+`ToolSearchToolboxTool` reduces context cost for larger catalogs. It does not inspect whether a caller is allowed to perform the discovered operation and it does not make write tools safe. This two-tool lab includes Tool Search to expose the API shape; for a real catalog with only a few tools, direct discovery is simpler. Introduce Tool Search when definitions begin to crowd the context or selection quality degrades.
+
+#### MCP inside Toolbox
+
+Toolbox can package an MCP server without making the server itself trusted. Review server ownership, tool schemas, network route, authentication, data retention, prompt-injection exposure, and failure behavior.
+
+| MCP authentication mode | Runtime identity | Typical use | Main risk |
+|---|---|---|---|
+| None | No downstream identity | Public read-only MCP server | Treat returned content as untrusted external input. |
+| Custom keys | Project connection holds static credential | Legacy/key-protected server | Rotation, broad privilege, and secret-owner lifecycle. |
+| Project managed identity | Foundry project identity | Shared service-to-service access | Every consuming agent can inherit shared project authority. |
+| Agentic identity | Individual agent identity | Per-agent least privilege | Role assignment and identity lifecycle must follow agent version/deployment. |
+| OAuth2 | End-user or configured OAuth flow | SaaS/user-delegated access | Consent, token scope, tenant policy, and user offboarding. |
+| User Entra token | Calling user's Microsoft Entra identity | First-party user-context access | Never confuse user passthrough with agent/project identity. |
+
+The screenshot's MCP topics cover different stages: connect an existing server, use a managed catalog server, configure authentication, build your own server, expose Foundry MCP to coding agents, or curate a private catalog. Those are separate deployment and trust decisions; this lesson only **consumes the Toolbox MCP endpoint** and does not deploy or certify a downstream MCP server.
+
+#### Skills and private catalogs
+
+- **Tool catalog:** discover and curate reusable tools. A private catalog controls what your organization publishes for discovery; consumers still need runtime authorization.
+- **Skill catalog (preview):** curate reusable, versioned task instructions. Skills can orchestrate how tools are used but do not grant tool permissions.
+- **Toolbox:** package selected tools and skills for runtime consumption. A catalog entry is not automatically included until a Toolbox version references it.
+- **Tool Search (preview):** runtime discovery within a Toolbox. Use it when a large set of definitions would crowd out conversation and business context. Pin critical tools and give discovery descriptions organization-specific vocabulary.
 
 #### Endpoint contract
 
@@ -1009,7 +1083,27 @@ Local or hosted agent
 | Developer | `{PROJECT_ENDPOINT}/toolboxes/{name}/versions/{version}/mcp?api-version=v1` | Test one immutable version before promotion. |
 | Consumer | `{PROJECT_ENDPOINT}/toolboxes/{name}/mcp?api-version=v1` | Follow the toolbox's current default version in a reviewed deployed consumer. |
 
-The lesson deliberately invokes the **developer endpoint**. This prevents a default-version change from silently changing the lab while you test. The first version becomes default automatically; later versions must be tested and promoted through the supported management workflow.
+The lesson defaults to the **developer endpoint**. This prevents a default-version change from silently changing the lab while you test. `--use-default-version` makes the mutable consumer behavior explicit. The first version becomes default automatically; later versions must be tested and promoted through the supported management workflow.
+
+#### Version lifecycle and rollback
+
+```text
+Create version 1
+  → first version becomes default
+  → test /versions/1/mcp
+  → consumers call /mcp
+
+Change tools, connections, skills, or policy
+  → create immutable version 2
+  → test /versions/2/mcp
+  → compare behavior, identity, cost, latency, and evaluations
+  → promote version 2 as default
+  → monitor all /mcp consumers
+  → promote a previous tested version if rollback is required
+  → delete old versions only after consumer inventory and retention review
+```
+
+Creating or changing a later version does not imply promotion. Store the Toolbox name, tested version, configuration source, evaluator evidence, approver, and default-version change as release metadata. An unversioned consumer gains operational convenience but also accepts centrally managed behavior changes.
 
 #### Authentication layers
 
@@ -1022,6 +1116,19 @@ Grant `Foundry User` at the project to identities that manage or consume the too
 
 The current Agent Framework import is `from agent_framework.foundry import FoundryChatClient`. Current `api-version=v1` Toolbox examples do not send the older `Foundry-Features: Toolboxes=V1Preview` header; use the current SDK/docs contract instead of copying a stale preview header.
 
+#### Network isolation
+
+Toolbox does not create an independent network boundary. The Foundry project's networking controls access to Toolbox, while each downstream tool still has its own ingress, egress, private DNS, firewall, and identity requirements.
+
+| Scenario | Current documented boundary |
+|---|---|
+| MCP, Azure AI Search, File Search, OpenAPI, A2A, Web Search, Code Interpreter, Skills | Documented Toolbox network-isolation support exists, but each tool has prerequisites and regional limits. |
+| Fabric IQ | Partial/conditional network support; verify the exact tenant and connection path. |
+| Work IQ and Browser Automation | Not supported in the documented Toolbox network-isolation matrix. |
+| Tool Search | No independent downstream network route; it discovers tools already in the Toolbox. |
+
+Do not infer that a private Foundry project can reach every private downstream service. Validate DNS and the actual runtime identity from the deployed environment.
+
 ```bash
 # No-cloud preflight:
 uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py
@@ -1032,6 +1139,11 @@ uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py -
 # Test an existing immutable version with the local Agent Framework agent:
 uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py \
   --invoke --toolbox-version 1 \
+  --prompt "What tools are available? Explain what each one is for."
+
+# Explicitly follow the current default through the consumer endpoint:
+uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py \
+  --invoke --use-default-version \
   --prompt "What tools are available? Explain what each one is for."
 
 # Create a version and immediately test that returned version:
@@ -1056,6 +1168,23 @@ uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py -
 
 **What to watch in the output.** Publishing prints the version-specific developer endpoint and default consumer endpoint. Invocation prints the exact endpoint and deployment before the response. A response describing tools proves the MCP connection and model loop; it does not prove every downstream tool can authenticate or safely execute.
 
+#### What this lesson implements
+
+| Capability | Evidence in lesson 26 | Status |
+|---|---|---|
+| Create a Toolbox version | `client.toolboxes.create_version(...)` | Opt-in persistent write. |
+| Add Web Search and Tool Search | `catalog_tools()` | Narrow two-tool example. |
+| Test immutable version | `--invoke --toolbox-version` | Opt-in model/tool call. |
+| Follow default version | `--invoke --use-default-version` | Opt-in mutable consumer path. |
+| Authenticate Agent Framework to Toolbox | Fresh Entra token per MCP request | Implemented. |
+| Close local resources | MCP, HTTP, and credential cleanup in `finally` | Implemented and no-cloud tested. |
+| Delete exact version | `--apply --delete-version` | Opt-in destructive operation. |
+| Promote/default-version update | Explained only | Not implemented; use reviewed supported management flow. |
+| Add connections/MCP/OpenAPI/Search/files/skills | Explained only | Not implemented in this two-tool lab. |
+| Private catalogs | Explained only | Not implemented. |
+| Hosted-agent deployment | Explained as next architecture step | This agent remains local and ephemeral. |
+| Network-isolated validation | Boundary documented | Not live-tested. |
+
 **Safety and cost boundary.**
 
 - `--invoke` is a real model request. The model might call Web Search, which can send approved prompt content outside your Foundry data boundary and incur tool costs.
@@ -1066,7 +1195,7 @@ uv run python 02-generative-ai-and-agents/26_toolbox_tool_catalog_preflight.py -
 
 **Exam cues.** Toolbox is Foundry-homed but MCP-compatible, so it is not limited to Foundry-hosted agents. Toolbox versions are immutable. Developer endpoints pin a version; consumer endpoints follow default. MCP authentication to Toolbox is separate from each downstream tool's authentication. Tool Search improves discovery/context use, not authorization.
 
-**References:** [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview) · [Toolbox how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox) · [Toolbox quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/quickstart-toolbox-agent) · [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication) · [Tool Search](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-search) · [Tool catalog](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-catalog) · [Agent Framework Responses quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api)
+**References:** [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview) · [Toolbox how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox) · [Toolbox quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/quickstart-toolbox-agent) · [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication) · [Toolbox network isolation](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox-network-isolation) · [Consume Toolbox from a hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/use-toolbox-hosted-agent) · [Tool Search](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-search) · [Skills](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/skills) · [Tool catalog](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-catalog) · [Agent Framework Responses quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api)
 
 ---
 
@@ -1391,7 +1520,7 @@ uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py --appl
 | Cloud evaluation | GA | Persisted runs; dataset upload; cost incurred |
 | App Insights tracing | GA | Content recording disabled by default; opt-in with governance approval |
 | MCP | GA | External trust boundary; allowlist + approval required |
-| Toolbox | GA | Foundry-managed versioned catalog; version deletion breaks consumers |
+| Toolbox | GA | Foundry-managed versioned MCP endpoint; Tool Search and Skills within Toolbox remain preview |
 | Azure AI Search agent tool | GA | Requires existing index + project connection; no ingestion in lesson |
 | Hosted agents (Responses) | GA | Full deployment lifecycle; not local Agent Framework |
 | A2A | Preview | Separate protocol from Responses; requires explicit enablement |
@@ -1413,6 +1542,12 @@ uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py --appl
 | MCP `--apply` fails | Localhost endpoint, missing auth, or unreachable backend | Use HTTPS MCP endpoint reachable from Agent Service |
 | Lesson 25 tool blocked | `--approve` absent, tool not in allowlist | Review printed tool name and arguments; approve only reviewed allowlisted read actions |
 | Lesson 26 version removal breaks agent | Consumer references deleted version | Inventory consumers; promote/test replacement before deleting |
+| Lesson 26 Toolbox MCP returns `401` / `403` | Caller lacks project role, wrong token audience, or downstream tool identity lacks access | Use `https://ai.azure.com/.default`, verify `Foundry User`, then verify the separate tool-to-data identity and scope. |
+| Lesson 26 version endpoint returns `404` | Wrong Toolbox name/version or deleted immutable version | List project Toolbox versions; set `FOUNDRY_TOOLBOX_NAME` and pass an existing `--toolbox-version`. |
+| Lesson 26 exposes only `tool_search` and `call_tool` | Tool Search is enabled | This is expected progressive discovery; ask `tool_search` for relevant tools before `call_tool`. |
+| Lesson 26 model answers without a tool call | Prompt does not require a tool, description is weak, or model/tool unsupported | Use a prompt that clearly needs current/tool-backed data; inspect tool descriptions and region/model compatibility. |
+| Consumer behavior changes without code deployment | Toolbox default version was promoted | Treat default promotion as a release; compare versions and preserve a rollback target. |
+| Toolbox works publicly but fails in private deployment | Project/downstream private DNS, egress, firewall, or tool-specific network support differs | Validate from the actual runtime and check the Toolbox network-isolation matrix. |
 | Lesson 27 fails | Connection name, index name, RBAC, or private DNS mismatch | Verify `SEARCH_CONNECTION_NAME`, `SEARCH_INDEX`, identity role, agent-to-Search route |
 | Memory misses preference | Different user header, async delay, or extraction miss | Use same `x-memory-user-id`; never invent a recalled fact |
 | Lesson 16 fails | Lesson 15 not run or preview SDK changed | Create intake agent first; inspect supported preview surface |
@@ -1446,6 +1581,7 @@ Commit code, prompts, schemas, infrastructure, evaluation fixtures
 | Network | Tool backends and MCP endpoints reachable from runtime; DNS/egress/ingress tested |
 | Secrets | Secret store/managed identity; no keys in repository, prompts, tool schema, or logs |
 | Tool safety | Allowlist, strict schema, semantic validation, caller authorization, timeout, approval |
+| Toolbox promotion | Tested immutable version, tool/skill diff, connection identity, consumer inventory, evaluation evidence, approver, rollback version |
 | Evaluation | Versioned dataset, thresholds, regression comparison, failure triage, release owner |
 | Resilience | Rate limit policy, bounded retry, timeout, circuit/queue/fallback behavior, rollback |
 | Cost | Token/tool/storage/telemetry budget, quotas, alerts, cleanup owner |
@@ -1461,6 +1597,7 @@ Commit code, prompts, schemas, infrastructure, evaluation fixtures
 | Network boundary | Private endpoints for Foundry, Azure OpenAI, Search, App Insights, tool backends; test from actual runner | Private endpoint ≠ RBAC; DNS + egress + ingress each need verification |
 | Tool backend auth | API key or Entra auth in production; align OpenAPI auth details | Anonymous demo auth from lesson 12 is NOT production auth |
 | MCP server trust | Allowlist tools, require approval, least-privilege identity, timeout, audit | `--approve` is client-side; backend still enforces authorization |
+| Toolbox default version | Promote only tested immutable versions; inventory unversioned consumers | A default switch changes consumer behavior without agent code deployment |
 | Content recording | Disabled by default; opt-in only with data governance approval | Content recording can retain sensitive prompts, tool args, model outputs |
 | IaC scope | Resource groups, networking, private endpoints, RBAC, tags, monitoring | Manual portal clicks drift; record every production setting in IaC |
 
@@ -1492,6 +1629,11 @@ Commit code, prompts, schemas, infrastructure, evaluation fixtures
 | "Embedding model = chat model" | Use compatible embedding deployment name |
 | "FAISS demo = production RAG" | Ephemeral in-process index with no ACL, governance, or persistence |
 | "Toolbox = MCP server you operate" | Foundry-managed versioned catalog with MCP-compatible endpoint |
+| "Toolbox authentication authorizes every downstream tool." | False. Agent-to-Toolbox authentication and tool-to-data authentication are separate layers. |
+| "A private tool catalog is the same resource as a Toolbox." | False. Catalogs support curated discovery; a Toolbox packages selected tools/skills for runtime consumption. |
+| "Tool Search approves discovered tools." | False. It reduces discovery/context cost; business authorization and approval remain application/backend duties. |
+| "Skills are executable tools." | False. Skills define reusable task instructions/workflows; tools provide callable capabilities. |
+| "Creating version 2 automatically changes all consumers." | False. Later immutable versions must be tested and promoted as default; pinned developer endpoints remain on their version. |
 | "Responses hosted agent = A2A" | Requires separate explicit A2A protocol declaration |
 | "Private endpoint = private runtime path" | DNS, egress, ingress, and RBAC still each need verification |
 | "Cloud evaluation run = release approval" | Evidence to review against thresholds and policy — not automatic approval |
@@ -1568,8 +1710,11 @@ It does **not** fully implement: remote MCP OAuth/Entra setup, credential rotati
 - [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview)
 - [Toolbox how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox)
 - [Toolbox quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/quickstart-toolbox-agent)
+- [Toolbox network isolation](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox-network-isolation)
+- [Consume Toolbox from a hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/use-toolbox-hosted-agent)
 - [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication)
 - [Tool Search](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-search)
+- [Skills](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/skills)
 - [Tool catalog](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-catalog)
 - [Agent Framework Responses quickstart](https://learn.microsoft.com/azure/foundry/agents/quickstarts/responses-api)
 - [Azure AI Search tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/ai-search)

@@ -5,9 +5,12 @@
 Run without flags for a no-cloud preflight. `--apply` creates one Toolbox version
 containing web search and Toolbox tool search. Tool search reduces tool-definition
 tokens for larger catalogs, but it doesn't make a tool safe or authorize access.
+This two-tool lab includes Tool Search only to demonstrate its contract; small
+production catalogs normally expose their few tools directly.
 
 `--invoke --toolbox-version VERSION` connects a local Agent Framework agent to
-that exact version's MCP developer endpoint. The MCP client gets a fresh Entra
+that exact version's MCP developer endpoint. `--use-default-version` explicitly
+chooses the mutable consumer endpoint instead. The MCP client gets a fresh Entra
 token for the `https://ai.azure.com/.default` scope on each HTTP request. The
 model can discover and invoke toolbox tools, so prompts must contain only data
 approved for every tool the catalog exposes.
@@ -30,6 +33,7 @@ Code paths:
   --apply — create an immutable Toolbox version and print consumer/developer URLs.
   --invoke --toolbox-version — attach the versioned MCP endpoint to an ephemeral
   local Agent Framework agent, run one model request, then close all clients.
+  --invoke --use-default-version — call the current default via consumer endpoint.
   --apply --delete-version — delete an exact version after consumer review.
 
 Prerequisites / env vars:
@@ -37,6 +41,7 @@ Prerequisites / env vars:
   DEFAULT_MODEL         — chat-capable deployment alias for FoundryChatClient
   FOUNDRY_TOOLBOX_NAME  — optional override; defaults to the Northwind lab name
   --toolbox-version     — exact immutable version to test before promotion
+  --use-default-version — explicitly follow the Toolbox default version
   --invoke              — perform the billable model/tool call
 """
 import argparse
@@ -100,7 +105,7 @@ def preflight() -> None:
     print(f"Toolbox name: {toolbox_name()}")
     print("Build: --apply creates an immutable version; the first version becomes default.")
     print("Test: --invoke --toolbox-version VERSION uses the exact developer endpoint.")
-    print("Consume: omit /versions/VERSION only in deployed consumers that should follow default.")
+    print("Consume: --invoke --use-default-version explicitly follows the mutable default.")
     print(f"Authentication: fresh Entra bearer token per MCP request; scope={TOKEN_SCOPE}")
     print("Runtime: local Agent Framework agent; no prompt/hosted agent resource is persisted.")
     print("Review each tool's owner, DPA, data boundary, RBAC, auth, region/model support, quotas, and cost.")
@@ -135,8 +140,8 @@ def apply(delete_version: str | None) -> str | None:
     return str(version.version)
 
 
-async def invoke_toolbox(version: str, prompt: str) -> None:
-    """Run one local Agent Framework request through an exact Toolbox version."""
+async def invoke_toolbox(version: str | None, prompt: str) -> None:
+    """Run one local Agent Framework request through a Toolbox MCP endpoint."""
     current = settings()
     endpoint = current.require("PROJECT_ENDPOINT")
     model = current.require("DEFAULT_MODEL")
@@ -172,7 +177,8 @@ async def invoke_toolbox(version: str, prompt: str) -> None:
             ),
             tools=[toolbox],
         )
-        print(f"Toolbox developer endpoint: {url}")
+        endpoint_type = "developer (pinned version)" if version else "consumer (default version)"
+        print(f"Toolbox {endpoint_type} endpoint: {url}")
         print(f"Model deployment: {model}")
         response = await agent.run(prompt)
         print("Agent response:")
@@ -198,9 +204,15 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Run one local Agent Framework request through a Toolbox version.",
     )
-    parser.add_argument(
+    endpoint_group = parser.add_mutually_exclusive_group()
+    endpoint_group.add_argument(
         "--toolbox-version",
         help="Exact Toolbox version for --invoke; tests the developer endpoint.",
+    )
+    endpoint_group.add_argument(
+        "--use-default-version",
+        action="store_true",
+        help="Use the consumer endpoint and follow the current default version.",
     )
     parser.add_argument(
         "--prompt",
@@ -212,15 +224,23 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("--delete-version requires --apply.")
     if args.delete_version and args.invoke:
         parser.error("--delete-version cannot be combined with --invoke.")
+    if args.apply and args.use_default_version:
+        parser.error(
+            "--apply --invoke must test the created version; "
+            "do not combine --apply with --use-default-version."
+        )
     if not args.apply and not args.invoke:
         preflight()
         return
 
     created_version = apply(args.delete_version) if args.apply else None
     if args.invoke:
-        version = args.toolbox_version or created_version
-        if not version:
-            parser.error("--invoke requires --toolbox-version unless combined with --apply.")
+        version = None if args.use_default_version else args.toolbox_version or created_version
+        if not version and not args.use_default_version:
+            parser.error(
+                "--invoke requires --toolbox-version, --use-default-version, "
+                "or --apply."
+            )
         asyncio.run(invoke_toolbox(version, args.prompt))
 
 
