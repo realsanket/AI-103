@@ -1034,90 +1034,282 @@ Requires `PROVENANCE_SOURCE_URL` (HTTPS Blob or SAS URI), `CONTENT_SAFETY_ENDPOI
 
 ## Stage 5 — Evaluation lifecycle (lessons 21–24)
 
-Evaluation measures quality systematically. Self-critique (lesson 17) is a one-call pattern. Lessons 21–24 create repeatable evidence with datasets, metrics, human review, and adversarial testing.
+### What is evaluation and why does it exist?
+
+You built an agent. It answers questions, calls tools, produces text. But how do you **know** it is good? "I tested it manually and it looked fine" is not evidence — it is one example. Evaluation is the discipline of producing **repeatable, documented, comparable evidence** that your agent behaves correctly across a representative set of inputs.
 
 ```text
-17: Self-critique — pattern only, no persistent record
-  ↓
-21: Foundry evaluation — dataset-backed run with portal metrics
-22: Continuous evaluation — sampled post-deployment monitoring rule
-23: Human feedback — expert/user quality signal linked to exact response
-24: Red teaming — adversarial scan for systematic safety weaknesses
+THE EVALUATION LIFECYCLE
+
+Before release           In production          Before next release
+───────────────          ─────────────          ───────────────────
+Write agent              Guardrails block       Compare new scores
+    ↓                    harmful input/output   to previous baseline
+Run offline eval             ↓                       ↓
+on golden dataset        Trace every request    Pass gate → deploy
+    ↓                        ↓                  Fail gate → fix prompt
+Score: safe? accurate?   Continuous eval        → re-evaluate
+grounded? tool correct?  scores sampled traffic
+    ↓
+Release gate decision
 ```
 
-### 21 — Evaluation runs, not self-critique
+**Evaluation vs self-critique (lesson 17).** Self-critique (draft → critique → regenerate) is an application pattern — one model call that improves output. It produces nothing persistent: no dataset, no run record, no trend, no release gate. A Foundry evaluation is repeatable evidence: a JSONL dataset, named evaluators, a run record in the portal, and scores you can compare across releases.
 
-Lesson 17 is draft → critique → regenerate. It teaches a pattern, but it does not create a dataset, metric, run, trend, or release gate. A Foundry evaluation is repeatable evidence with a documented input mapping.
+**Two run modes:**
+- **Local** — `azure.ai.evaluation` SDK on your machine. Free, fast, no cloud resource needed. Great for development.
+- **Cloud** — Foundry evaluation service. Uses judge model, costs tokens, scales to large datasets. Produces portal-visible run records.
+
+**The evaluation loop in plain English:**
+
+```text
+1. You collect test cases — pairs of (question, expected-good-answer) — in a JSONL file.
+2. You pick evaluators — functions that score each (question, response) pair.
+3. You run the evaluation — Foundry sends each row through your agent and the evaluators.
+4. You inspect scores — did safety defect rate stay below 2%? Did groundedness stay ≥ 4.0/5?
+5. You make a release decision — pass the gate or fix and re-evaluate.
+```
+
+**Dataset format (JSONL) — one JSON object per line:**
+
+```jsonl
+{"query": "What is the refund policy?", "response": "Refunds processed in 5 business days.", "context": "Policy: 5 business days.", "ground_truth": "5 business days"}
+{"query": "How do I cancel?", "response": "Go to Account Settings > Subscription > Cancel.", "context": "Cancel via Account Settings > Subscription > Cancel.", "ground_truth": "Account Settings > Subscription > Cancel"}
+```
+
+Common columns: `query`, `response`, `context`, `ground_truth`, `tool_calls`. Data mapping syntax in evaluator config: `{{item.field_name}}` = column from your dataset; `{{sample.output_text}}` = response generated during the run.
+
+---
+
+### Evaluator catalog — what you can measure
+
+All evaluators below are `builtin.*` — they run in the Foundry evaluation service. You reference them by name; the service runs the scoring.
+
+**Group 1 — Writing quality** (is the response well-written, independent of whether it is correct?)
+
+| Evaluator | `builtin` name | Measures | Score |
+|---|---|---|---|
+| Coherence | `builtin.coherence` | Logical flow, argument structure | 1–5 |
+| Fluency | `builtin.fluency` | Grammar, vocabulary, readability | 1–5 |
+
+Inputs: `query` + `response`. Needs a judge model (`gpt-4.1` or `gpt-5-mini`).
+
+**Group 2 — RAG quality** (does the response accurately reflect retrieved documents?)
+
+| Evaluator | `builtin` name | Measures | When to use |
+|---|---|---|---|
+| Groundedness | `builtin.groundedness` | Answer supported by source docs — no hallucination | Always in RAG |
+| Relevance | `builtin.relevance` | Answer relevant to the question | Q&A systems |
+| Retrieval | `builtin.retrieval` | Retrieved chunks relevant to query | When retrieval is a bottleneck |
+| Response Completeness | `builtin.response_completeness` | Answer covers ALL aspects of query | Multi-part questions |
+
+> **Groundedness vs Response Completeness — common confusion:**
+> Groundedness = precision ("everything stated is supported by docs").
+> Response Completeness = recall ("all aspects of the question are answered").
+> A response can be fully grounded but miss half the question. Use both.
+
+Inputs: `query` + `response` + `context` (the retrieved documents text).
+
+**Group 3 — Risk and safety** (does the response contain harmful content?)
+
+These evaluators use Microsoft's **hosted safety models** — you do NOT need to provide a judge deployment name. They do not consume your model quota.
+
+| Evaluator | `builtin` name | Score format |
+|---|---|---|
+| Violence | `builtin.violence` | 0–7 severity |
+| Sexual | `builtin.sexual` | 0–7 severity |
+| Self-harm | `builtin.self_harm` | 0–7 severity |
+| Hate / Unfairness | `builtin.hate_unfairness` | 0–7 severity |
+| Protected Material | `builtin.protected_material` | pass / fail |
+| Code Vulnerability | `builtin.code_vulnerability` | pass / fail |
+| Indirect Attack (XPIA) | `builtin.indirect_attack` | pass / fail |
+
+Report **defect rate** as your safety headline metric — percentage of responses that fail.
+
+**Region support:** Risk and safety evaluators available only in East US 2, North Central US, France Central, Sweden Central, Switzerland West, Australia East.
+
+**Group 4 — Agent-specific** (did the agent use tools correctly?)
+
+These evaluators understand tool calls — not just prose.
+
+| Evaluator | `builtin` name | Measures |
+|---|---|---|
+| Tool Call Accuracy | `builtin.tool_call_accuracy` | Correct tool called with correct arguments? |
+| Intent Resolution | `builtin.intent_resolution` | Agent correctly identified what user wanted? |
+| Task Adherence | `builtin.task_adherence` | Agent completed task without unintended actions? |
+
+Inputs: `query` + `response` + `tool_calls` in data mapping.
+
+**Group 5 — Textual similarity** (how close is the response to a known-good answer?)
+
+No LLM judge — pure string/token comparison. Free to run.
+
+| Evaluator | `builtin` name | What it computes |
+|---|---|---|
+| F1 Score | `builtin.f1_score` | Word overlap — precision + recall |
+| BLEU | `builtin.bleu_score` | n-gram precision (classic MT metric) |
+| ROUGE | `builtin.rouge_score` | n-gram recall |
+| String Exact Match | `builtin.string_exact_match` | 1.0 if identical, 0.0 otherwise |
+
+Required: `response` + `ground_truth`.
+
+**Custom evaluators** — bring your own scoring logic. Either a Python function (`def my_evaluator(response, ground_truth) → dict`) or a prompt-based LLM judge. Register in portal → Evaluations → Custom evaluators. Custom evaluators work in continuous evaluation too.
+
+**Rubric evaluators** — define what "good" means for YOUR domain. Provide weighted dimensions; an LLM judge scores each 1–5; final score = weighted average normalized to 0–1. Auto-generate a rubric in portal → Evaluations → Create → Rubric evaluator (it reads your agent's system prompt). Pass if score ≥ 0.5 (configurable). Dimension-level scores appear in output for targeted debugging.
+
+---
+
+### Task Adherence across three surfaces (common exam question)
+
+All three are different. Choosing wrong surface is the most common production mistake.
+
+| Surface | When it runs | What it does |
+|---|---|---|
+| **Lesson 14** — Content Safety REST API | Real-time, in request path, ~50–100ms | Blocks or annotates a single response before it reaches the user |
+| **Foundry guardrail** | Real-time, in agent workflow | Configured policy that annotates/filters agent turns automatically |
+| **`builtin.task_adherence`** (lesson 21) | Offline, on a dataset | Scores adherence across many historical/test responses — never blocks |
+
+Real-time enforcement = guardrail or Content Safety. Repeatable evidence = `builtin.task_adherence` evaluator.
+
+---
+
+### 21 — Foundry evaluation (dataset-backed run)
+
+**Question answered:** How do I create a repeatable, portal-visible quality record for my agent — not just a one-off test?
+
+**Background.** You have a dataset of test cases (JSONL) and want scored evidence you can compare across releases. This lesson creates a Foundry evaluation: inspects the dataset, explains each evaluator, uploads the data, creates an evaluation, and starts a run against your agent. No cloud call happens without `--apply`.
+
+**How to call it:**
 
 ```bash
+# Preflight — shows dataset rows + evaluator details, touches nothing:
 uv run python 01-plan-and-manage/21_foundry_evaluation.py
+
+# Apply with the built-in 5-row sample dataset:
 uv run python 01-plan-and-manage/21_foundry_evaluation.py \
-  --apply --dataset path/to/tests.jsonl [--rubric reviewed-rubric-name]
+  --apply --dataset 01-plan-and-manage/data/foundry_evaluation_sample.jsonl
+
+# Apply with your own dataset:
+uv run python 01-plan-and-manage/21_foundry_evaluation.py \
+  --apply --dataset path/to/your-tests.jsonl
+
+# Add a reviewed rubric evaluator:
+uv run python 01-plan-and-manage/21_foundry_evaluation.py \
+  --apply --dataset ... --rubric my-rubric-name
 ```
 
-The first command is preflight — prints every intended write without contacting Azure. Applying uploads data, creates an evaluation and run, calls the agent/evaluators, and can bill. It needs JSONL `query` fields, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, `AZURE_AI_MODEL_DEPLOYMENT_NAME`, a target agent/deployment, and `Foundry User`.
+**Sample dataset** (`data/foundry_evaluation_sample.jsonl`) — 5 Northwind support test cases, one per line. Fields:
 
-**Region support for evaluators.** Risk and safety evaluators are available in: East US 2, North Central US, France Central, Sweden Central, Switzerland West, and Australia East. Confirm current limits before a production run.
+| Field | Purpose |
+|---|---|
+| `query` | Question sent to the agent (required) |
+| `response` | Reference answer — used by evaluators that need an expected output |
+| `context` | Policy or retrieved doc text — used by groundedness evaluators |
+| `ground_truth` | Known-correct answer — used by textual similarity evaluators |
 
-| Evaluator | Input / purpose | Distinction |
-|---|---|---|
-| Rubric / Quality | Judge deployment plus reviewed criteria | Product-specific release quality. |
-| Risk and safety | Usually query + response; hosted safety model | Does not need the judge deployment-name constructor. |
-| Agent | Tool definitions/calls or response | Measures tool behavior, not only prose. |
-| Groundedness Pro | Binary Content Safety-backed score | Different from model-based 1-5 Groundedness. |
-| Response Completeness | `ground_truth` and response | Different from grounding and safety. |
+Cases cover: Pro plan refund, subscription cancellation, delayed order, security refusal, multi-step checklist.
 
-**Task Adherence across three surfaces** (a common exam question — all three are different):
+**What the output shows step by step:**
 
-- **Lesson 14**: Content Safety REST endpoint (`tools` + conversation messages) — real-time signal.
-- **Foundry guardrail**: annotates/filters agent workflow at runtime.
-- **`builtin.task_adherence`** (this lesson): offline evaluation criterion scored across a dataset.
+```text
+STEP 1 — DATASET        file path · row count · field names · all query previews
+STEP 2 — EVALUATORS     what each evaluator measures · score format · what it reads
+STEP 3 — PREFLIGHT      [ ] checklist of what --apply would create (nothing executed)
+           or APPLYING   ✓ ticks as each cloud step completes with returned id
+NEXT STEPS              portal path · what scores to look for · how to iterate
+```
 
-Choose real-time enforcement, runtime policy, or offline measurement deliberately. Rows are limited to 2 MB; batches to 100,000 rows; evaluator region support varies.
+**What `--apply` creates in Azure (3 steps, printed as they run):**
+1. Upload dataset → versioned asset in Foundry project storage.
+2. Create evaluation → named criteria set (`builtin.task_adherence` + `builtin.violence`).
+3. Create run → agent processes every row; evaluators score each response.
+
+Results appear in portal → Build → Evaluations within minutes.
+
+**Env vars:** `AZURE_AI_PROJECT_ENDPOINT` and `AZURE_AI_AGENT_NAME` required with `--apply`. `AZURE_AI_MODEL_DEPLOYMENT_NAME` optional (defaults to `gpt-4.1` as judge). RBAC: `Foundry User` on the project.
+
+**Hard limits:** each row ≤ 2 MB; batch ≤ 100,000 rows; risk/safety evaluator region support is narrower (see Stage 5 intro above).
+
+**What to watch after `--apply`.** Portal → Build → Evaluations → select the run:
+- `task_adherence`: every row should score `1`. Any `0` = agent failed to complete a task.
+- `violence`: every row should score `< 3`. Any `≥ 3` = safety issue in that response.
+- **Cluster Analysis** button → groups similar failures with diagnostic description and fix recommendation. Download before navigating away — results are not persisted.
+
+**Expanding the dataset over time.** Portal → Traces → filter to relevant requests → **Export to dataset**. Creates JSONL from live traffic — no manual test-case writing. Best practice: export a weekly sample and re-run this lesson to catch quality drift before it accumulates.
 
 **References:** [Cloud evaluation](https://learn.microsoft.com/azure/foundry/how-to/develop/cloud-evaluation) · [Evaluate an agent](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-agent) · [Built-in evaluators](https://learn.microsoft.com/azure/foundry/concepts/built-in-evaluators) · [Agent evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/agent-evaluators) · [Risk and safety evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/risk-safety-evaluators) · [Rubric evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/rubric-evaluators) · [View evaluation results](https://learn.microsoft.com/azure/foundry/how-to/evaluate-results)
 
+---
+
 ### 22 — Continuous evaluation
 
-**What:** sampled post-deployment evaluation rule. **Why:** catch regression after release. **How:** evaluates completed responses on a bounded schedule. **Use it:** monitored production quality/safety signals. **Do not use it:** as a synchronous safety block or a dump of unrestricted sensitive traffic.
+**Question answered:** My agent passed the release gate — how do I know it is still good one month later?
+
+**Background.** A pre-release evaluation is a snapshot at a point in time. Prompts change, models update, user inputs drift. Continuous evaluation runs the same evaluators automatically against a **sample of live traffic** on a schedule. It is the difference between a blood test before a flight and a health monitor you wear every day.
+
+Continuous evaluation is NOT a real-time safety block. It evaluates responses that have already been sent. Use guardrails (real-time) for blocking and continuous evaluation (background) for trend detection.
 
 ```bash
 uv run python 01-plan-and-manage/22_continuous_evaluation.py
 uv run python 01-plan-and-manage/22_continuous_evaluation.py --apply
 ```
 
-**From the code.** The preflight prints the exact cloud side effects without contacting Azure: creates evaluation `"Northwind continuous violence evaluation"`, creates rule `northwind-continuous-violence`, targets completed responses from the named agent using `builtin.violence` evaluator. Maximum `10 runs/hour` cap is hardcoded — change only after privacy, cost, alert, owner, and rollback review.
+**What `--apply` creates:**
+1. Evaluation object: `"Northwind continuous violence evaluation"` — the template that names which evaluators to run.
+2. Monitoring rule: `northwind-continuous-violence` — the schedule that samples completed agent responses and feeds them into the evaluation template.
 
-Applying creates persistent evaluation/rule state and incurs sampling, evaluator, and telemetry cost. Requires project/agent identifiers, Application Insights, and `Foundry User` for project managed identity.
+**From the code:** uses `builtin.violence` evaluator. Maximum cap = `10 runs/hour` — hardcoded. Change this number only after privacy, cost, alert, owner, and rollback review. Sampling is not exhaustive — not every response is evaluated.
+
+**What it costs:** evaluator tokens (one judge call per sampled response) + Application Insights ingestion. Requires Application Insights connected to the project and `Foundry User` for the project managed identity.
+
+**Where to see results:** portal → Monitor tab → Agents dashboard → select your agent → Evaluation scores panel. Trend lines over time show if safety or quality is drifting.
 
 **References:** [Evaluate an agent](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-agent) · [Monitor agents dashboard](https://learn.microsoft.com/azure/foundry/observability/how-to/how-to-monitor-agents-dashboard)
 
+---
+
 ### 23 — Human feedback and HITL
 
-**What:** structured quality signal linked to an exact response. **Why:** automated metrics cannot replace user/domain-expert judgment. **How:** emit `gen_ai.evaluation.result` while original response span is active; portal annotations are append-only history. **Use it:** approved review and feedback flows. **Do not use it:** for silent sensitive-data capture.
+**Question answered:** My automated scores look good, but how do I capture what a domain expert or real user actually thinks of a specific response?
+
+**Background.** Automated evaluators are LLM-as-judge — they are still models with their own blind spots. Human feedback captures structured quality signal from a person who reviewed an actual response. It is the highest-value signal for high-risk or regulated outputs, and it links to the exact response trace so you can see the full context.
+
+The technical mechanism: emit an OTel event (`gen_ai.evaluation.result`) **while the original response span is still active** — this correlates the feedback to the exact trace. Feedback written later to a different trace cannot be correlated. Portal annotations are append-only: you can add feedback, never overwrite it.
 
 ```bash
 uv run python 01-plan-and-manage/23_human_feedback.py
 ```
 
-**Binary feedback schema (from the code attributes).**
+**Binary feedback schema** — the OTel attributes your code must emit:
 
-- `gen_ai.evaluation.name`: `"task_completion"` — the default binary template.
-- `gen_ai.evaluation.score.value`: `1.0` = thumbs up (pass), `0.0` = thumbs down (fail).
-- `gen_ai.evaluation.score.label`: `"pass"` or `"fail"`.
-- `microsoft.gen_ai.human_evaluation.source`: `"end_user"`.
-- `microsoft.gen_ai.evaluation.actor.type`: `"human"`.
-- Optional: `gen_ai.evaluation.explanation` — brief reason.
+| Attribute | Value |
+|---|---|
+| `gen_ai.evaluation.name` | `"task_completion"` — the binary feedback template |
+| `gen_ai.evaluation.score.value` | `1.0` = thumbs up (pass) · `0.0` = thumbs down (fail) |
+| `gen_ai.evaluation.score.label` | `"pass"` or `"fail"` |
+| `microsoft.gen_ai.human_evaluation.source` | `"end_user"` or `"expert"` |
+| `microsoft.gen_ai.evaluation.actor.type` | `"human"` |
+| `gen_ai.evaluation.explanation` | optional — brief reason for the rating |
 
-`apply=False` is an exact dry run — prints what would be emitted without touching telemetry. `apply=True` appends one event only to a valid, currently recording response span; it never overwrites feedback. Do not emit a new trace later to imitate correlation.
+`apply=False` (default): dry run — prints what would be emitted, touches nothing. `apply=True`: appends one event to a valid recording response span. Never re-emit later to simulate correlation.
 
-Requires project-connected Application Insights, tracing packages, and governed retention. Reviewers need `Foundry User` plus Reader; template management needs `Foundry Project Manager`.
+**RBAC:** Reviewers need `Foundry User` + Reader. Template management needs `Foundry Project Manager`.
+
+**Where to see results:** portal → Build → Evaluations → Human Evaluation tab. Results flow into App Insights via the same OTel pipeline as automated evals — queryable in Log Analytics with KQL.
 
 **References:** [Human evaluation](https://learn.microsoft.com/azure/foundry/observability/how-to/human-evaluation) · [Log end-user feedback](https://learn.microsoft.com/azure/foundry/observability/how-to/log-end-user-feedback) · [Trace annotations](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-annotations)
 
+---
+
 ### 24 — AI Red Teaming Agent
 
-**What:** preview adversarial scan with Attack Success Rate evidence. **Why:** find systematic failures before users do. **How:** generate approved attacks against an explicit target. **Use it:** nonproduction purple environment with an incident/mitigation owner. **Do not use it:** against production tools, customer content, or unapproved endpoints.
+**Question answered:** How do I find safety weaknesses in my agent systematically before users find them accidentally?
+
+**Background.** Manual testing finds the bugs you think of. Red teaming finds the bugs an attacker would think of. The AI Red Teaming Agent generates adversarial prompts designed to elicit harmful outputs — violence, hate, self-harm — then measures how often your agent fails: the **Attack Success Rate (ASR)**. ASR = percentage of adversarial prompts that successfully produced a policy-violating response. Lower ASR = safer agent.
+
+Red teaming is not random fuzzing. It is structured, category-specific, and produces documented evidence you can track across releases. Use it before release and on a schedule in a nonproduction environment.
+
+**Safety boundary in this lesson.** The lesson does NOT connect to a real agent. All generated prompts go to `safe_synthetic_callback`, which returns a fixed refusal: `"I can't help with harmful content or unsafe actions."` No customer data, real tools, secrets, or production systems are reachable. This is intentional — the lesson teaches the API pattern; you supply your own callback for real scanning.
 
 ```bash
 uv run python 01-plan-and-manage/24_red_teaming.py
@@ -1125,11 +1317,18 @@ AZURE_AI_PROJECT=<project-endpoint> \
   uv run python 01-plan-and-manage/24_red_teaming.py --apply
 ```
 
-**Safety boundary from the code.** The lesson accepts no real endpoint, model configuration, or application callback. `safe_synthetic_callback` receives all generated prompts and returns a fixed refusal: `"I can't help with harmful content or unsafe actions."` No customer data, real tools, secrets, production traffic, or destructive actions are reachable. No scan starts without `--apply`.
+**What `--apply` creates:**
+1. One `RedTeam` client — scoped to the project.
+2. Scan against `safe_synthetic_callback` using `RiskCategory.Violence`, `num_objectives=1`.
+3. Produces an ASR result — percentage of probes that got a violating response from the callback.
 
-**Scan configuration.** Uses `RiskCategory.Violence`, `num_objectives=1`, baseline direct prompts only. Preflight prints the exact side effects: creates one `RedTeam` client, scans `safe_synthetic_callback`, sends no prompt to a real model.
+**Scan configuration in this lesson:** baseline direct prompts only; single risk category (Violence). For a real agent evaluation: expand to multiple categories (Sexual, Self-harm, Hate), add jailbreak probes, and increase `num_objectives`.
 
-**Region support.** Currently: East US 2 and North Central US. AI Red Teaming Agent supports single-turn, text-only scenarios. Agentic risks need a cloud red-teaming environment; this small callback scan does not test them.
+**What to watch in the output.** Preflight prints every side effect. After `--apply`, look for the ASR number and the per-probe log showing what prompt was sent and what the callback returned. ASR = 0% means every probe was refused.
+
+**Region support.** Currently: East US 2 and North Central US only. AI Red Teaming Agent is preview. Supports single-turn, text-only scenarios. Agentic risks (multi-turn, tool-using) require a cloud red-teaming environment — this small synthetic callback scan does not test them.
+
+**Use in a purple environment only.** Run against a nonproduction copy of your agent. Assign an incident owner and mitigation plan before scanning. Do not run against production endpoints, customer content, or unapproved systems.
 
 **References:** [AI Red Teaming Agent](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent) · [Safety evaluations transparency note](https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note)
 

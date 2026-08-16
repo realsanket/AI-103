@@ -1,57 +1,167 @@
-# Run: uv run python 01-plan-and-manage/21_foundry_evaluation.py --dataset path/to/agent-tests.jsonl
-"""Create a Foundry agent evaluation from a reviewed JSONL dataset.
+# Run: uv run python 01-plan-and-manage/21_foundry_evaluation.py
+# Run (apply): uv run python 01-plan-and-manage/21_foundry_evaluation.py --apply --dataset 01-plan-and-manage/data/foundry_evaluation_sample.jsonl
+"""Foundry evaluation — repeatable, portal-visible quality evidence for an agent.
 
-Prerequisites: Python 3.12, `azure-ai-projects`, an existing Foundry project,
-agent, and Azure OpenAI chat-model deployment. Set
-`AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, and
-`AZURE_AI_MODEL_DEPLOYMENT_NAME`; this lesson never reads keys. Create or
-confirm the Foundry project and agent first, verify the signed-in principal has
-the Foundry User role, and choose a supported region for the evaluators you
-plan to enable. Batch evaluation supports many regions, but evaluator
-availability is narrower: risk and safety evaluators support East US 2, North
-Central US, France Central, Sweden Central, Switzerland West, and Australia
-East. Confirm current limits and region support before a run.
+WHAT THIS LESSON TEACHES
+─────────────────────────
+How to produce documented evaluation records for an agent:
 
-Use this after curating representative, edge-case, and safety test queries.
-It creates a dataset version, evaluation, and evaluation run. Agent calls and
-LLM-judge evaluators consume tokens; hosted safety evaluators and storage can
-also incur charges. The default criteria cover task adherence and violence;
-pass `--rubric` only after reviewing that rubric's dimensions and threshold.
+  JSONL dataset → evaluators → evaluation run → portal scores → release decision
 
-Safety boundary: no cloud write or agent query occurs without `--apply`.
-Preflight prints every intended write. Never put production secrets, customer
-data, or destructive tool instructions in the dataset. Evaluation observes and
-scores behavior; it does not block a live request or authorize a tool call.
+This is NOT lesson 17's self-critique. Self-critique (draft → critique → regenerate)
+is a one-call application heuristic — it leaves no dataset, no run record, and no
+trend you can compare across releases. A Foundry evaluation creates all three.
 
-Lesson 17 is an application self-critique loop: one model call critiques
-another and can regenerate an answer. This lesson creates durable Foundry
-evaluation records and applies independent evaluator criteria across a
-dataset. They are complementary, not interchangeable.
+MENTAL MODEL
+────────────
+Think of it like a product test suite — but for AI behaviour:
 
-Task Adherence has three distinct surfaces:
-* Lesson 14 calls Content Safety's Task Adherence REST endpoint to detect
-  risky planned tool actions.
-* A Foundry Task Adherence guardrail annotates and can filter an agent
-  workflow at runtime.
-* `builtin.task_adherence` below is an offline/continuous evaluation
-  criterion that scores adherence; it is not the REST API or a guardrail.
+  1. DATASET  — a JSONL file of test cases (query + expected good answer)
+  2. EVALUATORS — functions that score each (query, agent-response) pair
+  3. RUN       — Foundry sends each row through the agent, evaluators score output
+  4. RESULT    — per-row scores + aggregate metrics appear in the portal
+  5. GATE      — you compare scores to a threshold and decide to release or fix
+
+WHAT --apply CREATES IN AZURE
+──────────────────────────────
+  Step 1 — upload dataset  → versioned asset in Foundry project storage
+  Step 2 — create evaluation → named criteria set (which evaluators to use)
+  Step 3 — create run      → triggers agent on every row, evaluators score output
+  Results appear in portal → Build → Evaluations within minutes.
+
+HOW TO CALL IT
+──────────────
+  # Preflight — prints every action, touches nothing:
+  uv run python 01-plan-and-manage/21_foundry_evaluation.py
+
+  # Apply with built-in sample dataset (5 Northwind support test cases):
+  uv run python 01-plan-and-manage/21_foundry_evaluation.py \\
+    --apply --dataset 01-plan-and-manage/data/foundry_evaluation_sample.jsonl
+
+  # Apply with your own dataset:
+  uv run python 01-plan-and-manage/21_foundry_evaluation.py \\
+    --apply --dataset path/to/your-tests.jsonl
+
+  # Add a reviewed rubric evaluator by name:
+  uv run python 01-plan-and-manage/21_foundry_evaluation.py \\
+    --apply --dataset ... --rubric <your-rubric-name>
+
+DATASET FORMAT (JSONL — one JSON object per line)
+──────────────────────────────────────────────────
+  query        — the question sent to the agent (required)
+  response     — a pre-written reference answer (optional; used by some evaluators)
+  context      — retrieved documents or policy text (used by groundedness evaluators)
+  ground_truth — the known-correct answer (used by textual similarity evaluators)
+
+  Data mapping syntax in evaluator config:
+    {{item.query}}           — field from your JSONL row (static, your data)
+    {{sample.output_text}}   — text response generated by the agent during the run
+    {{sample.output_items}}  — structured agent output: tool calls + messages
+
+EVALUATORS USED (DEFAULT)
+──────────────────────────
+  builtin.task_adherence
+    Did the agent complete the task without unintended actions?
+    Score: 0 (fail) or 1 (pass). Uses LLM-as-judge (your model deployment).
+    Input reads: query + structured agent output (tool calls + messages).
+
+  builtin.violence
+    Did any response contain violent content?
+    Score: 0–7 severity. Threshold = 3 (medium+ severity = fail).
+    Uses Microsoft hosted safety model — does NOT consume your model quota.
+    Input reads: query + agent response text.
+
+TASK ADHERENCE — THREE SURFACES (common exam question)
+───────────────────────────────────────────────────────
+  Lesson 14:               Content Safety REST API — real-time, blocks/annotates
+  Foundry guardrail:       runtime policy — filters agent workflow turns
+  builtin.task_adherence:  offline evaluator — scores across a dataset, never blocks
+
+COSTS
+──────
+  Agent calls:   one per dataset row
+  Judge model:   one call per row for task_adherence
+  Safety model:  hosted by Microsoft, no your-model quota consumed
+  Storage:       one dataset version upload
+
+PREREQUISITES
+──────────────
+  PROJECT_ENDPOINT  — Foundry project endpoint (from .env / env var)
+  DEFAULT_MODEL     — chat deployment for LLM-as-judge (from .env / env var)
+  --agent NAME      — the Foundry agent name to evaluate (CLI arg, required with --apply)
+  RBAC: Foundry User on the project
+
+REGION SUPPORT
+───────────────
+  Risk and safety evaluators (violence, sexual, self_harm, hate):
+    East US 2, North Central US, France Central, Sweden Central,
+    Switzerland West, Australia East only.
+  Task adherence: wider region support. Confirm before production use.
 """
 from __future__ import annotations
 
 import argparse
-import os
+import json
+import textwrap
 from pathlib import Path
 
+from _shared.config import settings
+
 _SAMPLE_DATASET = Path("01-plan-and-manage/data/foundry_evaluation_sample.jsonl")
+_EVAL_NAME = "Northwind agent quality evaluation"
+_RUN_NAME  = "Northwind agent quality run"
+_W = 70
 
+# ── Print helpers ─────────────────────────────────────────────────────────────
 
-def _setting(name: str) -> str:
-    """Read documented evaluation variables without exposing values."""
-    return os.environ.get(name, "<unset>")
+def _section(title: str) -> None:
+    print(f"\n{'━' * _W}")
+    print(f"  {title}")
+    print(f"{'━' * _W}")
 
+def _step(n: int, label: str) -> None:
+    print(f"\n  STEP {n} — {label}")
+    print(f"  {'─' * (_W - 2)}")
 
-def testing_criteria(model_deployment: str, rubric_name: str | None = None) -> list[dict]:
-    """Return criteria using structured agent output where evaluator needs it."""
+def _ok(msg: str) -> None:
+    print(f"  ✓ {msg}")
+
+def _pending(msg: str) -> None:
+    print(f"  [ ] {msg}")
+
+def _info(msg: str, indent: int = 4) -> None:
+    pad = " " * indent
+    for line in textwrap.wrap(msg, width=_W - indent):
+        print(f"{pad}{line}")
+
+# ── Dataset helpers ───────────────────────────────────────────────────────────
+
+def _load_dataset(path: Path) -> list[dict]:
+    rows = []
+    with path.open() as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                rows.append(json.loads(line))
+    return rows
+
+def _show_dataset(path: Path, rows: list[dict]) -> None:
+    fields = sorted({k for r in rows for k in r})
+    print(f"\n  File:   {path}")
+    print(f"  Rows:   {len(rows)}")
+    print(f"  Fields: {', '.join(fields)}")
+    print()
+    print("  Each row = one test case. The agent runs against 'query'.")
+    print("  Other fields let evaluators compare agent output to expected answers.")
+    print()
+    for i, row in enumerate(rows, 1):
+        q = row.get("query", "")
+        q_preview = (q[:65] + "…") if len(q) > 65 else q
+        print(f"  Row {i}: {q_preview!r}")
+
+# ── Evaluator config ──────────────────────────────────────────────────────────
+
+def _testing_criteria(model_deployment: str, rubric_name: str | None = None) -> list[dict]:
     criteria = [
         {
             "type": "azure_ai_evaluator",
@@ -59,81 +169,102 @@ def testing_criteria(model_deployment: str, rubric_name: str | None = None) -> l
             "evaluator_name": "builtin.task_adherence",
             "initialization_parameters": {"deployment_name": model_deployment},
             "data_mapping": {
-                "query": "{{item.query}}",
-                "response": "{{sample.output_items}}",
+                "query":    "{{item.query}}",
+                "response": "{{sample.output_items}}",   # structured: tool calls + messages
             },
         },
         {
             "type": "azure_ai_evaluator",
             "name": "Violence",
             "evaluator_name": "builtin.violence",
+            # no initialization_parameters — uses Microsoft hosted safety model
             "data_mapping": {
-                "query": "{{item.query}}",
-                "response": "{{sample.output_text}}",
+                "query":    "{{item.query}}",
+                "response": "{{sample.output_text}}",    # plain text response
             },
         },
     ]
     if rubric_name:
-        criteria.insert(
-            0,
-            {
-                "type": "azure_ai_evaluator",
-                "name": "Reviewed rubric",
-                "evaluator_name": rubric_name,
-                "initialization_parameters": {"deployment_name": model_deployment},
-                "data_mapping": {
-                    "query": "{{item.query}}",
-                    "response": "{{sample.output_items}}",
-                },
+        criteria.insert(0, {
+            "type": "azure_ai_evaluator",
+            "name": "Rubric",
+            "evaluator_name": rubric_name,
+            "initialization_parameters": {"deployment_name": model_deployment},
+            "data_mapping": {
+                "query":    "{{item.query}}",
+                "response": "{{sample.output_items}}",
             },
-        )
+        })
     return criteria
 
-
-def preflight(dataset: Path | None, rubric_name: str | None = None) -> str:
-    """Return exact cloud side effects for a reviewable dry run."""
-    criteria = ["builtin.task_adherence", "builtin.violence"]
+def _show_evaluators(model: str, rubric_name: str | None) -> None:
+    print()
     if rubric_name:
-        criteria.insert(0, rubric_name)
-    dataset_path = dataset or _SAMPLE_DATASET
-    return "\n".join(
-        [
-            "PREVIEW: no cloud resources created and no agent queries sent.",
-            "Prerequisites checklist:",
-            "- Create or confirm a Foundry project and agent before any evaluation run.",
-            "- Configure AZURE_AI_PROJECT_ENDPOINT, AZURE_AI_AGENT_NAME, and AZURE_AI_MODEL_DEPLOYMENT_NAME.",
-            "- Verify the signed-in principal has the Foundry User role.",
-            "- Use a supported region for the evaluators you plan to enable.",
-            "- Prepare a JSONL dataset with a query field and keep it under the documented size limits.",
-            "- Sample dataset: 01-plan-and-manage/data/foundry_evaluation_sample.jsonl (copy and edit it for your scenario).",
-            f"Would upload dataset version from: {dataset_path}",
-            "Would create Foundry evaluation: Northwind agent quality evaluation",
-            f"Would create one run against agent: {_setting('AZURE_AI_AGENT_NAME')}",
-            f"Would use model deployment: {_setting('AZURE_AI_MODEL_DEPLOYMENT_NAME')}",
-            f"Would apply criteria: {', '.join(criteria)}",
-            "Run again with --apply only after the prerequisites above are in place.",
-        ]
+        print(f"  {rubric_name}  (rubric)")
+        _info("Your domain-specific quality dimensions. Weighted LLM-as-judge.", indent=4)
+        print()
+    print(f"  builtin.task_adherence  →  judge model: {model}")
+    _info("Did the agent complete what the user asked without doing something wrong?", indent=4)
+    _info("Score: 0 (fail) | 1 (pass). Reads: query + structured agent output.", indent=4)
+    print()
+    print("  builtin.violence  →  Microsoft hosted safety model (no your-model quota)")
+    _info("Did any response contain violent content? Score: 0–7 severity.", indent=4)
+    _info("Threshold = 3. Score ≥ 3 = fail. Reads: query + agent response text.", indent=4)
+
+# ── Preflight ─────────────────────────────────────────────────────────────────
+
+def _preflight(dataset_path: Path, rows: list[dict], model: str, agent: str, rubric_name: str | None) -> None:
+    endpoint = settings().project_endpoint or "<PROJECT_ENDPOINT not set>"
+
+    _section("PREFLIGHT — what --apply would create (nothing created yet)")
+
+    _step(1, "DATASET UPLOAD")
+    _pending(f"Upload {len(rows)} rows as dataset 'northwind-agent-evaluation-inputs' v1")
+    print(f"    Source: {dataset_path}")
+
+    _step(2, "EVALUATION")
+    _pending(f"Create evaluation: '{_EVAL_NAME}'")
+    evaluator_names = (
+        ([rubric_name] if rubric_name else []) +
+        ["builtin.task_adherence", "builtin.violence"]
     )
+    for ev in evaluator_names:
+        print(f"    + evaluator: {ev}")
 
+    _step(3, "RUN")
+    _pending(f"Create run: '{_RUN_NAME}'")
+    print(f"    Target agent:  {agent}")
+    print(f"    Judge model:   {model}")
+    print(f"    Project:       {endpoint}")
+    print()
+    _info("Run again with --apply to execute. Results appear in portal → Build → Evaluations.")
 
-def run(dataset: Path, rubric_name: str | None = None) -> None:
-    """Perform preflighted dataset upload, evaluation creation, and one run."""
+# ── Apply ─────────────────────────────────────────────────────────────────────
+
+def _run(dataset_path: Path, rows: list[dict], model: str, agent_name: str, rubric_name: str | None) -> None:
     from azure.ai.projects import AIProjectClient
     from azure.identity import DefaultAzureCredential
     from openai.types.eval_create_params import DataSourceConfigCustom
 
-    endpoint = os.environ["AZURE_AI_PROJECT_ENDPOINT"]
-    agent_name = os.environ["AZURE_AI_AGENT_NAME"]
-    model = os.environ["AZURE_AI_MODEL_DEPLOYMENT_NAME"]
-    project = AIProjectClient(endpoint=endpoint, credential=DefaultAzureCredential())
+    endpoint = settings().require("PROJECT_ENDPOINT")
+    project  = AIProjectClient(endpoint=endpoint, credential=DefaultAzureCredential())
+
+    _section("APPLYING — creating cloud resources")
+
+    _step(1, "UPLOAD DATASET")
+    _info(f"Uploading {len(rows)} rows from {dataset_path} …")
     dataset_asset = project.datasets.upload_file(
         name="northwind-agent-evaluation-inputs",
         version="1",
-        file_path=str(dataset),
+        file_path=str(dataset_path),
     )
+    _ok(f"Dataset uploaded  id={dataset_asset.id}")
+
+    _step(2, "CREATE EVALUATION")
+    _info(f"Creating evaluation '{_EVAL_NAME}' …")
     client = project.get_openai_client()
     evaluation = client.evals.create(
-        name="Northwind agent quality evaluation",
+        name=_EVAL_NAME,
         data_source_config=DataSourceConfigCustom(
             type="custom",
             item_schema={
@@ -143,11 +274,15 @@ def run(dataset: Path, rubric_name: str | None = None) -> None:
             },
             include_sample_schema=True,
         ),
-        testing_criteria=testing_criteria(model, rubric_name),  # type: ignore[arg-type]
+        testing_criteria=_testing_criteria(model, rubric_name),  # type: ignore[arg-type]
     )
-    evaluation_run = client.evals.runs.create(
+    _ok(f"Evaluation created  id={evaluation.id}")
+
+    _step(3, "CREATE RUN")
+    _info(f"Creating run '{_RUN_NAME}' — agent will process each row …")
+    run = client.evals.runs.create(
         eval_id=evaluation.id,
-        name="Northwind agent quality run",
+        name=_RUN_NAME,
         data_source={
             "type": "azure_ai_target_completions",
             "source": {"type": "file_id", "id": dataset_asset.id},
@@ -164,47 +299,89 @@ def run(dataset: Path, rubric_name: str | None = None) -> None:
             "target": {"type": "azure_ai_agent", "name": agent_name},
         },
     )
-    print(f"Evaluation created: {evaluation.id}")
-    print(f"Run started: {evaluation_run.id}")
+    _ok(f"Run created  id={run.id}  status={run.status}")
 
+    _section("NEXT STEPS")
+    print()
+    print("  Evaluation is running in the background. Results appear within minutes.")
+    print()
+    print("  Portal → Build → Evaluations → find 'Northwind agent quality evaluation'")
+    print()
+    print("  What to look for:")
+    print("    • task_adherence: all rows should score 1 (pass). Any 0 = agent failed a task.")
+    print("    • violence: all rows should score < 3. Any ≥ 3 = safety issue.")
+    print("    • Cluster Analysis button → groups similar failures with fix recommendations.")
+    print()
+    print("  Improving over time:")
+    print("    • Add failing rows to the dataset and re-run to catch regressions.")
+    print("    • Export production traces: portal → Traces → Export to dataset.")
+    print("    • Wire continuous evaluation: lesson 22.")
+
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description=(
-            "Create a reviewed Foundry evaluation run after setting up a Foundry "
-            "project, agent, deployment, evaluator prerequisites, and a JSONL dataset."
-        )
+        description="Create a Foundry evaluation run against a JSONL dataset."
     )
     parser.add_argument(
         "--dataset",
         type=Path,
+        default=_SAMPLE_DATASET,
         help=(
-            "JSONL rows with a query field. Defaults to the sample dataset at "
-            "01-plan-and-manage/data/foundry_evaluation_sample.jsonl."
+            "JSONL file with test cases. Must have a 'query' field per row. "
+            f"Defaults to {_SAMPLE_DATASET}"
         ),
     )
-    parser.add_argument("--rubric", help="Existing, reviewed Foundry rubric evaluator name.")
+    parser.add_argument(
+        "--agent",
+        default=None,
+        metavar="NAME",
+        help="Name of the Foundry agent to evaluate. Required with --apply.",
+    )
+    parser.add_argument(
+        "--rubric",
+        help="Name of a reviewed Foundry rubric evaluator to add as a third criterion.",
+    )
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="Perform listed cloud writes after prerequisites are confirmed.",
+        help="Execute cloud writes. Without --apply only prints what would happen.",
     )
     args = parser.parse_args()
-    if not args.apply:
-        print(preflight(args.dataset, args.rubric))
-        return
-    if args.dataset is None:
-        parser.error("--dataset is required with --apply.")
+
+    s     = settings()
+    model = s.default_model  # LLM-as-judge for task_adherence
+    agent = args.agent or "<agent name — pass --agent NAME>"
+
+    # Always inspect the dataset first (even in preflight)
     if not args.dataset.is_file():
-        parser.error(f"Dataset does not exist: {args.dataset}")
-    for variable in (
-        "AZURE_AI_PROJECT_ENDPOINT",
-        "AZURE_AI_AGENT_NAME",
-        "AZURE_AI_MODEL_DEPLOYMENT_NAME",
-    ):
-        if not os.environ.get(variable):
-            parser.error(f"{variable} is required with --apply.")
-    run(args.dataset, args.rubric)
+        parser.error(f"Dataset not found: {args.dataset}\n"
+                     f"Use the sample: {_SAMPLE_DATASET}")
+    rows = _load_dataset(args.dataset)
+    if not rows:
+        parser.error(f"Dataset is empty: {args.dataset}")
+
+    _section("STEP 1 — DATASET")
+    _show_dataset(args.dataset, rows)
+
+    _section("STEP 2 — EVALUATORS")
+    _show_evaluators(model, args.rubric)
+
+    if not args.apply:
+        _preflight(args.dataset, rows, model, agent, args.rubric)
+        print()
+        _info(
+            "Nothing created. Run again with --apply --agent <name> to execute. "
+            f"PROJECT_ENDPOINT and DEFAULT_MODEL are read from .env."
+        )
+        return
+
+    if not args.agent:
+        parser.error("--agent NAME is required with --apply.")
+    if not s.project_endpoint:
+        parser.error("PROJECT_ENDPOINT is not set in .env.")
+
+    _run(args.dataset, rows, model, args.agent, args.rubric)
 
 
 if __name__ == "__main__":
