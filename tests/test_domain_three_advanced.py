@@ -17,10 +17,10 @@ def _lesson(file_name: str):
     return module
 
 
-reference_media = _lesson("10_reference_media_preflight.py")
-remix = _lesson("11_video_remix.py")
-provenance = _lesson("12_visual_provenance_policy.py")
-ocr_safety = _lesson("13_ocr_image_injection_safety.py")
+reference_media = _lesson("08_reference_media_preflight.py")
+remix = _lesson("09_video_remix.py")
+provenance = _lesson("10_visual_provenance_policy.py")
+ocr_safety = _lesson("11_ocr_image_injection_safety.py")
 
 
 class DomainThreeAdvancedTests(TestCase):

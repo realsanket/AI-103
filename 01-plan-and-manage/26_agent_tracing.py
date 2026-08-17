@@ -15,7 +15,7 @@ Two flows teach tracing from different angles:
 
 This is client-side tracing only. Server-side Foundry tracing (automatic for
 hosted/prompt agents) starts only after connecting Application Insights to the
-project in the portal. Lesson 26 explains that setup step.
+project in the portal. Lesson 25 explains that setup step.
 
 Prerequisites
   PROJECT_ENDPOINT  — required (uses DefaultAzureCredential / az login locally)

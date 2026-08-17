@@ -49,6 +49,7 @@ dependencies = [
     "langchain-azure-ai>=1.2.3",
     "azure-ai-evaluation[redteam]>=1.18.3",
     "azure-ai-documentintelligence>=1.0.2",
+    "azure-monitor-query>=1.4.0",
 ]
 
 [build-system]

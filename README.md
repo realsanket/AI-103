@@ -1,6 +1,6 @@
 # AI-103 runnable study repository
 
-Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md). It has **149 numbered Python lessons** across five exam domains, three supplemental domains, and a production-platform IaC lab. Lessons use Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many make billable remote calls or change persistent cloud state.
+Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md). It has **199 numbered Python lessons** across five exam domains, three supplemental domains, and a production-platform IaC lab. Lessons use Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many make billable remote calls or change persistent cloud state.
 
 Read [`docs/coverage.md`](docs/coverage.md) for an objective-by-objective, evidence-based map. A lesson existing here does not mean its Azure API, region, model, preview feature, or permission has been exercised in your subscription.
 
@@ -8,15 +8,15 @@ Read [`docs/coverage.md`](docs/coverage.md) for an objective-by-objective, evide
 
 | Domain | Exam weight | Lessons | Start here |
 |---|---:|---:|---|
-| [01 Plan and manage](01-plan-and-manage/README.md) | 25–30% | 26 | `01_model_catalog_list.py`, `02_deployment_types.py` |
-| [02 Generative AI and agents](02-generative-ai-and-agents/README.md) | 30–35% | 30 | `01_first_api_call.py`, `23_mcp_tool_preflight.py`, `29_cloud_evaluation.py` |
-| [03 Computer vision](03-computer-vision/README.md) | 10–15% | 15 | `01_multimodal_understanding.py`, `10_reference_media_preflight.py`, `15_cu_visual_handoff.py` |
-| [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 25 | `05_language_pii.py`, `20_language_sentiment.py`, `21_speech_mcp_preflight.py`, `25_text_speech_governance_preflight.py` |
+| [01 Plan and manage](01-plan-and-manage/README.md) | 25–30% | 31 | `01_model_catalog_list.py`, `02_deployment_types.py` |
+| [02 Generative AI and agents](02-generative-ai-and-agents/README.md) | 30–35% | 39 | `01_first_api_call.py`, `25_mcp_tool_preflight.py`, `22_cloud_evaluation.py` |
+| [03 Computer vision](03-computer-vision/README.md) | 10–15% | 16 | `01_multimodal_understanding.py`, then the domain lesson map |
+| [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 27 | `05_language_pii.py`, `20_language_sentiment.py`, `21_speech_mcp_preflight.py`, `25_text_speech_governance_preflight.py` |
 | [05 Information extraction](05-information-extraction/README.md) | 10–15% | 21 | `00_search_index_setup.py`, `03_search_hybrid_semantic.py`, `18_search_monitoring.py` |
-| [06 Model customization and delivery](06-model-customization-other/README.md) | Supplemental | 14 | `00_customization_preflight.py`, `05_submit_training.py`, `10_quota_ptu_preflight.py` |
-| [07 Production platform](07-production-platform-other/README.md) | Cross-domain | 6 | `01_bicep_preflight.py`, then local platform preflights |
-| [08 Advanced agents and current Foundry operations](08-advanced-agents-other/README.md) | Supplemental | 6 | `01_foundry_iq_connection_preflight.py`, `03_a2a_agent_card_preflight.py`, `04_routines_preflight.py` |
-| [09 Current Azure AI Document Intelligence](09-current-ai-services-other/README.md) | Supplemental | 6 | `01_read_ocr.py`, `02_layout_markdown_tables.py`, `05_custom_neural_preflight.py` |
+| [06 Model customization and delivery](06-model-customization-other/README.md) | Supplemental | 20 | `00_customization_preflight.py`, `05_submit_training.py`, `10_quota_ptu_preflight.py` |
+| [07 Production platform](07-production-platform-other/README.md) | Cross-domain | 10 | `01_bicep_preflight.py`, then local platform preflights |
+| [08 Advanced agents and current Foundry operations](08-advanced-agents-other/README.md) | Supplemental | 28 | `01_foundry_iq_connection_preflight.py`, `20_toolbox_lifecycle_governance.py`, `28_cross_domain_observability.py` |
+| [09 Current Azure AI Document Intelligence](09-current-ai-services-other/README.md) | Supplemental | 7 | `01_read_ocr.py`, `02_layout_markdown_tables.py`, `05_custom_neural_preflight.py` |
 
 Shared clients live in [`_shared/`](./_shared/); sample inputs live under `_shared/sample_data/`. `AI-103.md` is local study-guide source, `Slides.md` is extracted study material, and `.context/azure-ai-docs/` is local reference documentation. Domain READMEs are source of truth for individual prerequisites, preview status, input formats, and side effects.
 
@@ -37,7 +37,7 @@ Microsoft Foundry resource
 
 Separate resources
 ├── Azure AI Search: https://<search>.search.windows.net
-│   └── SEARCH_CONNECTION_NAME: existing Foundry project connection for D2 L25
+│   └── SEARCH_CONNECTION_NAME: existing Foundry project connection for D2 L27
 ├── Azure Blob Storage: source documents, Search ingestion, CU SAS inputs,
     and batch Speech input
 └── Azure Document Intelligence: single-service custom subdomain for D9
@@ -94,7 +94,7 @@ Start from [`.env.example`](.env.example). It contains endpoint/name placeholder
 | Domain 1 advanced labs and D2 cloud evaluation | `DEPLOYMENT_NAME`, `DEPLOYMENT_MODEL_NAME`, `DEPLOYMENT_MODEL_VERSION`, `PROVENANCE_SOURCE_URL`, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, `AZURE_AI_MODEL_DEPLOYMENT_NAME` |
 | Domain 2 external-tool preflights and D5 managed Search agent | `NORTHWIND_MCP_ENDPOINT`, `NORTHWIND_MCP_CONNECTION`, `SEARCH_CONNECTION_NAME` |
 | Domain 2 OpenAPI sample | `ORDERS_FN_ENDPOINT` |
-| Domain 8 advanced Foundry-agent labs | `FOUNDRY_IQ_SEARCH_ENDPOINT`, `FOUNDRY_IQ_KNOWLEDGE_BASE`, `FOUNDRY_IQ_CONNECTION_NAME`, `FOUNDRY_TOOLBOX_NAME`, `FOUNDRY_AGENT_NAME` |
+| Domain 8 advanced Foundry-agent labs | `FOUNDRY_IQ_SEARCH_ENDPOINT`, `FOUNDRY_IQ_KNOWLEDGE_BASE`, `FOUNDRY_TOOLBOX_NAME`, `FOUNDRY_SKILL_NAME`, `API_CENTER_RESOURCE_ID`, Bing/IQ/enterprise tool connection IDs, `BROWSER_PROJECT_CONNECTION_ID`, `COMPUTER_USE_MODEL` |
 
 Template defaults currently include `gpt-4.1-mini`, `o4-mini`, `gpt-image-1`, `sora`, `text-embedding-3-large`, `model-router`, `northwind-docs`, and `northwind-docs-vector`. Replace model values with deployment names available to your resource. `settings()` treats placeholder values beginning with `<` as unset.
 
@@ -153,8 +153,8 @@ Then follow each domain README:
 
 1. Domain 1: learn deployment types, quota reads, identity, safety, and
 telemetry before creating deployments or persistent blocklists.
-2. Domain 2: run Responses lessons 01–07, then agents 08–13. Lessons 23–25
-and 29 default to local preflights; use `--apply` only after their connection, data, RBAC, lifecycle, and cost checks. Lessons 26–28 validate local hosted-agent assets; their contained deploy wrapper also requires `--apply`.
+2. Domain 2: run Responses lessons 01–07, then agents 08–13. Lessons 24–27
+default to local preflight/read-only behavior; use remote flags only after their connection, data, RBAC, lifecycle, and cost checks. Lessons 28–30 validate hosted-agent assets; deployment remains explicit.
 3. Domain 3: run L10, L12–L15 without `--apply`/`--run` first, then
 local-image understanding/captions before image/video generation or CU URL analysis.
 4. Domain 4: work through Language/Translator before Speech. Run
@@ -179,9 +179,9 @@ uv run python 05-information-extraction/05_search_skillset.py
 uv run python 05-information-extraction/04_search_indexer_setup.py --run
 uv run python 05-information-extraction/18_search_monitoring.py
 uv run python 05-information-extraction/20_managed_search_agent_tool.py
-uv run python 02-generative-ai-and-agents/23_mcp_tool_preflight.py
-uv run python 02-generative-ai-and-agents/26_hosted_agent_responses.py
-uv run python 02-generative-ai-and-agents/29_cloud_evaluation.py --dataset cases.jsonl
+uv run python 02-generative-ai-and-agents/25_mcp_tool_preflight.py
+uv run python 02-generative-ai-and-agents/28_hosted_agent_responses.py
+uv run python 02-generative-ai-and-agents/22_cloud_evaluation.py --dataset cases.jsonl
 uv run python 06-model-customization-other/00_customization_preflight.py
 uv run python 06-model-customization-other/10_quota_ptu_preflight.py
 uv run python 08-advanced-agents-other/01_foundry_iq_connection_preflight.py
@@ -220,18 +220,19 @@ uv run python 09-current-ai-services-other/06_di_vs_cu_decision.py --scenario st
 | D1 L19–L21 | Content Safety checks; L21 polls a Blob-backed provenance job only with `--run`. |
 | D1 L22–L25 | Evaluations, monitoring rules, telemetry feedback, and red-team scans only with explicit `--apply`; can persist state and bill. |
 | D1 L26 | Local tracing/App Insights preflight only; no Azure call or mutation. |
+| D1 L27–L31 | Control-plane reads, local policy validation, Log Analytics read, optional evaluation, and optional red-team probe; remote work remains explicit. |
 | D2 L01–L22 | Model/tool calls; agent versions, vector stores/files, memory stores/items, workflow assets, Functions, and telemetry can persist or bill. |
-| D2 L23–L25 | Default commands are local preflights. `--apply` for L23/L25 creates, invokes, then deletes a temporary agent version; L24 creates a persistent Toolbox version and deletes one only with explicit version and `--apply`. |
-| D2 L26–L28 | Local hosted-agent contract/A2A/CI-CD asset checks. Contained `deploy.py --apply` can provision or deploy hosted-agent resources; no deployment is performed by default. |
-| D2 L29–L30 | L29 default is local JSONL/lifecycle preview; `--apply` uploads an eval file, creates evaluation/run records, and invokes model/evaluators. L30 only reads local configuration. |
+| D2 L23–L27 | Tracing/observability and external-tool preflights. Toolbox publish/invoke and MCP/Search agent probes are explicit and can persist or bill. |
+| D2 L28–L30 | Local hosted-agent contract/A2A/CI-CD checks; deployment remains a separate explicit operation. |
+| D2 L31–L39 | Direct embeddings/JSON/caching/function/reasoning/web/structured-output calls and local webhook preflight; remote model/tool calls require explicit flags. |
 | D3 | L01–L09 contain remote-call paths; L02–L05 can overwrite generated files after successful responses. L10/L11/L15 are local preflights unless `--apply`; L12/L13 are local preflights unless `--run`; L14 is local only. These opt-in paths are not evidence of a successful live call. Sora 2, provenance, and CU availability remain service/region/version dependent. |
 | D4 L01–L20 | Remote-call paths; batch STT uses Blob and Speech processing. L18 creates then deletes an agent version and is protocol-only, not end-to-end voice playback. |
 | D4 L21–L25 | L21/L22/L23/L24 default to no-cloud-call preflights; `--run` lists Speech MCP tools (L21), sends reviewed text (L22), or streams Voice Live audio (L24). L23 `--apply` submits, inspects, or cancels a billable Document Translation batch with persistent Blob output. L25 reads local configuration only. These paths are not live-tested here. |
 | D5 | L00–L05 and L07–L15 contain documented cloud-call or persistent-resource paths; L06 is local. Indexer runs invoke embeddings. L16–L20 default to local preflights: L16 `--apply` submits CU input; L17 `--apply` mutates Search (`--run` starts indexing); L18/L19 `--run` are read-only; L20 requires `--enable` plus `--apply` and/or `--run`. These paths are not evidence of a successful live operation. |
 | D6 | L00–L03 and L13 are local only. L04 creates teacher-generated local candidates only with `--apply`; L05 uploads data and submits a training job only with `--apply`; L06 reads a job only with `--apply`; L07 creates/updates a deployment only with `--apply`; L08, L11, and L12 make billable inference calls only with `--apply`; L09 uploads input and creates a Batch job only with `--apply`; L10 reads management-plane quota/deployments only with `--apply`. These paths are not evidence of a successful live operation. |
 | D7 | Offline preflight reads local IaC only. Bicep defaults to Azure `what-if`; Terraform defaults to `plan`. Each engine mutates Azure only with explicit `--apply`. The separate policy deployment can deny unapproved connections after nonproduction review. No live deployment, private connectivity, CMK, CI/CD, failover, or recovery success is claimed. |
-| D8 | All six labs default to local preflight. `--apply` can create a Foundry IQ connection or Toolbox, patch an A2A card or stable endpoint, create/dispatch a routine, or start/apply an Agent Optimizer candidate. These operations can persist cloud state or bill; no successful live operation is evidenced. M365/Teams distribution remains an explicit Foundry portal step. |
-| D9 | All six labs default to local preflight or a local decision. `--apply` submits one Document Intelligence v4 analysis or starts one custom neural build. These operations can bill or persist a model; no successful live operation is evidenced. |
+| D8 | All 28 labs default to local preflight or typed request construction. Explicit `--apply` paths can create/manage Foundry IQ connections, Toolbox/Skill versions, A2A cards, routines, hosted agents, gateway routing, optimizer jobs, probes, or a read-only Log Analytics query. These operations can persist cloud state or bill except the telemetry read; no successful live operation is evidenced. |
+| D9 | All seven labs default to local preflight or a local decision. `--apply` submits Document Intelligence analysis or starts one custom neural build. These operations can bill or persist a model; no successful live operation is evidenced. |
 
 Preview examples include Foundry Memory, workflows, agent evaluators, Sora 2, Content Understanding, MAI-Transcribe, Language/Speech MCP, Voice Live, and several D1 guardrail features. Their availability changes independently of this repository. Use disposable study resources, short prompts, small sample files, and delete lab-created resources when finished.
 
@@ -240,7 +241,7 @@ Preview examples include Foundry Memory, workflows, agent evaluators, Sora 2, Co
 No external link checker is required. Validate local Python/JSON after editing:
 
 ```bash
-python -m compileall -q 01-plan-and-manage 02-generative-ai-and-agents 03-computer-vision 04-text-and-speech 05-information-extraction 06-model-customization-other 08-advanced-agents-other 09-current-ai-services-other _shared
+python -m compileall -q 01-plan-and-manage 02-generative-ai-and-agents 03-computer-vision 04-text-and-speech 05-information-extraction 06-model-customization-other 07-production-platform-other 08-advanced-agents-other 09-current-ai-services-other _shared
 python -m json.tool 05-information-extraction/skillset_configs/index.json >/dev/null
 python -m json.tool 05-information-extraction/skillset_configs/data_source.json >/dev/null
 python -m json.tool 05-information-extraction/skillset_configs/skillset.json >/dev/null

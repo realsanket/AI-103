@@ -6,7 +6,7 @@ ai-usage: ai-assisted
 
 This project hosts two custom Model Context Protocol (MCP) tools: order status
 and customer orders. It is deployment asset for lesson
-[`23_mcp_tool_preflight.py`](../23_mcp_tool_preflight.py); default lesson
+[`25_mcp_tool_preflight.py`](../25_mcp_tool_preflight.py); default lesson
 execution is local preflight only. Deploy and connect it separately before
 using that lesson's explicit `--apply` path.
 

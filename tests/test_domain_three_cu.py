@@ -15,7 +15,7 @@ def _lesson(name: str):
     return module
 
 
-blob = _lesson("14_cu_blob_preflight.py")
+blob = _lesson("12_cu_blob_preflight.py")
 handoff = _lesson("15_cu_visual_handoff.py")
 
 

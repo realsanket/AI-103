@@ -66,9 +66,9 @@ matrix.
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
 | Deploy and consume LLMs, small models, code models, and multimodal models | D1 `03_deploy_model.py`; D2 `01_first_api_call.py`, `03_reasoning.py`; D3 `01_multimodal_understanding.py` | **Partial** — consumes LLM/reasoning/multimodal paths; no dedicated small- or code-model lesson. |
-| Implement RAG in an application | D2 `06_file_search_tool.py`; D5 `07_rag_prompt_agent.py`, `08_rag_client_run.py` | **Runnable** — D5 is app-owned manual RAG; D2 `25_agent_azure_ai_search_preflight.py` is separate **Preflight / Opt-in**, not live-tested managed Search integration. |
+| Implement RAG in an application | D2 `06_file_search_tool.py`; D5 `07_rag_prompt_agent.py`, `08_rag_client_run.py` | **Runnable** — D5 is app-owned manual RAG; D2 `27_agent_azure_ai_search_preflight.py` is separate **Preflight / Opt-in**, not live-tested managed Search integration. |
 | Design workflows, tool-augmented flows, and multistep reasoning pipelines | D2 `04_web_search_tool.py`, `05_code_interpreter.py`, `11_agent_function_tools.py`, `15_workflow_intake.py`, `16_workflow_conditional.py` | **Runnable / Partial** — tool paths execute; workflow surface is preview and does not prove production orchestration. |
-| Evaluate models and apps, including detecting fabrications, relevance, quality, and safety | D1 `17_evaluator_groundedness.py`; D2 `19_evaluator_task_adherence.py`; D2 `29_cloud_evaluation.py` | **Partial** — L19 is one local in-memory evaluator trace. L29 is **Preflight / Opt-in** for durable cloud evaluation, not a completed cloud run; no complete fabrication/relevance/safety suite. |
+| Evaluate models and apps, including detecting fabrications, relevance, quality, and safety | D1 `17_evaluator_groundedness.py`; D2 `21_evaluator_task_adherence.py`; D2 `22_cloud_evaluation.py` | **Partial** — L21 is one local in-memory evaluator trace. L22 is **Preflight / Opt-in** for durable cloud evaluation, not a completed cloud run; no complete fabrication/relevance/safety suite. |
 | Integrate generative workflows into applications by using Foundry SDKs and connectors | `_shared/openai_client.py`, `_shared/foundry_client.py`; D2 lessons 01–18 | **Runnable** |
 | Configure an application to connect to a Foundry project | `_shared/config.py`, `_shared/foundry_client.py` | **Runnable** |
 
@@ -81,16 +81,16 @@ matrix.
 | Integrate agent tools, including APIs, knowledge stores, search, content understanding, and custom functions | D2 `10_agent_web_search.py`, `11_agent_function_tools.py`, `12_agent_openapi_tools.py`; D2 `25_mcp_tool_preflight.py`–`27_agent_azure_ai_search_preflight.py`; D5 `15_cu_content_agent.py` | **Partial** — L25–L27 default to **Preflight**; their `--apply`/`--invoke` paths are **Opt-in** and not live-tested. Toolbox publication and local Agent Framework consumption are implemented but require a configured version; MCP server deployment and managed Search-agent integration are not proven by default. |
 | Implement orchestrated multi-agent solutions | D2 `18_multi_agent_coord.py` | **Runnable** |
 | Build autonomous or semiautonomous workflows with safeguards and approval flow controls | D2 `15_workflow_intake.py`, `16_workflow_conditional.py`, `25_mcp_tool_preflight.py` | **Partial** — conditional preview workflow; L25 has approval code only in **Opt-in** remote path. No human approval flow is live-tested. |
-| Integrate monitoring into deployed agents, evaluate agent behavior, and perform error analysis | D1 `22_foundry_evaluation.py`–`26_foundry_tracing_setup.py`; D2 `19_evaluator_task_adherence.py`, `21_langchain_tracing.py`, `29_cloud_evaluation.py`, `30_production_observability_preflight.py` | **Partial** — L19 evaluates one local trace; L21 optionally exports metadata-only spans; L29 is **Preflight / Opt-in**; L30 is **Preflight**. No deployed-agent monitoring or cloud evaluation run is live-tested. |
+| Integrate monitoring into deployed agents, evaluate agent behavior, and perform error analysis | D1 `21_foundry_evaluation.py`–`26_agent_tracing.py`; D2 `21_evaluator_task_adherence.py`, `23_langchain_tracing.py`, `22_cloud_evaluation.py`, `24_production_observability_preflight.py`; D8 `28_cross_domain_observability.py` | **Partial** — local/opt-in evaluation and tracing paths exist, and D8 adds a read-only non-content health query. No deployed-agent monitoring or cloud evaluation run is live-tested. |
 
 ### Optimize and operationalize generative AI systems
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
 | Tune generation behavior, such as prompt engineering and adjusting model parameters | D2 `02_model_behavior.py`, `07_structured_output.py` | **Runnable** |
-| Implement model reflection, chain-of-thought evaluations, and self-critique loops | D1 `17_evaluator_groundedness.py`; D2 `19_evaluator_task_adherence.py`, `29_cloud_evaluation.py` | **Partial** — self-critique/local evaluator example; no chain-of-thought storage. L29's durable evaluator is **Preflight / Opt-in**, not a completed run. |
-| Set up observability by implementing tracing, token analytics, safety signals, and latency breakdowns | D1 `18_agent_tracing.py`, `23_continuous_evaluation.py`, `24_human_feedback.py`, `26_foundry_tracing_setup.py`; D2 `21_langchain_tracing.py`, `30_production_observability_preflight.py` | **Partial** — L21 can export metadata-only spans when configured; L30 is local configuration check only. No live portal telemetry, alerts, or production retention setup is tested. |
-| Orchestrate multiple models, flows, or hybrid LLM and rules engines | D2 `18_multi_agent_coord.py`, `22_langgraph_agent.py`; D2 `26_hosted_agent_responses.py`–`28_hosted_agent_cicd.py` | **Runnable / Partial / Gap** — L18/L22 provide application-local orchestration. L26–L28 are **Local / Preflight** hosted-agent contract, A2A-boundary, and CI/CD reference assets; hosted deployment is not live-tested and A2A is a deliberate **Gap** (L27 verifies sample is not A2A). |
+| Implement model reflection, chain-of-thought evaluations, and self-critique loops | D1 `17_evaluator_groundedness.py`; D2 `21_evaluator_task_adherence.py`, `22_cloud_evaluation.py` | **Partial** — self-critique/local evaluator example; no chain-of-thought storage. L22's durable evaluator is **Preflight / Opt-in**, not a completed run. |
+| Set up observability by implementing tracing, token analytics, safety signals, and latency breakdowns | D1 `22_continuous_evaluation.py`, `23_human_feedback.py`, `25_foundry_tracing_setup.py`, `26_agent_tracing.py`; D2 `23_langchain_tracing.py`, `24_production_observability_preflight.py`; D8 `28_cross_domain_observability.py` | **Partial** — tracing and a read-only non-content health query are implemented, but no live portal telemetry, alerts, or production retention setup is tested. |
+| Orchestrate multiple models, flows, or hybrid LLM and rules engines | D2 `18_multi_agent_coord.py`, `20_langgraph_agent.py`; D2 `28_hosted_agent_responses.py`–`30_hosted_agent_cicd.py` | **Runnable / Partial** — L18/L20 provide application-local orchestration. L28–L30 are **Local / Preflight** hosted-agent contract, A2A-boundary, and CI/CD reference assets; hosted deployment is not live-tested, while D8 L03 covers the current opt-in A2A card path. |
 
 ## 3. Implement computer vision solutions (10–15%)
 
@@ -186,15 +186,16 @@ claim any remote path was run successfully.
 
 | Domain | Numbered lessons present | Notes |
 |---|---:|---|
-| 1 — Plan and manage | 26 | Sequence is `01`–`26`; advanced Content Safety is `19`–`21`, evaluations `22`–`25`, tracing setup `26`. |
-| 2 — Generative AI and agents | 30 | `01`–`30`; L23–L25 default to local preflights, L26–L28 are local hosted-agent assets, L29 is opt-in cloud evaluation, and L30 is local preflight. |
-| 3 — Computer vision | 15 | `01`–`15`; L10–L15 are preflight/local by default except explicit `--apply`/`--run` paths. |
-| 4 — Text and speech | 25 | `01`–`25`; L21–L22 and L24 default to local preflights and use `--run` for remote requests, L23 uses `--apply`, and L25 is local only. |
+| 1 — Plan and manage | 31 | `01`–`31`; advanced evaluation, tracing, control-plane, CI/CD, and red-team lessons remain preflight/opt-in where documented. |
+| 2 — Generative AI and agents | 39 | `01`–`39`; external tools are L25–L27, hosted-agent contracts L28–L30, and direct advanced OpenAI patterns L31–L39. |
+| 3 — Computer vision | 16 | `01`–`16`; advanced paths remain preflight/local by default except explicit remote flags. |
+| 4 — Text and speech | 27 | `01`–`27`; Language, Speech, Translator, Voice, and governance paths retain separate endpoint/auth contracts. |
 | 5 — Information extraction | 21 | `00`–`20`; `00_search_index_setup.py` is included. L16–L20 are default **Preflight** paths; remote work is explicit **Opt-in**. |
-| 6 — Model customization and delivery | 14 | Supplemental curriculum, `00`–`13`; local validation/preflight first, every cloud request requires `--apply`. |
-| 8 — Advanced agents and current Foundry operations | 6 | Supplemental curriculum, `01`–`06`; each lab defaults to preflight and requires `--apply` for a remote change. |
-| 9 — Current AI services | 6 | Supplemental curriculum, `01`–`06`; Read, Layout, invoice, ID, and custom neural default to local preflight and require `--apply` for remote work. DI-versus-CU selection is local only. |
-| **Total** | **143** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
+| 6 — Model customization and delivery | 20 | Supplemental curriculum; local validation/preflight first, every cloud request remains explicit. |
+| 7 — Production platform | 10 | Cross-domain infrastructure preflights; apply remains explicit and no live deployment is claimed. |
+| 8 — Advanced agents and current Foundry operations | 28 | `01`–`28`; remote mutations are explicit, L22–L27 are local typed/safety preflights, and L28 is a local/opt-in read-only telemetry view. |
+| 9 — Current AI services | 7 | `01`–`07`; Document Intelligence calls/builds remain opt-in and evidence-bounded. |
+| **Total** | **199** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
 
 Gaps and partial labels are intentional. They prevent a local study repository
 from claiming live implementation of hosted deployment, A2A, MCP, Toolbox,
@@ -243,6 +244,10 @@ practice for capabilities adjacent to agent delivery and operations.
 | Routines | D8 `04_routines_preflight.py` | **Preflight / Opt-in** — default validates local manifest; `--apply` creates and optionally dispatches a routine. |
 | Gateway, endpoint release, and channel distribution | D8 `05_gateway_publishing_preflight.py` | **Preflight / Opt-in / Partial** — `--apply` pins a stable endpoint; AI Gateway and M365/Teams distribution retain explicit portal steps. |
 | Agent Optimizer | D8 `06_agent_optimizer_preflight.py` | **Preflight / Opt-in** — checks hosted-agent assets; `--apply` starts a job or applies a reviewed candidate locally, never deploys. |
+| Toolbox lifecycle, guardrail policy, and Skills | D8 `20_toolbox_lifecycle_governance.py`, `21_skills_private_catalog_preflight.py` | **Preflight / Opt-in** — typed policy/Skill paths and lifecycle operations exist; API Center catalogs and private-network Skills remain external prerequisites. |
+| Grounding with Bing and Microsoft IQ | D8 `22_bing_grounding_preflight.py`, `23_microsoft_iq_tools_preflight.py` | **Local / Cross-domain** — typed current tools plus identity/network decisions; no Bing/Fabric/M365 request is made. |
+| Reminder, Computer Use, enterprise data, and image tool | D8 `24_reminder_tool_preflight.py`–`27_image_generation_tool_preflight.py` | **Local / Preview** — request and safety contracts only; no reminder, UI action, enterprise query, or media generation. |
+| Cross-domain operational observability | D8 `28_cross_domain_observability.py` | **Local / Read-only Opt-in** — maps Domain 01–09 signals and can query non-content App* health tables; no live-ingestion claim. |
 
 ## Supplemental domain 9: current Document Intelligence
 

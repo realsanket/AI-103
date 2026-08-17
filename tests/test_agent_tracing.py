@@ -18,8 +18,8 @@ def _lesson_module(name: str, file_name: str):
     return module
 
 
-agent_tracing = _lesson_module("agent_tracing", "18_agent_tracing.py")
-tracing_setup = _lesson_module("tracing_setup", "26_foundry_tracing_setup.py")
+agent_tracing = _lesson_module("agent_tracing", "26_agent_tracing.py")
+tracing_setup = _lesson_module("tracing_setup", "25_foundry_tracing_setup.py")
 
 
 class AgentTracingTests(unittest.TestCase):
@@ -35,13 +35,16 @@ class AgentTracingTests(unittest.TestCase):
         tracer.start_as_current_span.return_value.__enter__.return_value = span
         return tracer, span
 
-    def test_manual_span_uses_gen_ai_attributes_without_content(self) -> None:
-        tracer, span = self._tracer()
+    def _project_client(self):
         client = MagicMock()
-        client.responses.create.return_value = self._response()
+        openai = client.get_openai_client.return_value.__enter__.return_value
+        openai.responses.create.return_value = self._response()
+        return client
+
+    def test_manual_span_uses_business_attributes_without_content(self) -> None:
+        tracer, span = self._tracer()
+        client = self._project_client()
         with (
-            patch.object(agent_tracing, "setup_tracing", return_value=tracer),
-            patch.object(agent_tracing, "openai_client", return_value=client),
             patch.object(
                 agent_tracing,
                 "settings",
@@ -51,17 +54,11 @@ class AgentTracingTests(unittest.TestCase):
             ),
             patch.object(agent_tracing, "_check_safety", return_value={"violence": 0}),
         ):
-            self.assertEqual(
-                agent_tracing.run_traced_call("Customer prompt: person@example.com"),
-                "Refunds are available within 30 days.",
-            )
+            result = agent_tracing.run_traced_call(client, tracer)
 
-        self.assertEqual(
-            tracer.start_as_current_span.call_args.args[0], "chat gpt-4.1-mini"
-        )
+        self.assertEqual(result[1], "Refunds are available within 30 days.")
+        self.assertEqual(tracer.start_as_current_span.call_args.args[0], "northwind-support-response")
         attributes = {call.args[0]: call.args[1] for call in span.set_attribute.call_args_list}
-        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
-        self.assertEqual(attributes["gen_ai.system"], "openai")
         self.assertEqual(attributes["gen_ai.request.model"], "gpt-4.1-mini")
         self.assertEqual(attributes["gen_ai.usage.input_tokens"], 3)
         self.assertEqual(attributes["gen_ai.usage.output_tokens"], 5)
@@ -71,11 +68,8 @@ class AgentTracingTests(unittest.TestCase):
 
     def test_missing_content_safety_configuration_is_nonfatal(self) -> None:
         tracer, span = self._tracer()
-        client = MagicMock()
-        client.responses.create.return_value = self._response()
+        client = self._project_client()
         with (
-            patch.object(agent_tracing, "setup_tracing", return_value=tracer),
-            patch.object(agent_tracing, "openai_client", return_value=client),
             patch.object(
                 agent_tracing,
                 "settings",
@@ -85,24 +79,18 @@ class AgentTracingTests(unittest.TestCase):
             ),
             patch.object(agent_tracing, "_check_safety") as check_safety,
         ):
-            self.assertEqual(
-                agent_tracing.run_traced_call("safe prompt"),
-                "Refunds are available within 30 days.",
-            )
+            agent_tracing.run_traced_call(client, tracer)
 
         check_safety.assert_not_called()
         self.assertIn(
-            ("content_safety.error.type", "ConfigurationMissing"),
+            ("content_safety.skipped", True),
             [call.args for call in span.set_attribute.call_args_list],
         )
 
     def test_only_expected_content_safety_errors_are_nonfatal(self) -> None:
         tracer, span = self._tracer()
-        client = MagicMock()
-        client.responses.create.return_value = self._response()
+        client = self._project_client()
         with (
-            patch.object(agent_tracing, "setup_tracing", return_value=tracer),
-            patch.object(agent_tracing, "openai_client", return_value=client),
             patch.object(
                 agent_tracing,
                 "settings",
@@ -112,10 +100,7 @@ class AgentTracingTests(unittest.TestCase):
             ),
             patch.object(agent_tracing, "_check_safety", side_effect=ServiceRequestError("unavailable")),
         ):
-            self.assertEqual(
-                agent_tracing.run_traced_call("safe prompt"),
-                "Refunds are available within 30 days.",
-            )
+            agent_tracing.run_traced_call(client, tracer)
 
         span.record_exception.assert_called_once()
         self.assertIn(
@@ -125,11 +110,8 @@ class AgentTracingTests(unittest.TestCase):
 
     def test_unexpected_content_safety_errors_propagate(self) -> None:
         tracer, _ = self._tracer()
-        client = MagicMock()
-        client.responses.create.return_value = self._response()
+        client = self._project_client()
         with (
-            patch.object(agent_tracing, "setup_tracing", return_value=tracer),
-            patch.object(agent_tracing, "openai_client", return_value=client),
             patch.object(
                 agent_tracing,
                 "settings",
@@ -140,7 +122,7 @@ class AgentTracingTests(unittest.TestCase):
             patch.object(agent_tracing, "_check_safety", side_effect=ValueError("bad safety response")),
             self.assertRaisesRegex(ValueError, "bad safety response"),
         ):
-            agent_tracing.run_traced_call("safe prompt")
+            agent_tracing.run_traced_call(client, tracer)
 
     def test_preflight_is_local_and_explains_protected_access(self) -> None:
         with patch.object(
@@ -148,20 +130,24 @@ class AgentTracingTests(unittest.TestCase):
             "settings",
             return_value=SimpleNamespace(
                 project_endpoint="https://example.services.ai.azure.com/api/projects/demo",
+                default_model="gpt-4.1-mini",
                 app_insights_connection_string="InstrumentationKey=redacted",
+                content_safety_endpoint="",
             ),
         ):
             self.assertEqual(
                 tracing_setup.preflight(),
                 {
-                    "project_endpoint_configured": True,
-                    "application_insights_connection_string_configured": True,
+                    "PROJECT_ENDPOINT": True,
+                    "DEFAULT_MODEL": True,
+                    "APPLICATIONINSIGHTS_CONNECTION_STRING": True,
+                    "CONTENT_SAFETY_ENDPOINT (optional)": False,
                 },
             )
             with patch("sys.stdout", new_callable=StringIO) as output:
                 tracing_setup.main()
 
-        self.assertIn("read-only; no Azure calls or changes", output.getvalue())
+        self.assertIn("Tracing is off by default", output.getvalue())
         self.assertIn("Privileged Monitoring Data Reader", output.getvalue())
 
 

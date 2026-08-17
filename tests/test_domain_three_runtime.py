@@ -18,8 +18,8 @@ def _lesson(name: str):
     return module
 
 
-video_generation = _lesson("05_video_generation")
-alt_text = _lesson("07_alt_text_captions")
+video_generation = _lesson("07_video_generation")
+alt_text = _lesson("02_alt_text_captions")
 
 
 class DomainThreeRuntimeTests(unittest.TestCase):

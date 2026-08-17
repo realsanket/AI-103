@@ -19,16 +19,16 @@ def _lesson_module(name: str, file_name: str):
 
 deployment_types = _lesson_module("deployment_types", "02_deployment_types.py")
 backoff = _lesson_module("rate_limit_backoff", "06_rate_limit_backoff.py")
-foundry_evaluation = _lesson_module("foundry_evaluation", "22_foundry_evaluation.py")
+foundry_evaluation = _lesson_module("foundry_evaluation", "21_foundry_evaluation.py")
 continuous_evaluation = _lesson_module(
-    "continuous_evaluation", "23_continuous_evaluation.py"
+    "continuous_evaluation", "22_continuous_evaluation.py"
 )
-human_feedback = _lesson_module("human_feedback", "24_human_feedback.py")
-red_teaming = _lesson_module("red_teaming", "25_red_teaming.py")
+human_feedback = _lesson_module("human_feedback", "23_human_feedback.py")
+red_teaming = _lesson_module("red_teaming", "24_red_teaming.py")
 rbac = _lesson_module("rbac_role_policies", "08_rbac_role_policies.py")
-protected_material = _lesson_module("protected_material", "19_protected_material.py")
-groundedness = _lesson_module("groundedness", "20_groundedness_detection.py")
-provenance = _lesson_module("provenance", "21_provenance_detection.py")
+protected_material = _lesson_module("protected_material", "18_protected_material.py")
+groundedness = _lesson_module("groundedness", "19_groundedness_detection.py")
+provenance = _lesson_module("provenance", "20_provenance_detection.py")
 
 
 class DomainOneRuntimeTests(unittest.TestCase):
@@ -51,15 +51,12 @@ class DomainOneRuntimeTests(unittest.TestCase):
         self.assertIn("no deployment", instant["throughput"])
 
     def test_evaluation_preflight_and_task_adherence_mapping_are_offline(self) -> None:
-        preview = foundry_evaluation.preflight(Path("cases.jsonl"), "reviewed-rubric")
-        self.assertIn("no cloud resources created", preview)
-        self.assertIn("reviewed-rubric", preview)
-        self.assertIn(
-            "<required with --apply>", foundry_evaluation.preflight(None)
-        )
         task_adherence = next(
             criterion
-            for criterion in foundry_evaluation.testing_criteria("judge-model")
+            for criterion in foundry_evaluation._testing_criteria(
+                "judge-model",
+                "reviewed-rubric",
+            )
             if criterion["evaluator_name"] == "builtin.task_adherence"
         )
         self.assertEqual(task_adherence["evaluator_name"], "builtin.task_adherence")
@@ -100,7 +97,14 @@ class DomainOneRuntimeTests(unittest.TestCase):
 
     def test_rbac_rejects_unknown_role_before_calling_azure(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unsupported role"):
-            rbac.assign_role(SimpleNamespace(), "scope", "principal", "Owner")
+            rbac.assign_role(
+                SimpleNamespace(),
+                "subscription",
+                "scope",
+                "principal",
+                "Owner",
+                "ServicePrincipal",
+            )
 
     def test_advanced_safety_labs_validate_inputs_before_requests(self) -> None:
         with self.assertRaisesRegex(ValueError, "110 to 10,000"):

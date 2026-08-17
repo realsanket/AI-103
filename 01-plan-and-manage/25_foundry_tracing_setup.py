@@ -55,7 +55,7 @@ Cost note:
 """
 
 _CLIENT_SIDE_STEPS = """\
-Client-side tracing setup (lesson 18):
+Client-side tracing setup (lesson 26):
   Required env vars:
     PROJECT_ENDPOINT                      — Foundry project URL
     DEFAULT_MODEL                         — deployment name (not model family)

@@ -3,7 +3,7 @@
 ## Purpose
 
 Hands-on, current Microsoft Foundry and Azure AI learning repository. It has
-**149 numbered Python lessons** across five AI-103 domains plus four current
+**199 numbered Python lessons** across five AI-103 domains plus four current
 supplemental domains. Domain READMEs are teaching source of truth; this file is
 the operational handoff for future coding sessions.
 
@@ -15,15 +15,15 @@ new labs.
 
 | Area | Lessons | Read first |
 |---|---:|---|
-| 01 Plan and manage | 26 | `01-plan-and-manage/README.md` |
-| 02 Generative AI and agents | 30 | `02-generative-ai-and-agents/README.md` |
-| 03 Computer vision | 15 | `03-computer-vision/README.md` |
-| 04 Text and speech | 25 | `04-text-and-speech/README.md` |
+| 01 Plan and manage | 31 | `01-plan-and-manage/README.md` |
+| 02 Generative AI and agents | 39 | `02-generative-ai-and-agents/README.md` |
+| 03 Computer vision | 16 | `03-computer-vision/README.md` |
+| 04 Text and speech | 27 | `04-text-and-speech/README.md` |
 | 05 Information extraction | 21 | `05-information-extraction/README.md` |
-| 06 Model customization and delivery | 14 | `06-model-customization-other/README.md` |
-| 07 Production platform | 6 | `07-production-platform-other/README.md` |
-| 08 Advanced agents | 6 | `08-advanced-agents-other/README.md` |
-| 09 Document Intelligence v4 | 6 | `09-current-ai-services-other/README.md` |
+| 06 Model customization and delivery | 20 | `06-model-customization-other/README.md` |
+| 07 Production platform | 10 | `07-production-platform-other/README.md` |
+| 08 Advanced agents | 28 | `08-advanced-agents-other/README.md` |
+| 09 Document Intelligence v4 | 7 | `09-current-ai-services-other/README.md` |
 
 Also read:
 

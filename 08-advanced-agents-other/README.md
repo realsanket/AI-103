@@ -1,6 +1,6 @@
 # Domain 8: Advanced agents and current Foundry operations
 
-> Preflight-first labs for advanced Foundry agent capabilities: Foundry IQ, Toolbox, incoming A2A, routines, AI Gateway, and Agent Optimizer. Run commands from repository root: `uv run python 08-advanced-agents-other/<lesson>.py`.
+> Preflight-first labs for advanced Foundry agent capabilities: enterprise knowledge, Toolbox and Skills governance, A2A, routines, gateway, optimization, hosted tools, Microsoft IQ, and current preview tool boundaries. Run commands from repository root: `uv run python 08-advanced-agents-other/<lesson>.py`.
 >
 > Every default command is a local preflight and makes no cloud call. Every remote write requires `--apply`. This directory uses the current agent object model (stable endpoint + unique agent identity) — do NOT create Agent Application resources or use application endpoints.
 
@@ -22,9 +22,19 @@ Schedule unattended work: Routines (Lab 04)
 Distribute to consumers: AI Gateway + pinned stable endpoint (Lab 05)
         ↓
 Improve continuously: Agent Optimizer over reviewed baseline (Lab 06)
+        ↓
+Operate hosted runtime + MCP safely (Labs 07–19)
+        ↓
+Govern Toolbox/Skills versions and policies (Labs 20–21)
+        ↓
+Choose public and enterprise grounding correctly (Labs 22–23)
+        ↓
+Bound high-authority preview tools before use (Labs 24–27)
+        ↓
+Read common non-content operational health signals (Lab 28)
 ```
 
-Lessons follow this progression in six stages, each optional. These are supplemental to the AI-103 exam objectives, not a replacement for the core agent lessons in domain 02.
+Lessons follow this progression in thirteen stages, each optional. These are supplemental to the AI-103 exam objectives, not a replacement for the core agent lessons in domain 02.
 
 ## Advanced agent mental model
 
@@ -90,6 +100,12 @@ The current publishing model targets the agent's stable endpoint — NOT the dep
 | **`eval.yaml`** | azd project file declaring evaluators + seed data for Agent Optimizer runs |
 | **Project managed identity** | Managed identity attached to the Foundry project; used for keyless data-plane calls |
 | **RemoteTool connection** | Project connection kind for MCP tools; `project-managed-identity` auth type is keyless |
+| **Skill** | Preview immutable task instructions describing how work is performed; not a callable tool |
+| **Private catalog** | Azure API Center-backed organizational discovery for approved tools or Skills |
+| **Fabric IQ** | Preview access to Fabric ontology, semantic model, or data-agent assets |
+| **Work IQ** | Preview delegated-user access to Microsoft 365 work context; app-only auth unsupported |
+| **Reminder tool** | Preview hosted-agent follow-up in the same conversation; not a Routine/calendar |
+| **Computer Use** | Preview model-driven UI action loop requiring sandboxing and safety acknowledgement |
 
 ## Setup
 
@@ -117,13 +133,23 @@ FOUNDRY_IQ_KNOWLEDGE_BASE=<kb-name>
 FOUNDRY_IQ_CONNECTION_NAME=foundry-iq-kb
 FOUNDRY_TOOLBOX_NAME=<toolbox-name>
 FOUNDRY_AGENT_NAME=<agent-name>
+FOUNDRY_SKILL_NAME=<skill-name>
+API_CENTER_RESOURCE_ID=/subscriptions/.../providers/Microsoft.ApiCenter/services/<name>
+BING_PROJECT_CONNECTION_ID=<connection-id>
+BING_CUSTOM_SEARCH_INSTANCE=<optional-instance>
+FABRIC_IQ_CONNECTION_ID=<connection-id>
+WORK_IQ_CONNECTION_ID=<connection-id>
+FABRIC_DATA_AGENT_CONNECTION_ID=<connection-id>
+SHAREPOINT_CONNECTION_ID=<connection-id>
+BROWSER_PROJECT_CONNECTION_ID=<connection-id>
+COMPUTER_USE_MODEL=computer-use-preview
 ```
 
 Never add API keys, connection strings, or bearer tokens to `.env`, manifests, prompts, agent cards, or routine inputs. Credentials live in project connections, managed identity, Key Vault, or your CI secret store.
 
 ### Safe run order
 
-1. **Preflight every lab first** — all six default commands read local input only.
+1. **Preflight every lab first** — every default command reads local input only.
 2. Confirm region + preview access + billing + network path + role assignments outside these labs.
 3. **Lab 01 --apply** first if agents will use knowledge — grant `Search Index Data Reader` before apply.
 4. **Lab 02 --apply** to publish toolbox after knowledge connection exists.
@@ -131,6 +157,11 @@ Never add API keys, connection strings, or bearer tokens to `.env`, manifests, p
 6. **Lab 04 --apply** ONLY after inspecting manifest; add `--dispatch` for one controlled run before enabling schedule.
 7. **Lab 05 --apply** ONLY after gateway is `Enabled` on both gateway + project in Foundry portal.
 8. **Lab 06 --apply** ONLY against a Python hosted-agent azd project with reviewed `eval.yaml`.
+9. Run **20** before promoting/deleting Toolbox versions or cloning a policy version.
+10. Run **21** before creating preview Skills or configuring API Center catalogs.
+11. Run **22–23** before selecting public Bing, Search-backed IQ, Fabric, or Microsoft 365 grounding.
+12. Run **24–27** locally before any hosted reminder, UI automation, enterprise-data, or image tool integration.
+13. Run **28** locally before its optional read-only Log Analytics query; keep content tables excluded.
 
 ### Costs and side effects
 
@@ -151,6 +182,13 @@ Never add API keys, connection strings, or bearer tokens to `.env`, manifests, p
 | 06 preflight | Local; validates azd asset layout. |
 | 06 `--apply --optimize-model` | Runs optimization job: candidate generation + evaluator runs = tokens billable. |
 | 06 `--apply --apply-candidate` | Modifies local source only — no deployment cost. |
+| 20 default | Local lifecycle/policy preflight. |
+| 20 `--apply` | Lists/gets versions or creates/promotes/deletes persistent Toolbox versions. |
+| 21 default | Local Skills/API Center preflight. |
+| 21 `--apply` | Lists or creates/promotes/deletes preview Skill versions. |
+| 22–27 default | Local typed request/configuration builders only; no cloud call. |
+| 28 default | Local signal map and KQL only. |
+| 28 `--apply` | Read-only Log Analytics query; requires workspace Reader role. |
 
 Preview features (Foundry IQ portal surfaces, Toolbox tool search, A2A, Routines) can change region/subscription/model availability. Recheck feature state immediately before applying.
 
@@ -214,6 +252,15 @@ Preview features (Foundry IQ portal surfaces, Toolbox tool search, A2A, Routines
 | 17 | [Agent optimizer](17_agent_optimizer.py) | Create optimizer dataset + submit optimization job | `--apply` submits cloud job (preview) |
 | 18 | [Custom code interpreter](18_custom_code_interpreter_preflight.py) | Validate MCP_SERVER_URL reachability for ACA-backed code interpreter | `--apply` probes endpoint |
 | 19 | [Azure Functions tool](19_azure_functions_tool_preflight.py) | Validate AzureFunctionTool queue definition + storage endpoint | `--apply` probes storage endpoint |
+| 20 | [Toolbox lifecycle + governance](20_toolbox_lifecycle_governance.py) | List/get/clone-policy/promote/delete immutable versions | Remote operation requires `--apply`; promotion/deletion affect consumers |
+| 21 | [Skills + private catalogs](21_skills_private_catalog_preflight.py) | Build bounded Skill; manage preview versions; explain API Center catalogs | Skills are preview; catalogs require API Center |
+| 22 | [Grounding with Bing](22_bing_grounding_preflight.py) | Build standard or Custom Search typed tool payload | Local; Bing uses billed public egress |
+| 23 | [Microsoft IQ tools](23_microsoft_iq_tools_preflight.py) | Compare Foundry/Fabric/Work IQ and build typed preview tools | Local; tenant/network/license prerequisites remain |
+| 24 | [Reminder tool](24_reminder_tool_preflight.py) | Build connectionless hosted-agent Reminder payload | Local; preview; does not schedule |
+| 25 | [Computer Use](25_computer_use_preflight.py) | Enforce pending-safety-check approval payload | Local; preview; no UI/model call |
+| 26 | [Enterprise data tools](26_enterprise_data_tools_preflight.py) | Build Fabric data-agent or SharePoint typed tool payload | Local; preview delegated-user auth |
+| 27 | [Image-generation agent tool](27_image_generation_tool_preflight.py) | Build typed ImageGenTool payload | Local; preview; no media generated |
+| 28 | [Cross-domain observability](28_cross_domain_observability.py) | Map Domain 01–09 signals and query non-content health telemetry | Local by default; `--apply` is read-only |
 
 ---
 
@@ -326,7 +373,8 @@ uv run python 08-advanced-agents-other/03_a2a_agent_card_preflight.py --apply --
 1. `a2a_urls()` — builds base + `/agentCard/v1.0`.
 2. `patch_body()` — JSON with agent_card (description, version 1.0, skills) + agent_endpoint (protocol_configuration: `responses`, `a2a`).
 3. `patch_command()` — `az rest --method patch --url .../agents/<name>?api-version=v1 --resource https://ai.azure.com --body <json>`.
-4. `--verify` — additional `az rest --method get` on card URL.
+4. `a2a_tool()` builds an outbound `A2APreviewTool`; remote card fetch is anonymous by default.
+5. `--verify` — additional `az rest --method get` on the incoming Foundry card URL.
 
 **What to watch.** Preflight: both A2A URLs printed. `--apply`: PATCH success + `Enabled current Responses and A2A protocols. v1.0 card: <url>`. `--verify`: fetched card JSON printed.
 
@@ -334,8 +382,9 @@ uv run python 08-advanced-agents-other/03_a2a_agent_card_preflight.py --apply --
 - Does not grant callers access. Assign `Foundry Agent Consumer` role separately.
 - Does not make an existing Responses endpoint A2A-capable — the PATCH is required.
 - Does not migrate deprecated Agent Applications.
+- Does not make outbound protected cards work automatically. Pass a project connection and `send_credentials_for_agent_card=true`; keep the protected card HTTPS and on the same host as `base_url`.
 
-**References:** [Incoming A2A](https://learn.microsoft.com/azure/foundry/agents/how-to/enable-agent-to-agent-endpoint) · [Configure agent](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-agent)
+**References:** [Incoming A2A](https://learn.microsoft.com/azure/foundry/agents/how-to/enable-agent-to-agent-endpoint) · [A2A authentication](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-to-agent-authentication) · [Configure agent](https://learn.microsoft.com/azure/foundry/agents/how-to/configure-agent)
 
 ---
 
@@ -619,16 +668,16 @@ uv run python 08-advanced-agents-other/13_agent_365_preflight.py --apply
 
 **Question answered:** Is the browser tool connection valid and discovered by an ephemeral probe agent?
 
-**Background.** Browser automation lets hosted agents drive a headless Chromium browser to fill forms and scrape dynamic pages — tasks REST APIs cannot handle. It requires a Foundry project connection of type "browser" and a container with Playwright/Chromium. This lesson probes tool discovery on an ephemeral agent and cleans up.
+**Background.** Browser Automation preview uses an Azure Playwright workspace connection to navigate and interact with websites. It is distinct from Computer Use lesson 25. The workspace/connection and browser authority need isolated test sites, domain/action limits, tracing, and approval.
 
 ```bash
 uv run python 08-advanced-agents-other/14_browser_automation_preflight.py
 uv run python 08-advanced-agents-other/14_browser_automation_preflight.py --apply
 ```
 
-**Code path.** `agents.create_version(tools=[{"type":"browser","connection_name":...}])` → `agents.list_tools()` → check "browser" in tool list → `agents.delete()`.
+**Code path.** `browser_tool()` builds `BrowserAutomationPreviewTool` with `BrowserAutomationToolParameters(connection.project_connection_id)` → `agents.create_version()` → `agents.list_tools()` → check `browser_automation_preview` → `agents.delete()`.
 
-**What to watch.** "browser" in discovered tools = connection valid. Not found = wrong `BROWSER_CONNECTION_NAME` or browser tool not enabled for this project.
+**What to watch.** Set `BROWSER_PROJECT_CONNECTION_ID`, not a generic connection name. `Foundry Project Manager` creates the connection; temporary `Contributor` is needed only while provisioning the Playwright workspace. Private website access remains private preview. Trace `browser_automation_preview_call` events.
 
 **References:** [Browser automation how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/browser-automation) · [Computer use](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/computer-use) · [Tool best practices](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-best-practice)
 
@@ -636,18 +685,18 @@ uv run python 08-advanced-agents-other/14_browser_automation_preflight.py --appl
 
 ### 15 — Foundry toolbox preflight
 
-**Question answered:** Which pre-built toolbox tools are configured as connections in this project?
+**Question answered:** Which project connections could support direct or Toolbox agent tools?
 
-**Background.** The Foundry toolbox is a curated catalog of pre-built tools: Bing web search, SharePoint, Azure Functions, image generation, Fabric, custom code interpreter, and more. Tools are wired as typed project connections and declared in agent definitions by connection name. This lesson enumerates configured toolbox connections.
+**Background.** Project connections store downstream endpoint/auth configuration. They can support direct agent tools or Toolbox tools, but a connection is not a Toolbox version, does not prove publication, and does not prove runtime authorization. Connectionless tools such as Reminder do not appear here.
 
 ```bash
 uv run python 08-advanced-agents-other/15_foundry_toolbox_preflight.py
 uv run python 08-advanced-agents-other/15_foundry_toolbox_preflight.py --apply
 ```
 
-**Code path.** `project_client().connections.list()` → filter `connection_type` in known toolbox types → print name, type, endpoint.
+**Code path.** `project_client().connections.list()` → filter known tool-related connection markers → print candidate name, type, endpoint.
 
-**What to watch.** Each listed connection is a tool the agent can declare. Zero connections = no toolbox tools wired — add via Foundry portal → Project → Connections → Add.
+**What to watch.** Use this only as inventory. Inspect the actual agent/Toolbox version definition and downstream role assignments before claiming the tool is usable.
 
 **References:** [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview) · [Toolbox tools](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/use-toolbox-hosted-agent) · [Tool catalog](https://learn.microsoft.com/azure/foundry/agents/concepts/tool-catalog)
 
@@ -746,6 +795,226 @@ uv run python 08-advanced-agents-other/19_azure_functions_tool_preflight.py --ap
 
 ---
 
+## Stage 10 — Toolbox lifecycle, guardrails, and Skills (lessons 20–21)
+
+Publishing is not governance. These lessons add immutable-version inspection, tested promotion, rollback/deletion boundaries, versioned RAI policy, preview Skills, allowed-tool scoping, and Azure API Center catalog prerequisites.
+
+### 20 — Toolbox lifecycle and governance
+
+**Question answered:** How do I add a Toolbox RAI policy and promote or retire versions without silently changing consumers?
+
+**Background.** The consumer endpoint follows mutable `default_version`; the developer endpoint pins an immutable version. Adding tools, Skills, connections, or `ToolboxPolicies(RaiConfig(...))` creates a new version. Test that version before promotion and retain an approved previous version for rollback.
+
+```bash
+uv run python 08-advanced-agents-other/20_toolbox_lifecycle_governance.py \
+  --rai-policy northwind-safe-tools
+uv run python 08-advanced-agents-other/20_toolbox_lifecycle_governance.py \
+  --apply --list
+uv run python 08-advanced-agents-other/20_toolbox_lifecycle_governance.py \
+  --apply --clone-with-rai 1 --rai-policy northwind-safe-tools
+uv run python 08-advanced-agents-other/20_toolbox_lifecycle_governance.py \
+  --apply --promote-version 2
+```
+
+**Code path.**
+1. `toolbox_policies()` builds `ToolboxPolicies(rai_config=RaiConfig(...))`.
+2. `toolboxes.list_versions()` / `get_version()` read immutable state.
+3. `--clone-with-rai` copies tools/Skills/metadata into a new policy version and does not promote it.
+4. `toolboxes.update(default_version=...)` changes every unversioned consumer.
+5. `toolboxes.delete_version(...)` is destructive and requires pinned-consumer inventory.
+
+**What to watch.** A cloned version prints its version-specific MCP endpoint. Test tools, identities, guardrails, latency, cost, and failure behavior there before promotion.
+
+**What this does not prove.** It does not configure AI Gateway policies, downstream authorization, private DNS, or human approval for consequential tool calls.
+
+**References:** [Create and manage Toolbox](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox) · [Tool governance](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/governance) · [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication) · [Toolbox network isolation](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox-network-isolation)
+
+### 21 — Skills and private catalogs
+
+**Question answered:** How do Skills differ from tools, and what is required for private organizational catalogs?
+
+**Background.** A Skill is preview, immutable task guidance following the Skill format; it describes **how** to perform work. `allowed_tools` constrains which tools the Skill may use. Private tool/Skill catalogs use Azure API Center for curated discovery, but catalog registration neither adds an artifact to a Toolbox nor grants runtime access.
+
+```bash
+uv run python 08-advanced-agents-other/21_skills_private_catalog_preflight.py
+uv run python 08-advanced-agents-other/21_skills_private_catalog_preflight.py \
+  --apply --create --skill-name incident-summary
+uv run python 08-advanced-agents-other/21_skills_private_catalog_preflight.py \
+  --apply --promote-version 1 --skill-name incident-summary
+```
+
+**Code path.**
+1. `SkillInlineContent(..., allowed_tools=[])` creates a deliberately tool-free teaching Skill.
+2. `project.beta.skills.create(..., default=False)` creates a non-default preview version.
+3. `skills.update(default_version=...)` promotes only after review; `delete_version()` removes an exact version.
+4. `ToolboxSkillReference(name, version)` pins the reviewed Skill in a Toolbox.
+
+**What to watch.** The preflight distinguishes project Skills from API Center catalog entries. Current Skills API documentation does not support private endpoint access.
+
+**Catalog boundary.** Private catalogs require Azure API Center, registered artifacts, and Azure API Center Data Reader. Remote MCP credentials stay in API Center/Foundry connections, never in catalog descriptions or Skill content.
+
+**References:** [Skills](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/skills) · [Private Skill catalog](https://learn.microsoft.com/azure/foundry/agents/how-to/private-skill-catalog) · [Private tool catalog](https://learn.microsoft.com/azure/foundry/agents/how-to/private-tool-catalog) · [Toolbox overview](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview)
+
+---
+
+## Stage 11 — Public and enterprise grounding (lessons 22–23)
+
+Choose grounding by data owner and identity. Bing uses public web egress; Foundry IQ uses Search knowledge bases; Fabric IQ uses Fabric assets; Work IQ uses delegated Microsoft 365 context.
+
+### 22 — Grounding with Bing
+
+**Question answered:** When do I use Grounding with Bing instead of the built-in Web Search tool?
+
+**Background.** Grounding with Bing uses a Foundry project connection to a Bing resource. Bing Custom Search preview also requires a named custom configuration. This differs from direct Responses Web Search and from Azure AI Search private corpus retrieval.
+
+```bash
+uv run python 08-advanced-agents-other/22_bing_grounding_preflight.py
+uv run python 08-advanced-agents-other/22_bing_grounding_preflight.py \
+  --connection-id <bing-connection-id>
+uv run python 08-advanced-agents-other/22_bing_grounding_preflight.py \
+  --connection-id <bing-connection-id> --custom-instance northwind-only
+```
+
+**Code path.**
+1. Standard path builds `BingGroundingTool` with one `BingGroundingSearchConfiguration`.
+2. Custom path builds `BingCustomSearchPreviewTool` with connection ID and `instance_name`.
+3. `.as_dict()` proves the current typed payload without creating an agent or search request.
+
+**What to watch.** Bing uses billed public egress even from network-secured Foundry. `Foundry Project Manager` creates connections; `Foundry User` creates/runs agents. Do not claim private routing.
+
+**References:** [Grounding with Bing tools](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/bing-tools) · [Manage Grounding with Bing](https://learn.microsoft.com/azure/foundry/agents/how-to/manage-grounding-with-bing) · [Web Search tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/web-search)
+
+### 23 — Foundry IQ, Fabric IQ, and Work IQ
+
+**Question answered:** Which Microsoft IQ surface matches my data, identity, and network?
+
+| Surface | Data | Identity | Network boundary |
+|---|---|---|---|
+| Foundry IQ | Search knowledge bases over Blob, OneLake, SharePoint, indexes, or remote sources | Project managed identity; optional per-user query token for trimming | Private tutorial supports private agent-to-Search and Search-to-storage paths with documented exceptions |
+| Fabric IQ (preview) | Fabric ontology, semantic model, or data agent | Connection-specific delegated/managed OAuth patterns | Partial network-isolation support |
+| Work IQ (preview) | Microsoft 365 email, meetings, files, chats, and business context | Delegated user/OBO only; app-only unsupported | Not supported in network-isolated Foundry projects |
+
+```bash
+uv run python 08-advanced-agents-other/23_microsoft_iq_tools_preflight.py
+uv run python 08-advanced-agents-other/23_microsoft_iq_tools_preflight.py \
+  --kind fabric --connection-id <id>
+uv run python 08-advanced-agents-other/23_microsoft_iq_tools_preflight.py \
+  --kind work --connection-id <id>
+```
+
+**Code path.** `iq_tool()` builds `FabricIQPreviewTool(require_approval="always")` or `WorkIQPreviewTool`. Existing lessons 01 and 16 cover Foundry IQ connection/inspection.
+
+**What to watch.** Work IQ requires tenant admin setup, user consent, licensing/billing, and same-tenant delegated access. Foundry IQ permission trimming requires explicit per-user query authorization; project-only retrieval is not automatically user-trimmed.
+
+**References:** [Foundry IQ overview](https://learn.microsoft.com/azure/foundry/agents/concepts/what-is-foundry-iq) · [Foundry IQ FAQ](https://learn.microsoft.com/azure/foundry/agents/concepts/foundry-iq-faq) · [Connect Foundry IQ](https://learn.microsoft.com/azure/foundry/agents/how-to/foundry-iq-connect) · [Private retrieval tutorial](https://learn.microsoft.com/azure/foundry/agents/how-to/foundry-iq-tutorial-private-retrieval) · [Fabric IQ](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/fabric-iq) · [Work IQ](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/work-iq)
+
+---
+
+## Stage 12 — Bounded preview tools (lessons 24–27)
+
+These lessons stop at typed payloads and authorization gates. They do not create reminders, control a desktop, query enterprise data, or generate media without approved resources and an explicit remote path.
+
+### 24 — Reminder tool
+
+**Question answered:** Is Reminder a calendar, Routine, or hosted-agent conversation capability?
+
+**Background.** Reminder preview is a connectionless Toolbox tool for hosted agents. It schedules a follow-up in the same conversation from 1 through 43,200 minutes; it is not an external calendar or a general workflow scheduler.
+
+```bash
+uv run python 08-advanced-agents-other/24_reminder_tool_preflight.py
+```
+
+**Code path.** `ReminderPreviewToolboxTool(name, description)` renders the current `reminder_preview` payload locally.
+
+**What to watch.** Define explicit user intent, confirmation/cancellation UX, time-zone handling, duplicate behavior, retention, and unavailable-conversation behavior before use.
+
+**References:** [Reminder tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/reminder-tool) · [Routines](https://learn.microsoft.com/azure/foundry/agents/how-to/use-routines)
+
+### 25 — Computer Use
+
+**Question answered:** Where must an application stop before executing a model-proposed UI action?
+
+**Background.** Computer Use preview proposes browser/desktop actions against a sandbox. The application executes the loop and must stop on `pending_safety_checks`. This differs from Browser Automation lesson 14, which uses an Azure Playwright project connection.
+
+```bash
+uv run python 08-advanced-agents-other/25_computer_use_preflight.py
+uv run python 08-advanced-agents-other/25_computer_use_preflight.py --example-approved
+```
+
+**Code path.** `acknowledge_safety_checks()` raises without explicit approval and only then creates `computer_call_output` with `acknowledged_safety_checks`.
+
+**What to watch.** Use a disposable VM, domain/action allowlists, bounded steps/time, restricted egress/data, screenshot review, no ambient credentials, and governed recording retention.
+
+**References:** [Computer Use](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/computer-use) · [Browser Automation](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/browser-automation)
+
+### 26 — Fabric data agent and SharePoint
+
+**Question answered:** How do delegated enterprise-data tools preserve user permissions?
+
+**Background.** Fabric data agent preview requires same tenant/region and user READ permission on the agent and underlying sources; service-principal auth is unsupported. SharePoint preview uses delegated user access, supports one SharePoint tool per agent, and currently is not supported in Teams.
+
+```bash
+uv run python 08-advanced-agents-other/26_enterprise_data_tools_preflight.py
+uv run python 08-advanced-agents-other/26_enterprise_data_tools_preflight.py \
+  --kind fabric --connection-id <id>
+uv run python 08-advanced-agents-other/26_enterprise_data_tools_preflight.py \
+  --kind sharepoint --connection-id <id>
+```
+
+**Code path.** `enterprise_tool()` wraps one `ToolProjectConnection` in `MicrosoftFabricPreviewTool` or `SharepointPreviewTool`.
+
+**What to watch.** Connection success is not permission-trimming evidence. Test with one asset the user can read and one they cannot, and verify no result or citation leaks.
+
+**References:** [Fabric data agent](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/fabric) · [SharePoint](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/sharepoint) · [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication)
+
+### 27 — Image-generation agent tool
+
+**Question answered:** How is an agent image tool different from a direct image API call?
+
+**Background.** The preview agent tool lets an orchestrator decide when to call a compatible image deployment in the same project/region. The application still owns authorization, prompt moderation, output disclosure/provenance, storage, retention, and cost.
+
+```bash
+uv run python 08-advanced-agents-other/27_image_generation_tool_preflight.py
+```
+
+**Code path.** `ImageGenTool(model=IMAGE_MODEL, quality="low", size="1024x1024")` renders the typed `image_generation` payload without creating an agent or media.
+
+**What to watch.** A valid payload does not prove GPT Image approval, model/orchestrator compatibility, region capacity, safety, or output governance.
+
+**References:** [Image-generation tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/image-generation) · [Image generation in Foundry](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e)
+
+---
+
+## Stage 13 — Cross-domain observability (lesson 28)
+
+Observability must join platform health with domain-specific quality, safety, cost, provenance, and data-governance signals. One generic trace query cannot replace those specialized controls.
+
+### 28 — Cross-domain operational health
+
+**Question answered:** What common non-content health evidence can I read across Domains 01–09 without querying prompts or outputs?
+
+**Background.** The lesson maps each domain to its operational owner/signals, then supplies one Log Analytics query over `AppRequests`, `AppDependencies`, `AppTraces`, and `AppEvents`. It summarizes volume, failures, and latency and intentionally excludes `AppGenAIContent`.
+
+```bash
+uv run python 08-advanced-agents-other/28_cross_domain_observability.py
+uv run python 08-advanced-agents-other/28_cross_domain_observability.py \
+  --apply --workspace-id <log-analytics-workspace-guid>
+```
+
+**Code path.**
+1. `DOMAIN_SIGNALS` maps all nine domains to their specialized operational evidence.
+2. `KQL` uses `column_ifexists()` across four non-content tables and aggregates operation count, failures, and duration.
+3. `LogsQueryClient.query_workspace(..., timespan=24h)` performs one read-only query.
+4. Partial/failure status raises; empty tables print missing evidence rather than success.
+
+**What to watch.** High failure count and latency identify operational triage targets. They do not measure answer quality, safety, relevance, permission trimming, transcription accuracy, extraction confidence, training quality, or DR readiness.
+
+**Governance boundary.** Prompts, outputs, documents, tool arguments, and `AppGenAIContent` are excluded. If content recording is approved elsewhere, use separate protected-table RBAC, retention, redaction, and audit controls.
+
+**References:** [Trace data](https://learn.microsoft.com/azure/foundry/observability/concepts/trace-data) · [Monitor hosted-agent logs](https://learn.microsoft.com/azure/foundry/agents/how-to/monitor-hosted-agent-logs) · [Sensitive content in traces](https://learn.microsoft.com/azure/foundry/observability/how-to/traces-sensitive-content) · [Observability troubleshooting](https://learn.microsoft.com/azure/foundry/observability/how-to/troubleshooting)
+
+---
+
 ## Feature status and hard limits
 
 | Feature | Status | Practical boundary |
@@ -753,7 +1022,16 @@ uv run python 08-advanced-agents-other/19_azure_functions_tool_preflight.py --ap
 | Foundry IQ (knowledge bases + MCP) | Partial GA | Portal + some agentic surfaces stay preview-dependent |
 | Toolbox versions | Supported | Versions immutable; first becomes default |
 | Toolbox tool search | **Preview** | Reduces context; does not authorize or make tools safe |
+| Skills / private catalogs | **Preview** | Skills API lacks private-endpoint support; catalogs require Azure API Center |
 | A2A v1.0 incoming | **Preview** | Agent card Entra-protected; not anonymously discoverable |
+| A2A outbound authentication | **Preview** | Card fetch is anonymous by default; protected card needs connection + credential flag |
+| Grounding with Bing | Supported; Custom Search is **Preview** | Billed public egress; not private-corpus retrieval |
+| Fabric IQ / Work IQ | **Preview** | Fabric network support partial; Work IQ delegated-user only |
+| Reminder | **Preview** | Hosted-agent same-conversation follow-up; not a Routine/calendar |
+| Browser Automation / Computer Use | **Preview** | Sandbox, approval, tracing, and bounded authority required |
+| Fabric data agent / SharePoint | **Preview** | Delegated permissions plus tenant/license constraints |
+| Image-generation agent tool | **Preview** | Approved image deployment + compatible orchestrator required |
+| Cross-domain KQL health view | Read-only | Non-content operations only; not quality/safety/cost/provenance evidence |
 | Routines | **Preview** | One trigger + one action; needs separate `azure.ai.routines` extension |
 | AI Gateway (APIM v2 integration) | Supported where APIM v2 available | Gateway + project must both show `Enabled` in portal |
 | Channel publishing (M365 Copilot / Teams) | Supported | Portal-only; requires Bot Service perms + tenant policy + admin approval |
@@ -770,6 +1048,13 @@ uv run python 08-advanced-agents-other/19_azure_functions_tool_preflight.py --ap
 | Foundry IQ connection created but retrieval empty | Search Index Data Reader not on project MI | Assign role; wait a few minutes for propagation |
 | Toolbox created but agent cannot list tools | Consumer endpoint hitting a version not yet default | Wait for default promotion or hit version-specific developer endpoint |
 | A2A `--apply` PATCH succeeds but caller gets 401 | Caller identity lacks `Foundry Agent Consumer` | Assign role at project or agent scope |
+| Protected outbound A2A card returns 401 | Card fetch defaults anonymous | Configure project connection and `send_credentials_for_agent_card=true` |
+| Toolbox promotion changes unrelated agent behavior | Consumers use unversioned endpoint | Treat default change as release; test pinned version and inventory consumers |
+| Skills fail only in private project | Current Skills API lacks private endpoint support | Use an approved supported path or defer; do not bypass network policy |
+| Bing violates private-egress expectation | Grounding with Bing uses public egress | Use approved egress or a private corpus such as Search/Foundry IQ |
+| Work IQ cannot connect | App-only token, missing consent/license, or isolated network | Use delegated same-tenant OBO and a supported network mode |
+| Enterprise tool returns too much data | Negative permission-trimming case was not tested | Test readable and unreadable assets using the actual delegated user |
+| Observability query returns no rows | Wrong workspace, no ingestion, or telemetry not configured | Treat as missing evidence; verify diagnostic/tracing setup and time range |
 | Routine `--dispatch` succeeds but agent auth fails | Routine can't delegate end-user identity | Agent must have its own configured identity |
 | `--apply` on lesson 05 fails: version selector rejected | `--agent-version` not numeric | Use immutable numeric agent version |
 | Optimizer preflight `is not optimizer-ready` | Missing `azure.yaml`/`eval.yaml`/`.agent_configs/baseline/` | Add missing assets to hosted-agent root |
@@ -805,7 +1090,11 @@ PR modifies manifest / config
 |---|---|
 | New Foundry IQ connection | Preflight passes; Search RBAC verified; KB query test in nonprod |
 | New Toolbox version | Version-specific developer endpoint tested; no regression on prior default |
+| New Toolbox RAI policy | New immutable version tested; prior default retained for rollback |
+| New Skill/catalog entry | Skill version pinned; allowed tools and API Center owner/RBAC reviewed |
 | A2A card change | v1.0 fetch confirms new metadata; caller identities re-verified |
+| Enterprise-data tool | Delegated identity; negative permission test; retention/citation review |
+| UI automation tool | Disposable sandbox; domain/action limits; approval; screenshot/action audit |
 | New routine | Preflight passes; one `--dispatch` run reviewed before enabling schedule |
 | Stable endpoint pin | Gateway enabled; version regression tested; rollback version known |
 | Optimizer candidate | Diff reviewed; evaluators pass; safety + tool + latency + cost review |
@@ -816,7 +1105,11 @@ PR modifies manifest / config
 |---|---|---|
 | Foundry IQ auth | `project-managed-identity` + audience `https://search.azure.com/` | Embedded Search key in manifest = permanent credential leak |
 | Toolbox manifest | Reference project connections only | Bearer tokens in manifest baked into immutable version |
+| Toolbox policy | Version `ToolboxPolicies` with reviewed RAI policy | Assuming a policy mutates an existing immutable version |
+| Skills/catalogs | Pin version; minimize `allowed_tools`; API Center Data Reader | Treating catalog registration as runtime authorization |
 | A2A caller access | `Foundry Agent Consumer` per identity at agent scope | Broad project role bypasses least-privilege for one endpoint |
+| Work/SharePoint/Fabric | Delegated user identity + negative trimming tests | Connection success assumed to prove user filtering |
+| UI automation | Isolated runtime + approval + bounded authority | Running against logged-in workstation or production browser profile |
 | Routine execution | Agent identity with its own auth (managed identity) | Delegated user tokens in routine input = shared user context |
 | Gateway | Enable in portal + confirm both gateway + project `Enabled` | APIM v1 does not support Foundry AI Gateway |
 | Version pin | `FixedRatio` 100% to numeric version | Non-numeric version = validation error at PATCH |
@@ -829,7 +1122,14 @@ PR modifies manifest / config
 |---|---|
 | "Foundry IQ replaces manual Search indexing." | False. IQ builds on Search — you still need indexed knowledge sources. |
 | "Toolbox tool search authorizes tool calls." | False. It reduces context for tool selection; authorization is separate. |
+| "Skills are executable tools." | False. Skills are versioned instructions; tools are callable capabilities. |
+| "Private catalog entry is already in every Toolbox." | False. A Toolbox version must reference selected artifacts. |
 | "A2A card is publicly discoverable." | False. v1.0 card is Entra-protected. |
+| "Outbound A2A always sends credentials for the card." | False. Card fetch defaults anonymous unless configured. |
+| "Grounding with Bing stays inside a private Foundry network." | False. Bing grounding uses public egress. |
+| "Work IQ can use app-only managed identity." | False. Current Work IQ requires delegated user/OBO auth. |
+| "Reminder is a durable workflow scheduler." | False. It is a same-conversation hosted-agent preview tool. |
+| "Computer Use safety checks are informational." | False. Stop and require explicit human acknowledgement. |
 | "Enabling A2A grants caller access." | False. PATCHes protocol config only; assign `Foundry Agent Consumer` separately. |
 | "Routines can invoke as end user." | False. Cannot delegate end-user identity; use agent's own identity. |
 | "Routines can chain multiple agents." | False. Routine = one trigger + one action. Use workflow for orchestration. |
@@ -842,9 +1142,9 @@ PR modifies manifest / config
 
 ## Objective coverage and limits
 
-Runnable evidence in this folder covers: creating keyless Foundry IQ project connections, publishing immutable Toolbox versions, enabling A2A v1.0 discovery + agent cards, creating and dispatching routines, pinning stable-endpoint traffic to a reviewed agent version, and running Agent Optimizer on Python hosted-agent projects.
+Runnable evidence in this folder covers: creating keyless Foundry IQ project connections, publishing and managing immutable Toolbox versions, cloning a versioned Toolbox RAI policy, managing preview Skill versions, enabling A2A v1.0 discovery + agent cards, creating and dispatching routines, pinning stable-endpoint traffic, and running Agent Optimizer. Local typed preflights cover Bing, Fabric/Work IQ, Reminder, Computer Use safety acknowledgement, Fabric data agent, SharePoint, Browser Automation, and image-generation tools. Lesson 28 adds an opt-in read-only non-content Log Analytics health query and a Domain 01–09 signal map.
 
-It does **not** create knowledge bases, publish to Microsoft 365 Copilot or Teams channels, migrate deprecated Agent Applications, deploy optimized candidates, or provision APIM v2 gateways. It does not test end-to-end network paths — you must verify from your intended caller identity + network. Preview features can change region + subscription + model availability independently.
+It does **not** create private catalogs/API Center, Bing/Fabric/Microsoft 365 connections, knowledge bases, Playwright workspaces, reminders, computer sessions, enterprise queries, or images. It does not publish to Microsoft 365 Copilot/Teams, deploy optimized candidates, provision APIM v2, or prove end-to-end network/permission trimming. Preview features can change region, subscription, tenant, model, and license availability independently.
 
 ## References
 
@@ -857,7 +1157,32 @@ It does **not** create knowledge bases, publish to Microsoft 365 Copilot or Team
 
 - [Toolbox concepts](https://learn.microsoft.com/azure/foundry/agents/concepts/toolbox-overview)
 - [Toolbox management](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox)
+- [Tool governance](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/governance)
+- [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication)
+- [Toolbox network isolation](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox-network-isolation)
+- [Skills](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/skills)
+- [Private Skill catalog](https://learn.microsoft.com/azure/foundry/agents/how-to/private-skill-catalog)
+- [Private tool catalog](https://learn.microsoft.com/azure/foundry/agents/how-to/private-tool-catalog)
 - [Incoming A2A](https://learn.microsoft.com/azure/foundry/agents/how-to/enable-agent-to-agent-endpoint)
+- [A2A authentication](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-to-agent-authentication)
+
+### Grounding and current preview tools
+
+- [Grounding with Bing](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/bing-tools)
+- [Fabric IQ](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/fabric-iq)
+- [Work IQ](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/work-iq)
+- [Reminder tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/reminder-tool)
+- [Computer Use](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/computer-use)
+- [Browser Automation](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/browser-automation)
+- [Fabric data agent](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/fabric)
+- [SharePoint](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/sharepoint)
+- [Image-generation tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/image-generation)
+
+### Observability
+
+- [Trace data](https://learn.microsoft.com/azure/foundry/observability/concepts/trace-data)
+- [Sensitive content in traces](https://learn.microsoft.com/azure/foundry/observability/how-to/traces-sensitive-content)
+- [Observability troubleshooting](https://learn.microsoft.com/azure/foundry/observability/how-to/troubleshooting)
 
 ### Routines + Gateway + Publishing
 

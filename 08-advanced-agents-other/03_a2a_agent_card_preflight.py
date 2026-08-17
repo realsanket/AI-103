@@ -13,15 +13,18 @@ card via `az rest --method get` to confirm it's live.
 
 Enabling A2A does NOT grant caller access. Assign `Foundry Agent Consumer`
 to each calling identity on the project or agent scope. Decide on-behalf-of
-vs service-identity authentication deliberately. Test with A2A v1.0 clients
-only for new integrations.
+vs service-identity authentication deliberately. Outbound A2A tools support
+unauthenticated, key, Entra, and OAuth passthrough connection patterns. Agent
+card fetch is anonymous by default; protected cards require an HTTPS same-host
+URL, a project connection, and send_credentials_for_agent_card=true.
 
 Code path:
   project_endpoint() → validate URL. a2a_urls() → build base +
   `/agentCard/v1.0`. patch_body() → JSON with agent_card + agent_endpoint
   protocol_configuration. patch_command() → `az rest --method patch --url
   <endpoint>/agents/<name>?api-version=v1 --resource https://ai.azure.com
-  --body <json>`. `--verify`: same URL, GET.
+  --body <json>`. a2a_tool() builds the current outbound A2APreviewTool auth
+  boundary. `--verify`: same URL, GET.
 
 What to watch. Preflight: `A2A v1.0 base endpoint: <url>` + `A2A v1.0 agent
 card: <url>`. `--apply`: PATCH success + `Enabled current Responses and A2A
@@ -35,6 +38,8 @@ Prerequisites / env vars:
   --skill-name          — skill display name (default provided)
   --apply               — PATCH agent card + protocols
   --verify              — GET v1.0 card after apply (requires --apply)
+  --remote-base-url     — optional outbound A2A server URL to validate locally
+  --connection-id      — project connection for protected remote A2A
 """
 import argparse
 import json
@@ -43,6 +48,26 @@ import subprocess
 from urllib.parse import quote, urlparse
 
 from dotenv import load_dotenv
+
+
+def a2a_tool(
+    base_url: str,
+    connection_id: str | None,
+    *,
+    send_credentials_for_agent_card: bool,
+):
+    from azure.ai.projects.models import A2APreviewTool
+
+    parsed = urlparse(base_url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise ValueError("Remote A2A base URL must be HTTPS.")
+    if send_credentials_for_agent_card and not connection_id:
+        raise ValueError("Protected agent-card fetch requires a project connection ID.")
+    return A2APreviewTool(
+        base_url=base_url.rstrip("/"),
+        project_connection_id=connection_id,
+        send_credentials_for_agent_card=send_credentials_for_agent_card,
+    )
 
 
 def project_endpoint(value: str) -> str:
@@ -118,6 +143,8 @@ def preflight(endpoint: str | None, agent_name: str | None) -> None:
     print(f"A2A v1.0 base endpoint: {base}")
     print(f"A2A v1.0 agent card: {card}")
     print("Use A2A v1.0 for new callers. Assign Foundry Agent Consumer to each calling identity.")
+    print("Remote agent-card fetch is anonymous by default.")
+    print("Protected cards require a project connection and send_credentials_for_agent_card=true.")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -129,8 +156,21 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--description", default="Answers approved support-policy questions.")
     parser.add_argument("--skill-id", default="support-policy-qa")
     parser.add_argument("--skill-name", default="Support policy Q&A")
+    parser.add_argument("--remote-base-url")
+    parser.add_argument("--connection-id")
+    parser.add_argument("--send-card-credentials", action="store_true")
     args = parser.parse_args(argv)
     endpoint = os.getenv("PROJECT_ENDPOINT")
+    if args.remote_base_url:
+        try:
+            tool = a2a_tool(
+                args.remote_base_url,
+                args.connection_id,
+                send_credentials_for_agent_card=args.send_card_credentials,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(f"Outbound A2A tool payload (local only): {tool.as_dict()}")
     if not args.apply:
         if args.verify:
             parser.error("--verify requires --apply.")

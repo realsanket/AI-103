@@ -8,7 +8,7 @@ from unittest.mock import patch
 from _shared import config, cu_client, openai_client, translator_client
 
 _video_spec = importlib.util.spec_from_file_location(
-    "video_generation", Path("03-computer-vision/05_video_generation.py")
+    "video_generation", Path("03-computer-vision/07_video_generation.py")
 )
 assert _video_spec and _video_spec.loader
 video_generation = importlib.util.module_from_spec(_video_spec)

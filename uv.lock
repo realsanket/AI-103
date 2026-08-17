@@ -533,6 +533,7 @@ dependencies = [
     { name = "azure-mgmt-authorization" },
     { name = "azure-mgmt-cognitiveservices" },
     { name = "azure-monitor-opentelemetry" },
+    { name = "azure-monitor-query" },
     { name = "azure-search-documents" },
     { name = "azure-storage-blob" },
     { name = "faiss-cpu" },
@@ -567,6 +568,7 @@ requires-dist = [
     { name = "azure-mgmt-authorization", specifier = ">=4.0.0" },
     { name = "azure-mgmt-cognitiveservices", specifier = ">=13.6.0" },
     { name = "azure-monitor-opentelemetry", specifier = ">=1.6.0" },
+    { name = "azure-monitor-query", specifier = ">=1.4.0" },
     { name = "azure-search-documents", specifier = ">=11.6.0b8" },
     { name = "azure-storage-blob", specifier = ">=12.24.0" },
     { name = "faiss-cpu", specifier = ">=1.9.0" },
@@ -1139,6 +1141,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ab/21/178fed00e9738e4c953e147d46f5f803bfeb3fde50b11efdb99ae016f05f/azure_monitor_opentelemetry_exporter-1.0.0b55.tar.gz", hash = "sha256:6701307124e5eeb1837b269ddafab0affb69020fdb842d7c5ff1a3122514595a", size = 342308, upload-time = "2026-07-01T23:59:14.53Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/70/80/c1e58ea1c7dd7452579ab98912e9a3aa9a5fdb22f24a676f3cdaac3ab096/azure_monitor_opentelemetry_exporter-1.0.0b55-py2.py3-none-any.whl", hash = "sha256:5f0bcfcfd36d82f3f55cf5fe894ea05c5c0a32d2e38adf571eaa0e2b655aeb9e", size = 251064, upload-time = "2026-07-01T23:59:16.305Z" },
+]
+
+[[package]]
+name = "azure-monitor-query"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/04/c0/e5c760f38224575f1eba35c319842f2be30fab599854ba9bd0b19d39c261/azure_monitor_query-2.0.0.tar.gz", hash = "sha256:7b05f2fcac4fb67fc9f77a7d4c5d98a0f3099fb73b57c69ec1b080773994671b", size = 86658, upload-time = "2025-07-30T22:23:41.534Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/52/0c/6b08a5a1e5f0bd97cefa13c53bf47f281a9a11732d19a94a86709acbc6bd/azure_monitor_query-2.0.0-py3-none-any.whl", hash = "sha256:8f52d581271d785e12f49cd5aaa144b8910fb843db2373855a7ef94c7fc462ea", size = 71102, upload-time = "2025-07-30T22:23:43.056Z" },
 ]
 
 [[package]]
