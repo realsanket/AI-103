@@ -1,0 +1,91 @@
+#
+# Declarative YAML workflow — Northwind support intake triage.
+#
+# Python declarative workflows use a name-based structure with typed inputs.
+# Local.*   — variables local to this workflow run.
+# Workflow.Inputs.*  — the inputs passed to workflow.run({...}).
+# Workflow.Outputs.* — values surfaced back to the caller.
+#
+# Values prefixed with `=` are evaluated as PowerFx expressions. Bare strings
+# are literals. See:
+#   .context/azure-ai-docs/agent-framework/workflows/declarative.md
+#
+name: northwind-intake-triage
+description: Classify a Northwind support message and route it to a team label.
+
+inputs:
+  message:
+    type: string
+    description: Raw customer support message.
+  amount:
+    type: number
+    description: Order/refund amount in USD (0 if not applicable).
+
+actions:
+  # 1) Capture the raw message so downstream expressions can reference it.
+  - kind: SetVariable
+    id: capture_message
+    displayName: Capture message
+    variable: Local.message
+    value: =Workflow.Inputs.message
+
+  # 2) Cheap keyword-based category classifier — no model call.
+  #    This shows ConditionGroup (switch/case) and the expression language.
+  - kind: ConditionGroup
+    id: classify_category
+    displayName: Classify support category
+    conditions:
+      - condition: =Not(IsBlank(Find("refund", Lower(Local.message))))
+        id: billing_branch
+        actions:
+          - kind: SetVariable
+            variable: Local.category
+            value: billing
+      - condition: =Not(IsBlank(Find("password", Lower(Local.message))))
+        id: technical_branch
+        actions:
+          - kind: SetVariable
+            variable: Local.category
+            value: technical
+    elseActions:
+      - kind: SetVariable
+        variable: Local.category
+        value: general
+
+  # 3) Priority based on refund amount — demonstrates If/else with numbers.
+  - kind: If
+    id: check_priority
+    displayName: Escalate high-value refunds
+    condition: =Workflow.Inputs.amount >= 500
+    then:
+      - kind: SetVariable
+        variable: Local.priority
+        value: high
+    else:
+      - kind: SetVariable
+        variable: Local.priority
+        value: normal
+
+  # 4) Build a routing team label from category + priority.
+  - kind: SetVariable
+    id: build_team
+    displayName: Build team label
+    variable: Local.team
+    value: =Concat("northwind-", Local.category, "-", Local.priority)
+
+  # 5) Send the human-readable triage summary to workflow output.
+  - kind: SendActivity
+    id: send_summary
+    displayName: Send triage summary
+    activity:
+      text: =Concat("Routed to ", Local.team, " (category=", Local.category, ", priority=", Local.priority, ")")
+
+  # 6) Store structured output so a caller can consume the routing decision.
+  - kind: SetVariable
+    id: set_output
+    displayName: Store structured routing decision
+    variable: Workflow.Outputs.routing
+    value:
+      category: =Local.category
+      priority: =Local.priority
+      team: =Local.team

@@ -182,6 +182,12 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | 37 (`--apply`) | Model tokens + Bing search lookup |
 | 38 (`--apply`) | Model tokens |
 | 39 (`--apply`) | Creates persistent webhook endpoint; secret shown once |
+| 40 (`--apply`) | Creates a `RemoteA2A` project connection through ARM (persistent; delete manually) |
+| 41 (`--apply`) | PATCHes an existing agent to enable Responses + A2A protocols and publish an agent card |
+| 42 (`--apply`) | Creates an external-agent registration (preview; delete with `--delete --apply`) |
+| 43 (`--apply`) | Local declarative YAML workflow run; no model tokens (baseline is model-free) |
+| 44 (`--apply`) | Writes checkpoint files under `.checkpoints/`; no model tokens |
+| 45 | Preflight only — no state, no env vars, no Azure calls |
 
 ---
 
@@ -267,6 +273,16 @@ Need previous turns only inside one interaction?
 | 37 | [Web search tool](37_openai_web_search.py) | Built-in web_search_preview tool; print grounded answer + citations | `--apply` sends 1 request with Bing lookup |
 | 38 | [Structured outputs](38_openai_structured_outputs.py) | Pydantic beta.chat.completions.parse — typed Python object from model | `--apply` sends 1 request |
 | 39 | [Webhooks preflight](39_openai_webhooks_preflight.py) | Register webhook endpoint; print payload; `--apply` POSTs to REST API | **Read-only** until `--apply` |
+| 40 | [A2A authentication](40_a2a_authentication.py) | Compare key / Entra / project-MI / agentic-id / OAuth / none; print each connection body | **Read-only** until `--apply` |
+| 41 | [Enable incoming A2A](41_enable_incoming_a2a.py) | Publish agent card + enable Responses & A2A protocols on an existing agent | **Read-only** until `--apply` |
+| 42 | [Register external agent](42_register_external_agent.py) | Register a non-Foundry agent for tracing/eval (preview; OTel via App Insights) | **Read-only** until `--apply` |
+| 43 | [Declarative YAML workflow](43_af_declarative_workflow.py) | Load `workflows/declarative_intake.yaml` and execute it locally (`Workflow.Inputs`, expressions, `WorkflowFactory`) | **Read-only** until `--apply` |
+| 44 | [Workflow checkpoints](44_af_checkpoints.py) | Capture + resume a workflow via `FileCheckpointStorage` at `.checkpoints/` | **Read-only** until `--apply` |
+| 45 | [Python 2026 upgrade preflight](45_af_python_2026_upgrade_preflight.py) | Enumerate Agent Framework 2026 breaking changes and map each to lessons 15/16/17/18 | **Read-only** (no `--apply` flag) |
+| 46 | [Work IQ tool preflight](46_work_iq_tool_preflight.py) | Preview Work IQ (M365 A2A) tool: scope, connection, config JSON | Preflight; `--apply` prints SDK payloads only |
+| 47 | [Foundry MCP available tools](47_mcp_available_tools_preflight.py) | Reference card of the 79 Foundry-hosted MCP tools with access + auth model | Local catalog only |
+| 48 | [Hosted-agent guardrails](48_hosted_agent_guardrails.py) | Attach `rai_config` (content filter + egress policy) to a hosted-agent version | `--apply` creates a new hosted-agent version |
+| 49 | [Manage hosted sessions](49_manage_hosted_sessions.py) | List/inspect/delete hosted-agent sessions | Preflight lists; `--apply --delete` deletes `HOSTED_SESSION_ID` |
 
 ---
 
@@ -1523,7 +1539,9 @@ uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py --appl
 | Toolbox | GA | Foundry-managed versioned MCP endpoint; Tool Search and Skills within Toolbox remain preview |
 | Azure AI Search agent tool | GA | Requires existing index + project connection; no ingestion in lesson |
 | Hosted agents (Responses) | GA | Full deployment lifecycle; not local Agent Framework |
-| A2A | Preview | Separate protocol from Responses; requires explicit enablement |
+| A2A v1.0 (outbound + incoming) | GA | Separate protocol from Responses; incoming requires the Responses protocol + Entra ID on callers |
+| A2A v0.3 | Preview | Existing integrations only; default when no version selector is set - pin v1.0 in production |
+| External agent registration | Preview | Foundry stores metadata only; runtime lives outside; needs `Foundry-Features: ExternalAgents=V1Preview` (`allow_preview=True`) |
 
 ---
 

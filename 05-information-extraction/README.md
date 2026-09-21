@@ -38,6 +38,10 @@ Two complementary services for information extraction and retrieval:
 │  Custom skill deploy → monitoring → Blob identity                  │
 │  Managed Search agent tool                                        │
 └────────────────────────────────────────────────────────────────────┘
+┌── Stage 7: Agentic Retrieval — Knowledge Sources + KB (21–27) ─────┐
+│  Blob / search-index / web knowledge sources → knowledge base      │
+│  Retrieve → answer synthesis → reasoning-effort tiers              │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 > **Current runtime note.** `_search_rest.py` and `_shared/cu_client.py` currently send a redacted `Authorization: ******` header. Live REST calls (L00, L04–L05, L09–L17) cannot authenticate as checked in. SDK-backed calls (L01–L03, L18–L20) and the Foundry project client (L07–L08, L15) have separate credential paths.
@@ -129,6 +133,17 @@ CU_API_VERSION=2025-11-01
 # Managed Search agent (L20 only)
 SEARCH_CONNECTION_NAME=<foundry-project-connection-name>
 SEARCH_INDEX=northwind-docs-vector
+
+# Agentic retrieval — knowledge sources + knowledge base (L21–L27)
+SEARCH_KNOWLEDGE_SOURCE=northwind-blob-ks    # per-lesson: KS name being created
+SEARCH_KNOWLEDGE_BASE=northwind-kb
+SEARCH_BLOB_CONNECTION=ResourceId=/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/<account>
+SEARCH_BLOB_CONTAINER=northwind-docs
+SEARCH_KS_BLOB=northwind-blob-ks              # names referenced by L24 knowledge base
+SEARCH_KS_INDEX=northwind-index-ks
+SEARCH_KS_WEB=northwind-web-ks                # leave empty to skip the web source
+SEARCH_WEB_ALLOWED_DOMAIN=learn.microsoft.com
+SEARCH_WEB_BLOCKED_DOMAIN=bing.com
 ```
 
 `DefaultAzureCredential` resolves to `az login` on workstation, managed/workload identity in Azure.
@@ -157,6 +172,7 @@ Required roles:
 10. Run L09–L16 independently (need `CU_ENDPOINT` and file URLs)
 11. Run L13 with `CU_API_VERSION=2025-05-01-preview`; restore after
 12. Run L17–L20 as needed (each has `--apply`/`--run` guards)
+13. Agentic retrieval: L21 → L22 → L23 (build knowledge sources) → L24 (compose KB) → L25 (retrieve) → L26 (answer synthesis); L27 is docs-only
 
 ### Costs and side effects
 
@@ -174,6 +190,13 @@ Required roles:
 | L17 `--apply [--run]` | Replaces skillset/indexer; `--run` starts indexer |
 | L20 `--enable --apply` | Creates persistent agent version |
 | L18, L19 `--run` | Read-only; no writes |
+| L21 `--apply` | Creates blob KS + auto-generated data source/skillset/index/indexer (persistent) |
+| L22 `--apply` | Creates search-index KS wrapper (persistent) |
+| L23 `--apply` | Creates web KS; retrieve calls are billed by Bing |
+| L24 `--apply` | Creates knowledge base (persistent) |
+| L25 `--apply` | Runs retrieve; LLM tokens billed by AOAI |
+| L26 `--apply` | Runs retrieve + answer synthesis; more LLM tokens billed |
+| L27 | Preflight-only; no cloud calls |
 
 ---
 
@@ -232,6 +255,14 @@ Required roles:
 | 18 | `18_search_monitoring.py` | Search indexer health snapshot | `--run` for live check |
 | 19 | `19_blob_identity_paths.py` | Verify Blob data-plane identity | `--run` for live check |
 | 20 | `20_managed_search_agent_tool.py` | Managed Foundry agent with Search tool | `--enable --apply --run` |
+| 21 | `21_knowledge_source_blob.py` | Create indexed **blob** knowledge source (auto data source + skillset + index + indexer) | `--apply` sends PUT |
+| 22 | `22_knowledge_source_search_index.py` | Wrap existing search index as a knowledge source | `--apply` sends PUT |
+| 23 | `23_knowledge_source_web.py` | Remote **web** knowledge source (Grounding with Bing Custom Search) | `--apply` sends PUT |
+| 24 | `24_agentic_knowledge_base.py` | Knowledge base referencing multiple knowledge sources | `--apply` sends PUT |
+| 25 | `25_agentic_retrieve.py` | Call retrieve action; print subqueries + references + activity | `--apply` invokes retrieve |
+| 26 | `26_agentic_answer_synthesis.py` | Retrieve with `answerSynthesis` → synthesized answer + citations | `--apply` invokes retrieve |
+| 27 | `27_agentic_reasoning_effort_preflight.py` | Reasoning-effort tiers (`minimal`/`low`/`medium`/`auto`) walkthrough | No `--apply`; docs-only |
+| 28 | `28_sharepoint_indexer_acls_preflight.py` | SharePoint indexer ACL ingestion (preview) — permissions/index/mappings/resync runbook | Local reference only |
 
 ---
 
@@ -731,6 +762,173 @@ uv run python 05-information-extraction/20_managed_search_agent_tool.py --enable
 **Exam cues.** Managed tool ≠ manual RAG. Agent calls Search tool when it decides to — not every turn. Tool does not enforce application ACLs. Project connection + project identity roles must be configured separately from Search data-plane roles.
 
 **References:** [Azure AI Search tool for Foundry agents](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/ai-search) · [Agentic retrieval overview](https://learn.microsoft.com/azure/search/agentic-retrieval-overview)
+
+---
+
+## Stage 7 — Agentic Retrieval: Knowledge Sources + Knowledge Base (lessons 21–27)
+
+Agentic retrieval replaces the manual "app owns retrieval" pattern (L07/L08) and the managed-tool pattern (L20) with a service-side pipeline. A *knowledge source* declares content (indexed or remote); a *knowledge base* stitches sources together and exposes one `/retrieve` endpoint that fans a single request out to every source in parallel, generates subqueries with an LLM, merges results, and optionally synthesizes an answer with citations. All lessons in this stage target REST API `2026-08-01-preview` — the GA `2026-04-01` version supports fewer knowledge-source kinds and no answer synthesis or configurable reasoning effort.
+
+### 21 — Blob Knowledge Source
+
+**Question answered:** How do you create a knowledge source that auto-generates the entire ingestion pipeline from a blob container?
+
+**Background.** A single `azureBlob` knowledge source PUT tells Search to create a data source, skillset, index, and indexer for you (contrast with L04/L05, which build the same four objects by hand). `ingestionParameters` names the embedding model (for chunk vectors) and chat completion model (for image verbalization); both must be reachable by the Search MI with **Cognitive Services User**. Preview features include `networkAccessMode: private`, `ingestionPermissionOptions` (ACL / Purview label propagation), and per-language analyzers.
+
+```bash
+uv run python 05-information-extraction/21_knowledge_source_blob.py
+uv run python 05-information-extraction/21_knowledge_source_blob.py --apply
+```
+
+**Code path.**
+1. `configuration()` reads `SEARCH_KNOWLEDGE_SOURCE`, `SEARCH_BLOB_CONNECTION`, `SEARCH_BLOB_CONTAINER`, plus `AZURE_OPENAI_ENDPOINT`, `EMBEDDING_MODEL`, `DEFAULT_MODEL`
+2. `build_body()` mirrors the doc's preview PUT body exactly
+3. With `--apply`: PUT `/knowledgesources/<name>?api-version=2026-08-01-preview`
+
+**What to watch in the output.** Preflight: JSON body with `ResourceId=...` connection form. `--apply`: `knowledge source '<name>' saved.` A 400 with "cannot resolve embedding" means the Search MI lacks Cognitive Services User on the AOAI resource.
+
+**Exam cues.** The generated indexer follows the same rules as a hand-built blob indexer (L04) — supported formats, indexer limits, and skill limits all apply. `ingestionPermissionOptions` and `assetStore` cannot be set on the same knowledge source.
+
+**References:** [What is a knowledge source?](https://learn.microsoft.com/azure/search/agentic-knowledge-source-overview) · [Create a blob knowledge source](https://learn.microsoft.com/azure/search/agentic-knowledge-source-how-to-blob)
+
+---
+
+### 22 — Search-Index Knowledge Source
+
+**Question answered:** How do you expose an existing search index (like the one from L00) as a knowledge source without any ingestion?
+
+**Background.** The `searchIndex` kind is a pointer — no pipeline is generated. `sourceDataFields` lists which fields appear in retrieve response `references`. `searchFields` controls which fields participate in query execution. Preview (`2026-05-01-preview`+) makes `semanticConfigurationName` optional; on GA it's still required.
+
+```bash
+uv run python 05-information-extraction/22_knowledge_source_search_index.py --apply
+```
+
+**Code path.**
+1. `configuration()` reads `SEARCH_KNOWLEDGE_SOURCE` + `SEARCH_INDEX_VECTOR`
+2. `build_body()` produces the wrapper JSON
+3. With `--apply`: PUT `/knowledgesources/<name>?api-version=2026-08-01-preview`
+
+**What to watch in the output.** `knowledge source '<name>' saved.` A 400 "searchIndexName not found" means the referenced index isn't on this service. Advanced features (base filter, query hints) are covered in the source doc.
+
+**Exam cues.** Agentic retrieval ignores the underlying index's `scoringProfiles` (including `defaultScoringProfile`) and never returns `@search.rerankerBoostedScore`. Use [freshness-aware retrieval](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-configure-freshness) for recency bias.
+
+**References:** [Create a search index knowledge source](https://learn.microsoft.com/azure/search/agentic-knowledge-source-how-to-search-index) · [Create an index for agentic retrieval](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-create-index)
+
+---
+
+### 23 — Web Knowledge Source
+
+**Question answered:** How do you add live web results (Grounding with Bing) as a remote knowledge source?
+
+**Background.** Remote knowledge sources are queried at request time — no ingestion. The `web` kind uses Grounding with Bing Custom Search, always summarizes results with an LLM (never verbatim text), and requires the KB to include a `models` reference. Web knowledge source is a First-Party Consumption Service — Microsoft DPA doesn't apply and use waives Government Community Cloud commitments. Public-cloud regions only.
+
+```bash
+uv run python 05-information-extraction/23_knowledge_source_web.py
+uv run python 05-information-extraction/23_knowledge_source_web.py --apply
+```
+
+**Code path.**
+1. `configuration()` reads `SEARCH_KNOWLEDGE_SOURCE` + optional `SEARCH_WEB_ALLOWED_DOMAIN` / `SEARCH_WEB_BLOCKED_DOMAIN`
+2. `build_body()` sets `allowedDomains` and `blockedDomains`
+3. With `--apply`: PUT `/knowledgesources/<name>?api-version=2026-08-01-preview`
+
+**What to watch in the output.** `knowledge source '<name>' saved.` At retrieve time (L25/L26), the response `activity` array includes `web` records (Bing runtime parameters) and `modelWebSummarization` records (token usage).
+
+**Exam cues.** Web is remote (no citation URLs into an index). Answer synthesis (L26) is only available with `2026-08-01-preview`; on GA the web KB is extractive summaries only.
+
+**References:** [Create a web knowledge source](https://learn.microsoft.com/azure/search/agentic-knowledge-source-how-to-web) · [Manage web knowledge source access](https://learn.microsoft.com/azure/search/agentic-knowledge-source-how-to-web-manage) · [Grounding with Bing terms](https://www.microsoft.com/en-us/bing/apis/grounding-legal-enterprise)
+
+---
+
+### 24 — Knowledge Base (multi-source)
+
+**Question answered:** How do you compose multiple knowledge sources into one queryable retrieval endpoint?
+
+**Background.** A knowledge base is a top-level object with one URL per KB (`/knowledgebases/<name>/retrieve`). It lists knowledge sources by name, optionally supplies an LLM for query planning / answer synthesis / web summarization, and stores defaults: `retrievalInstructions` (routing hints), `answerInstructions` (output shape), `outputMode`, `retrievalReasoningEffort`, and `retrieveDefaults` (runtime/token budgets). L24 wires L21+L22+L23 into one KB with `outputMode=answerSynthesis` and `retrievalReasoningEffort.kind=auto`.
+
+```bash
+uv run python 05-information-extraction/24_agentic_knowledge_base.py --apply
+```
+
+**Code path.**
+1. `configuration()` reads `SEARCH_KNOWLEDGE_BASE`, `SEARCH_KS_BLOB`, `SEARCH_KS_INDEX`, `SEARCH_KS_WEB`, `AZURE_OPENAI_ENDPOINT`, `DEFAULT_MODEL`
+2. `build_body()` composes the KB JSON
+3. With `--apply`: PUT `/knowledgebases/<name>?api-version=2026-08-01-preview`
+
+**What to watch in the output.** `knowledge base '<name>' saved.` A 400 "knowledge source not found" means L21–L23 didn't run. If the KB includes a web source, the `models` entry is mandatory (web summarization). On GA `2026-04-01` most preview fields are rejected.
+
+**Exam cues.** The KB stores *defaults*; retrieve requests (L25/L26) override per call. `retrievalInstructions` is a natural-language hint to the planner — not a security filter. Use `ingestionPermissionOptions` on sources plus `x-ms-query-source-authorization` at retrieve time for real permission trimming.
+
+**References:** [Create a knowledge base](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-create-knowledge-base) · [Agentic retrieval overview](https://learn.microsoft.com/azure/search/agentic-retrieval-overview)
+
+---
+
+### 25 — Retrieve Action
+
+**Question answered:** How do you call the retrieve endpoint and inspect the subqueries + references it returns?
+
+**Background.** POST `/knowledgebases/<name>/retrieve` fans one user message out to every knowledge source in the KB. The response body has three parts: `response` (extracted grounding text or synthesized answer), `activity` (per-subquery timing, tokens, and knowledge-source calls), and `references` (per-cited-chunk records, each with an `activitySource` pointing back into `activity`). Preview accepts a `messages` array (assistant instruction + user turn); GA `2026-04-01` uses the older `intents` shape. This lesson uses `outputMode=extractiveData` + `low` reasoning effort.
+
+```bash
+uv run python 05-information-extraction/25_agentic_retrieve.py
+uv run python 05-information-extraction/25_agentic_retrieve.py --apply
+```
+
+**Code path.**
+1. `configuration()` reads `SEARCH_KNOWLEDGE_BASE` + optional `SEARCH_RETRIEVE_QUESTION`
+2. `build_request(question)` produces the POST body
+3. With `--apply`: POST `/knowledgebases/<name>/retrieve?api-version=2026-08-01-preview` → print response preview, subqueries from `activity`, and up to 5 references
+
+**What to watch in the output.** With `--apply`: `Response text preview`, then `Subquery [<type> via <ks>] <elapsed>ms` lines, then `Reference id=... docKey=...` lines. Indexed sources include a `docKey`; remote (web) sources leave it as `-`.
+
+**Exam cues.** Retrieve is *not* a chat completion — its output is grounding data. The `references` array is what a downstream agent should cite. `maxOutputSizeInTokens` on the request (or `maxOutputSizeInTokens` in KB `retrieveDefaults`) bounds the output; the most-relevant document may be dropped if it exceeds the budget — check `activity` for the warning.
+
+**References:** [Query a knowledge base](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-retrieve) · [Agentic retrieval pipeline tutorial](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-create-pipeline)
+
+---
+
+### 26 — Answer Synthesis
+
+**Question answered:** How do you switch retrieve from raw grounding chunks to a formulated natural-language answer with inline citations?
+
+**Background.** Set `outputMode` to `answerSynthesis` on the retrieve request (or as a KB default in L24). The KB's LLM writes an answer and inlines citations as `[ref_id:<n>]` tokens that map to entries in the `references` array. Requires `2026-08-01-preview`, a `models` entry on the KB, and reasoning effort `low`/`medium`/`auto` (not `minimal`).
+
+```bash
+uv run python 05-information-extraction/26_agentic_answer_synthesis.py --apply
+```
+
+**Code path.**
+1. `configuration()` reads `SEARCH_KNOWLEDGE_BASE` + optional `SEARCH_RETRIEVE_QUESTION`
+2. `build_request(question)` sets `outputMode=answerSynthesis` and `answerInstructions`
+3. With `--apply`: POST retrieve → print synthesized answer, up to 8 references, aggregated `inputTokens`/`outputTokens` from `activity`
+
+**What to watch in the output.** A bulleted or paragraph answer with `[ref_id:1]`-style citations, then reference rows with `docKey`, then a token summary. Empty answer with zero results in `activity` = the KB has no matching documents.
+
+**Exam cues.** Synthesized answers are model output — they can hallucinate around gaps in retrieved content. The citations are grounded by construction, but the sentence between citations is not. Answer synthesis + `minimal` reasoning is a 400 error.
+
+**References:** [Answer synthesis how-to](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-answer-synthesis) · [Set retrieval reasoning effort](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-set-retrieval-reasoning-effort)
+
+---
+
+### 27 — Reasoning-Effort Tiers (docs-only)
+
+**Question answered:** How much LLM processing runs per retrieve call, and what are the trade-offs between the four tiers?
+
+**Background.** `retrievalReasoningEffort.kind` chooses `minimal` / `low` / `medium` / `auto`. `minimal` disables LLM planning entirely — fastest, cheapest, forces `outputMode=extractiveData`, no answer synthesis, no web sources. `low` (default) runs one planning pass with 5,000 answer tokens. `medium` adds a semantic-classifier iteration with 10,000 answer tokens (region-limited). `auto` starts light and escalates up to medium if grounding is thin — requires preview + a KB `models` entry. This lesson is preflight-only; it prints the exact request body for each tier so you can drop the JSON into L25/L26.
+
+```bash
+uv run python 05-information-extraction/27_agentic_reasoning_effort_preflight.py
+```
+
+**Code path.**
+1. For each tier, `build_request(kind)` prints `retrievalReasoningEffort` plus operational limits
+2. No PUT, no POST — this is a documentation lesson
+
+**What to watch in the output.** Four labeled JSON snippets and a limits table per tier. Nothing is sent.
+
+**Exam cues.** Effort is set at the KB (default) or per retrieve request (override). If neither is set, the service uses `low`. `minimal` is the migration path from the classic `/docs/search` API — direct text/vector search across every source, no query expansion, and `alwaysQueryKnowledgeSource` is ignored.
+
+**References:** [Set the retrieval reasoning effort](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-set-retrieval-reasoning-effort) · [Agentic retrieval migration](https://learn.microsoft.com/azure/search/agentic-retrieval-how-to-migrate)
 
 ---
 

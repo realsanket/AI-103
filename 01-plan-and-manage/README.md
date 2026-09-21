@@ -173,6 +173,9 @@ For a managed identity, enable or attach the identity, then assign roles to its 
 | 29 | Live KQL read on Log Analytics; needs `Log Analytics Reader` on workspace. |
 | 30 | Local preflight + optional cloud eval; `--apply` calls CoherenceEvaluator against one sample. |
 | 31 | Local preflight + optional red-team probe; `--apply` runs one objective with baseline and Base64 attacks (billed compute). |
+| 32 | Preview; `--apply` submits a synthetic data generation job and writes rows locally. |
+| 33 | `--apply` creates a persistent evaluation and run against the chosen target type. |
+| 34 | Read-only; polls a completed run and prints scored summary. |
 
 Provisioned deployments reserve PTU capacity and incur hourly capacity cost while present, including idle time. A PTU is reserved throughput capacity, **not a prepaid token bucket** and not per-token billing. PTU quota approval does not guarantee capacity in every requested region.
 
@@ -241,6 +244,7 @@ A deployment `capacity` value is not a universal TPM conversion. Standard quota 
 | 02 | [Deployment types](02_deployment_types.py) | Compare deployment families. | Local reference; availability varies. |
 | 03 | [Deploy model](03_deploy_model.py) | Create/update Global Standard deployment through management plane. | Writes cloud state and can allocate billable capacity. |
 | 04 | [Model Router](04_model_router.py) | Route Responses API requests through router; print selected model. | Live inference; router deployment required. |
+| 04b | [Responses model routing](04b_responses_model_routing.py) | Same Responses API for `model-router` vs a named deployment; pick by trigger conditions. | `--apply` sends 2 requests (1 router + 1 named). |
 | 05 | [Quotas](05_quotas_and_tpm.py) | List deployments and location usage. | Live control-plane read; subscription permission. |
 | 06 | [Backoff](06_rate_limit_backoff.py) | Retry transient Responses API errors. | Five live calls. |
 | 07 | [Identity smoke test](07_managed_identity_agent.py) | Validate project Entra auth, hosted-agent listing, project Responses call. | Live read and inference. |
@@ -268,6 +272,9 @@ A deployment `capacity` value is not a universal TPM conversion. Standard quota 
 | 29 | [Cluster analysis reader](29_observability_cluster_analysis.py) | KQL summary of GenAI dependencies from Log Analytics. | Live read; `--apply --workspace-id`. |
 | 30 | [Evaluation CI/CD preflight](30_evaluation_cicd_preflight.py) | Validate env + run one-sample coherence eval; print CI pipeline patterns. | `--apply` submits cloud eval job. |
 | 31 | [AI red teaming preflight](31_ai_red_teaming_preflight.py) | Probe a real deployment and interpret ASR with its denominator. | `--apply` billable; purple environment; two Violence pairs. |
+| 32 | [Synthetic eval dataset](32_synthetic_eval_dataset.py) | Generate a Simple QnA or Simulation seed dataset from an agent, prompt, or reference file. | Preview; `--apply` submits data generation job under `project.beta.datasets`. |
+| 33 | [Cloud evaluation targets](33_cloud_evaluation_targets.py) | Configure `azure_ai_model` / `azure_ai_agent` (responses or invocations) target JSON for a cloud eval run. | `--apply` creates persistent evaluation + run. |
+| 34 | [Cloud evaluation results](34_cloud_evaluation_results.py) | Poll a run and summarize `result_counts`, per-evaluator pass rate, target latency, and estimated cost. | Read-only; needs completed run's eval ID + run ID. |
 
 ---
 
@@ -1641,9 +1648,9 @@ uv run python 01-plan-and-manage/29_observability_cluster_analysis.py \
 
 ---
 
-## Stage 8 — Evaluation CI/CD + AI red teaming (lessons 30–31)
+## Stage 8 — Evaluation CI/CD, red teaming, and Foundry Observability (lessons 30–34)
 
-Evaluation belongs in every release pipeline. These two lessons add the gate: lesson 30 proves a coherence evaluation runs from CI context; lesson 31 advances from lesson 24's fixed callback to a real model deployment. Both are preflight-first — validate environment and scope locally before spending compute.
+Evaluation belongs in every release pipeline. Lessons 30 and 31 add the release gate. Lessons 32–34 cover the newer Foundry Observability surface: synthesize an evaluation dataset when you have no production traffic yet (32), configure a cloud evaluation target JSON that plugs a model or agent into the eval run (33), then read the scored results with target latency and cost breakdown (34). All are preflight-first — validate environment and JSON locally before spending compute.
 
 ### 30 — Evaluation CI/CD preflight
 
@@ -1713,6 +1720,146 @@ uv run python 01-plan-and-manage/31_ai_red_teaming_preflight.py --apply
 **Prerequisites and limits.** This repository uses Python 3.12–3.13. The preview also requires a currently supported evaluation region, `Foundry User` for the project managed identity, and direct Azure OpenAI access for the caller. Generated adversarial text and local result artifacts can be sensitive; minimize access and retention.
 
 **References:** [AI Red Teaming Agent](https://learn.microsoft.com/azure/foundry/concepts/ai-red-teaming-agent) · [Plan red teaming](https://learn.microsoft.com/azure/foundry/openai/concepts/red-teaming) · [Run local red-team scans](https://learn.microsoft.com/azure/foundry/how-to/develop/run-scans-ai-red-teaming-agent) · [Run cloud red-team scans](https://learn.microsoft.com/azure/foundry/how-to/develop/run-ai-red-teaming-cloud) · [Risk and safety evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/risk-safety-evaluators) · [Safety evaluations transparency](https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note)
+
+---
+
+### 32 — Generate a synthetic evaluation dataset (preview)
+
+**Question answered:** How do I build an evaluation dataset before I have production traces?
+
+**Background.** Foundry's data generation service synthesizes rows from material you already have: an agent's instructions (`AgentDataGenerationJobSource`), an inline prompt (`PromptDataGenerationJobSource`), or an uploaded reference document (`FileDataGenerationJobSource`). Two task types split what the rows look like:
+
+- `simple_qna` → single-turn `query` + `ground_truth` pairs. Options class `SimpleQnADataGenerationJobOptions`.
+- `simulation_seed` → multi-turn scenarios with required `test_case_description` (plus optional `id`, `category`, `desired_num_turns`). Options class `SimulationSeedDataGenerationJobOptions`. These feed the Simulate conversations flow.
+
+Preview surface: `project_client.beta.datasets.begin_create_generation_job(...)`. Needs `azure-ai-projects >= 2.5.0` and a supported region.
+
+```bash
+# Preflight — print the resolved DataGenerationJob body, no cloud call
+uv run python 01-plan-and-manage/32_synthetic_eval_dataset.py
+
+# Apply — from an agent (default when SYNTHETIC_INPUT_PATH is unset)
+uv run python 01-plan-and-manage/32_synthetic_eval_dataset.py --apply
+
+# Apply — from an inline prompt (< 4 KB .txt)
+SYNTHETIC_INPUT_PATH=./retail-policy.txt \
+  uv run python 01-plan-and-manage/32_synthetic_eval_dataset.py --apply
+
+# Apply — from a reference file (uploaded via Azure OpenAI files API)
+SYNTHETIC_INPUT_PATH=./retail-agent-reference.md \
+  uv run python 01-plan-and-manage/32_synthetic_eval_dataset.py --apply
+
+# Simulation seeds instead of single-turn Q&A
+SYNTHETIC_TASK=simulation_seed \
+  uv run python 01-plan-and-manage/32_synthetic_eval_dataset.py --apply
+```
+
+**Code path.**
+1. Resolve source kind from `SYNTHETIC_INPUT_PATH` (unset → agent; small `.txt` → prompt; other → file).
+2. If file source: upload via `project.get_openai_client().files.create(purpose="user_data")` and wait until `status == "processed"` (needs >= 1 KB content).
+3. Build `DataGenerationJob(inputs=DataGenerationJobInputs(scenario=EVALUATION, sources=[...], options=<SimpleQnA|SimulationSeed>DataGenerationJobOptions(max_samples, model_options=DataGenerationModelOptions(model=...)), output_options=...))`.
+4. `poller = project.beta.datasets.begin_create_generation_job(job)`, then poll `poller.status()`.
+5. Resolve `DatasetDataGenerationJobOutput` from `poller.result().outputs`, fetch the dataset, and write rows to `01-plan-and-manage/data/<output>.jsonl`.
+
+**What to watch.** `max_samples` must be 15..1000. File sources must reach `processed`. Preview: region availability, wire type value (`simple_qna` or `simulation_seed`), and evaluator alignment with the dataset schema.
+
+**References:** [Generate a synthetic evaluation dataset](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluation-dataset-synthetic) · [Cloud eval synthetic data generation](https://learn.microsoft.com/azure/foundry/observability/how-to/cloud-evaluation-synthetic-data) · [Simulate conversations](https://learn.microsoft.com/azure/foundry/observability/how-to/cloud-evaluation-simulate-conversations) · [Convert traces to datasets](https://learn.microsoft.com/azure/foundry/observability/how-to/traces-to-dataset)
+
+---
+
+### 33 — Configure a cloud evaluation target
+
+**Question answered:** How do I plug a model, prompt agent, or hosted agent into a cloud evaluation run?
+
+**Background.** A target is not a standalone resource — it lives inside the run's `data_source`:
+
+```text
+evals.runs.create(
+  data_source={
+    "type": "azure_ai_target_completions",
+    "source": {"type": "file_id", "id": <dataset-id>},
+    "input_messages": <template | freeform>,
+    "target": <one of azure_ai_model | azure_ai_agent>,
+  }
+)
+```
+
+Three shapes covered by the lesson:
+
+| Target | `target` JSON | `input_messages` |
+|---|---|---|
+| `azure_ai_model` | `{"type":"azure_ai_model","model":"<deployment>","sampling_params":{...}}` | Structured template with `user` role and `{{item.query}}`. Model Router allowed here only. |
+| `azure_ai_agent` (responses) | `{"type":"azure_ai_agent","name":"<agent>","version":"1"}` | Structured template with `developer` + `user` roles. |
+| `azure_ai_agent` (invocations) | Same target JSON | Freeform JSON mapping directly to `/invocations` body (e.g. `{"message":"{{item.query}}"}`). |
+
+Task Adherence needs `{{sample.output_items}}` (full structured output) instead of `{{sample.output_text}}`.
+
+```bash
+# Preflight — print the eval config, testing criteria, and data_source JSON
+uv run python 01-plan-and-manage/33_cloud_evaluation_targets.py
+
+# Model target with a dataset file
+EVAL_TARGET_TYPE=model EVAL_DATASET_PATH=cases.jsonl \
+  uv run python 01-plan-and-manage/33_cloud_evaluation_targets.py --apply
+
+# Agent target (Responses protocol)
+EVAL_TARGET_TYPE=agent EVAL_DATASET_PATH=cases.jsonl \
+  uv run python 01-plan-and-manage/33_cloud_evaluation_targets.py --apply
+
+# Hosted agent that only speaks invocations
+EVAL_TARGET_TYPE=hosted_invocations EVAL_DATASET_PATH=cases.jsonl \
+  uv run python 01-plan-and-manage/33_cloud_evaluation_targets.py --apply
+```
+
+**Code path.**
+1. Upload the JSONL eval dataset via `openai_client.files.create(purpose="evals", expires_after=...)`.
+2. `openai_client.evals.create(name, data_source_config={"type":"custom", "item_schema":..., "include_sample_schema":True}, testing_criteria=[...])`.
+3. `openai_client.evals.runs.create(eval_id, name, data_source=<assembled above>)`.
+
+**What to watch.** For hosted agents that support both responses and invocations, the service defaults to responses — use the template. Data mapping is case-sensitive and must match JSONL field names exactly.
+
+**References:** [Evaluate model and agent targets](https://learn.microsoft.com/azure/foundry/observability/how-to/cloud-evaluation-targets) · [Cloud evaluation datasets](https://learn.microsoft.com/azure/foundry/observability/how-to/cloud-evaluation-datasets) · [Hosted agents](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
+
+---
+
+### 34 — Read cloud evaluation results
+
+**Question answered:** Did this evaluation run pass, how expensive was it, and where do I click for row detail?
+
+**Background.** Evaluation runs are asynchronous. A completed run carries:
+
+- `result_counts` — passed / failed / total.
+- `per_testing_criteria_results` — per-evaluator `passed`, `failed`, `pass_rate`.
+- `latency.target` — `p50_ms`, `p95_ms`, `sample_count` (model targets only, when any row has usable latency).
+- `estimated_cost.target` — `estimated_cost`, `currency`, `completeness`, `pricing_version`, `model_costs[]`, `unpriced_models[]`. Only for Global Standard model targets with usable pricing data.
+- `report_url` — portal deep-link for row inspection.
+
+Item-level results follow the schema: `label` (pass/fail), `score` (evaluator's native scale, e.g. 5-point quality, 7-point safety, F1 for similarity), `threshold`, `reason`, and optional `details`.
+
+```bash
+# Preflight without IDs — describes what would be read
+uv run python 01-plan-and-manage/34_cloud_evaluation_results.py
+
+# Summarize a completed run
+uv run python 01-plan-and-manage/34_cloud_evaluation_results.py \
+  --eval-id eval_abc123 --run-id run_xyz789
+
+# Also dump the first N row-level output items
+uv run python 01-plan-and-manage/34_cloud_evaluation_results.py \
+  --eval-id eval_abc123 --run-id run_xyz789 --show-items 3
+```
+
+**Code path.**
+1. `AIProjectClient(endpoint, DefaultAzureCredential())` then `openai_client = project.get_openai_client()`.
+2. Poll `openai_client.evals.runs.retrieve(run_id, eval_id=...)` until status ∈ {`completed`, `failed`, `canceled`}.
+3. On `completed`, print counts, per-evaluator pass rates, latency, cost, and `report_url`.
+4. If `--show-items N`, iterate `openai_client.evals.runs.output_items.list(run_id, eval_id=...)` and print the first N.
+
+**Cost caveat.** `estimated_cost.target` is a list-price estimate over reported token usage. It excludes evaluator model usage and evaluation runtime, and does not reflect negotiated pricing, commitments, or discounts. Use Azure billing for actual charges. When `completeness == "partial"`, `unpriced_models` lists what was skipped — do not compare that number across runs without checking.
+
+**What to watch.** Long "Running" status typically means the target model deployment lacks capacity — the service retries. Cancel with `openai_client.evals.runs.cancel(run_id, eval_id=...)` and increase quota before rerunning. `401`/`403` on retrieve = missing `Foundry User` at the project. `400` on `azure_ai_responses` runs when using `file_id` = must use `file_content` inline instead.
+
+**References:** [Get evaluation results](https://learn.microsoft.com/azure/foundry/observability/how-to/cloud-evaluation-results) · [Built-in evaluators](https://learn.microsoft.com/azure/foundry/concepts/built-in-evaluators) · [Complete Python samples](https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/ai/azure-ai-projects/samples/evaluations)
 
 ---
 

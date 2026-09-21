@@ -96,6 +96,8 @@ MCP (preview)
 | **Custom Speech** | Train acoustic/language model in Speech Studio; deploy → GUID; set `speech_config.endpoint_id`. Real-time needs the endpoint GUID; batch does not. |
 | **Language MCP** | Preview: Language capabilities exposed as MCP tools. `LANGUAGE_MCP_URL`. |
 | **Speech MCP** | Preview: Speech capabilities exposed as MCP tools. `SPEECH_MCP_URL`. L21 discovers without invoking. |
+| **GPT-Live** | Foundry OpenAI full-duplex voice model (`gpt-live-1`). Audio in both directions at once; a separate backend handles delegated tools/reasoning. URL: `wss://<resource>.openai.azure.com/openai/v1/live/sessions`. Distinct from the turn-based Realtime API. |
+| **Delegation (GPT-Live)** | How GPT-Live hands off non-voice work. `{ type: "client" }` (or null) → your application handles it. `{ type: "responses", responses: {...} }` → managed Responses backend with hosted tools. Chosen at `session.start`; not switchable mid-session. |
 
 ---
 
@@ -123,6 +125,10 @@ SPEECH_MCP_URL=https://<resource>.cognitiveservices.azure.com/speech/mcp?api-ver
 
 # Voice Live
 VOICE_LIVE_ENDPOINT=wss://<resource>.services.ai.azure.com/voice-live/realtime
+
+# GPT-Live (lessons 28-30)
+GPT_LIVE_MODEL=gpt-live-1
+GPT_LIVE_RESPONSES_MODEL=gpt-5.5
 
 # Custom Speech (lesson 19 only)
 CUSTOM_SPEECH_ENDPOINT_ID=<guid-from-speech-studio>
@@ -164,6 +170,9 @@ CUSTOM_SPEECH_ENDPOINT_ID=<guid-from-speech-studio>
 | 24 | Voice Live + model tokens on `--run`; `.pcm` file written |
 | 26 | Preflight free; `--apply` opens WebSocket + exchanges one text turn (minor compute). |
 | 27 | Preflight free; `--apply` sends audio via HTTP (billed per request). |
+| 28 | Preflight free; `--apply` opens GPT-Live session, injects one context event, closes. |
+| 29 | Preflight free; `--apply` opens GPT-Live session in client-delegation mode, one commentary append. |
+| 30 | No cloud calls; preflight-only (WebRTC handshake documentation). |
 | 21, 25 | No cloud calls by default |
 
 ---
@@ -251,6 +260,9 @@ Audio output?
 | 25 | `25_text_speech_governance_preflight.py` | Monitoring + governance config check | No cloud calls; config check only |
 | 26 | [Realtime Audio WebSocket](26_realtime_audio_websocket.py) | Open WSS session; exchange one text turn; prove auth | `--apply` requires `websockets` package |
 | 27 | [Audio completions](27_audio_completions.py) | Send WAV audio as input_audio; receive text response via HTTP | `--apply` billed per request |
+| 28 | [GPT-Live session](28_gpt_live_session.py) | Open GPT-Live WSS session; drive `session.start` → context append → `session.closed` | Full-duplex; needs `gpt-live-1` deployment |
+| 29 | [GPT-Live delegation](29_gpt_live_delegation.py) | Compare client vs Responses delegation configs; run one client-delegation cycle | `--apply` opens session; hosted tools billed if wired |
+| 30 | [GPT-Live WebRTC preflight](30_gpt_live_webrtc_preflight.py) | Document SDP handshake, backend key requirement, session-creation body | Preflight-only; no `--apply` |
 
 ---
 
@@ -911,6 +923,85 @@ uv run python 04-text-and-speech/27_audio_completions.py --apply --input-file re
 
 ---
 
+## Stage 8 — GPT-Live full-duplex voice (lessons 28–30)
+
+GPT-Live (`gpt-live-1`) is a full-duplex voice model — audio flows both directions at once, phone-call style. It is NOT the turn-based Realtime API (lesson 26): the live model keeps listening while it speaks, and a separate backend handles delegated reasoning, hosted tools, and longer-running tasks. Sessions live under `/openai/v1/live/sessions` on the Foundry / Azure OpenAI resource endpoint; supported transports are WebSocket (server-to-server) and WebRTC (browser / native client with a trusted backend proxying SDP).
+
+### 28 — GPT-Live session lifecycle
+
+**Question answered:** How do you open a GPT-Live full-duplex session over WebSocket and drive one non-audio turn end-to-end?
+
+**Background.** GPT-Live's WebSocket handshake differs from lesson 26's Realtime API. The client connects to `/openai/v1/live/sessions`, sends a `session.start` event with a strict config object (`model`, `instructions`, `audio.output.voice`, `delegation`), and waits for `session.started` before treating the session as ready. Later `session.update` is sparse — only `delegation.responses` sub-fields can change; `model`, `instructions`, `audio` are startup-only. Close is explicit: `session.close` → drain until `session.closed` carries the authoritative final `usage`. This lesson does the full lifecycle without audio: audio needs 24 kHz mono PCM16 base64 frames and mic/speaker I/O.
+
+```bash
+uv run python 04-text-and-speech/28_gpt_live_session.py
+uv run python 04-text-and-speech/28_gpt_live_session.py --apply
+```
+
+**Code path.**
+1. `_live_url(endpoint)` → `wss://<resource>.openai.azure.com/openai/v1/live/sessions`
+2. `websockets.connect(url, additional_headers={"api-key": KEY})` or Entra Bearer
+3. Send `session.start` with `_session_config(model)` (delegation=null → client mode)
+4. On `session.started`: send `session.thinking.append` (delegation_id=null, content=...)
+5. On `session.thinking.appended`: send `session.close`
+6. Drain events; print event counts, close reason, final usage
+
+**What to watch.** `session.started` with session id proves auth + model routing. `session.thinking.appended` acknowledges *injection*, not that the model consumed or spoke the context — full-duplex means speech and context run independently. Final `usage` only lands on `session.closed`; a transport close without it leaves usage unconfirmed. 404 = endpoint has no `gpt-live-1` deployment.
+
+**Exam cues.** GPT-Live URL: `/openai/v1/live/sessions` (NOT `/openai/realtime` — that is the turn-based Realtime API). `session.start` (not `session.update`) initiates the session and produces `session.started`. Startup fields (`model`, `instructions`, `input`, `audio`) are immutable after `session.started`. Voice defaults to `marin`. Session config is a strict object — unknown fields are rejected.
+
+**References:** [What is GPT-Live?](https://learn.microsoft.com/azure/foundry/openai/concepts/gpt-live) · [Use GPT-Live for real-time voice](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-live) · [GPT-Live event API reference](https://learn.microsoft.com/azure/foundry/openai/gpt-live-reference)
+
+---
+
+### 29 — GPT-Live delegation modes
+
+**Question answered:** How do you configure GPT-Live's two delegation modes (client vs Responses) and drive a client-delegation reply?
+
+**Background.** When the live model needs search, deeper reasoning, or an external action, it delegates while the conversation continues. Two modes, picked at `session.start`: **client delegation** (`{ type: "client" }` or omitted / null) hands work to your application, which replies with `session.commentary.append` (spoken) or `session.thinking.append` (quiet) using the delegation `id`. **Responses delegation** (`{ type: "responses", responses: {...} }`) routes to a Responses API model with hosted tools (`web_search`) and client-actionable functions. Responses events arrive wrapped in a `response.event` envelope — dispatch on the *nested* `event.type`, and complete function calls with `response.item.create` (item.type=`function_call_output`) + `response.create`. You cannot change modes on an existing session; sparse `session.update` only patches `delegation.responses` sub-fields.
+
+```bash
+uv run python 04-text-and-speech/29_gpt_live_delegation.py
+uv run python 04-text-and-speech/29_gpt_live_delegation.py --apply
+```
+
+**Code path.**
+1. Preflight prints both `delegation` config objects verbatim from the how-to doc
+2. `--apply`: open WSS → `session.start` with `delegation={type: client}`
+3. On `session.started`: `session.commentary.append` (delegation_id=null, general slot)
+4. On `session.commentary.appended`: `session.close` → drain
+
+**What to watch.** `session.commentary.appended` (with `start_ms`/`end_ms`) proves the commentary path is wired. Real client-delegation replies key off a `session.delegation.created` event (target=client, id) — that event fires when audio input triggers a delegation, which this lesson doesn't drive. For Responses delegation, look for `response.event` wrappers, and remember: parallel tool calls require one result per call before `response.create` continues the response.
+
+**Exam cues.** Omitted / null delegation = client mode. Mode is chosen at session creation; switch = new session. `delegation.responses.service_tier` accepts `auto | default | flex | priority`. Nested Responses delegation fields aren't patched independently — replace the whole `delegation` object. Client-actionable function calls come out inside `response.event` → `response.output_item.done` → `function_call` (with `call_id`, `name`, `arguments`). Submit the result as `response.item.create` (type=`function_call_output`, matching `call_id`), then `response.create`.
+
+**References:** [Delegate work in GPT-Live](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-live-delegation) · [Use GPT-Live for real-time voice](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-live) · [GPT-Live event API reference](https://learn.microsoft.com/azure/foundry/openai/gpt-live-reference)
+
+---
+
+### 30 — GPT-Live WebRTC preflight
+
+**Question answered:** How does the GPT-Live WebRTC transport work, and why is Python not the transport?
+
+**Background.** WebRTC is the browser / native-client path: audio flows on a negotiated RTP media track, session events on a WebRTC data channel. GPT-Live does NOT issue ephemeral client keys, so the browser cannot authenticate directly; a trusted backend must proxy the SDP exchange and hold the API key or Entra credentials. The backend POSTs `{ session: {...}, transport: { type: "webrtc", sdp: offerSdp } }` to `/openai/v1/live/sessions`; the response contains the session id + SDP answer. A backend can attach a sideband WebSocket at `/openai/v1/live/sessions/{session_id}/attach` to observe or steer the session while media stays on the RTP track. This lesson is preflight-only — a Python script cannot originate a browser peer connection.
+
+```bash
+uv run python 04-text-and-speech/30_gpt_live_webrtc_preflight.py
+```
+
+**Code path.**
+1. `preflight()` reads env, prints the SDP-exchange URL and handshake steps
+2. Prints the JSON body shape for backend session creation (verbatim from the doc)
+3. No sockets, no network, no `--apply`
+
+**What to watch.** Preflight is a release-review check: is `AZURE_OPENAI_API_KEY` (or Entra credentials) held on the backend, not shipped to the browser? Is there a backend endpoint that accepts the browser's SDP offer and forwards it? Is the transceiver direction `sendrecv` and the data channel labeled `oai-events`? Missing any of those causes silent handshake failures visible only in the browser console.
+
+**Exam cues.** WebRTC session creation is HTTPS POST from the backend, NOT WSS. Session id from the response is what a sideband WSS attaches to. All non-audio events (session.update, context appends, delegation, transcripts, usage, errors) use the same JSON schema as WebSocket. For server-to-server, use WebSocket (lesson 28) instead — WebRTC's value is low-latency browser audio, not backend integration.
+
+**References:** [Use GPT-Live via WebRTC](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-live-webrtc) · [Use GPT-Live for real-time voice](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-live) · [GPT-Live event API reference](https://learn.microsoft.com/azure/foundry/openai/gpt-live-reference)
+
+---
+
 ## Feature status and hard limits
 
 | Feature | Status | Practical boundary |
@@ -919,6 +1010,7 @@ uv run python 04-text-and-speech/27_audio_completions.py --apply --input-file re
 | Language MCP (L08–L09) | Preview | Endpoint contract can change; discovery ≠ invocation auth |
 | Speech MCP (L21) | Preview | L21 discovers tools only; none invoked |
 | Voice Live (L18, L24) | Preview, version-sensitive | API version `2026-04-10`; model/region availability varies |
+| GPT-Live (L28–L30) | Full-duplex voice model | Requires `gpt-live-1` deployment; WebRTC needs backend-held credentials (no ephemeral client keys) |
 | Document Translation (L23) | GA | API key required; Blob output persists; per-batch unique target container |
 | Language Sentiment (L20) | GA | Retirement: March 31, 2029 |
 | Opinion Mining (L20) | GA | Same `kind` as Sentiment; `opinionMining=true` |
@@ -993,6 +1085,10 @@ Plan → Code → Test → Review → Stage → Release
 | "MAI-Transcribe supports diarization" | ❌ — supports phrase lists and verbatim style; no diarization |
 | "Custom Speech needs endpoint GUID for batch" | ❌ — Batch transcription references model in request body; only real-time needs GUID |
 | "Extractive and Abstractive summarization use the same kind" | ❌ — separate `kind` values: `ExtractiveSummarization` / `AbstractiveSummarization` |
+| "GPT-Live is the same as the Realtime API" | ❌ — GPT-Live is full-duplex (`/openai/v1/live/sessions`, `gpt-live-1`); Realtime API is turn-based (`/openai/realtime?deployment=...`, `gpt-4o-realtime-preview`) |
+| "You can switch GPT-Live delegation modes with `session.update`" | ❌ — sparse `session.update` only patches `delegation.responses` sub-fields. Mode change = new session |
+| "Browsers can open a GPT-Live WebRTC session directly" | ❌ — no ephemeral client keys; a trusted backend must proxy the SDP exchange with the API key or Entra credentials |
+| "session.commentary.appended proves the model spoke the content" | ❌ — it only proves injection was accepted; speech and context run independently in full-duplex |
 
 ---
 
@@ -1044,6 +1140,13 @@ Not covered: Custom NER training lifecycle, conversation PII, document-format PI
 - [Voice Live customization](https://learn.microsoft.com/azure/ai-services/speech-service/voice-live-how-to-customize)
 - [Voice Live MCP server](https://learn.microsoft.com/azure/ai-services/speech-service/how-to-voice-live-mcp-server)
 - [Build a voice agent (Foundry)](https://learn.microsoft.com/azure/foundry/agents/how-to/build-voice-agent)
+
+### GPT-Live (Foundry OpenAI full-duplex voice)
+- [What is GPT-Live?](https://learn.microsoft.com/azure/foundry/openai/concepts/gpt-live)
+- [Use GPT-Live for real-time voice](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-live)
+- [Delegate work in GPT-Live](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-live-delegation)
+- [Use GPT-Live via WebRTC](https://learn.microsoft.com/azure/foundry/openai/how-to/gpt-live-webrtc)
+- [GPT-Live event API reference](https://learn.microsoft.com/azure/foundry/openai/gpt-live-reference)
 
 ### Security and operations
 - [Azure Monitor overview](https://learn.microsoft.com/azure/azure-monitor/overview)
