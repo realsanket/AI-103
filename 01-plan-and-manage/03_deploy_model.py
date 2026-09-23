@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/03_deploy_model.py
+# Practice-question coverage: Q166.
 """Deploy an Azure OpenAI model into your Foundry account (via SDK).
 
 Beginner note:

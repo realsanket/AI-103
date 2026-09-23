@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/28_sharepoint_indexer_acls_preflight.py
+# Practice-question coverage: Q144.
 """SharePoint indexer + ACL ingestion (preview) — preflight reference.
 
 The SharePoint indexer can preserve per-item permission metadata (ACLs)

@@ -1,4 +1,5 @@
 # Run: uv run python 04-text-and-speech/19_custom_speech_model.py
+# Practice-question coverage: Q50, Q61.
 """Custom Speech model — route SDK STT to a trained and deployed custom model.
 
 Custom Speech lets you train an acoustic/language model on your domain vocabulary

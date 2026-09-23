@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/02_model_behavior.py
+# Practice-question coverage: Q99.
 
 """Temperature parameter — same prompt, three generation regimes.
 

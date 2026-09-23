@@ -1,4 +1,5 @@
 # Run: uv run python 08-advanced-agents-other/09_mcp_get_started.py [--apply]
+# Practice-question coverage: Q77, Q149.
 """Connect a Foundry agent to an MCP server tool and list available tools.
 
 Model Context Protocol (MCP) lets agents discover and call tools hosted on

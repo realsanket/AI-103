@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/25_foundry_tracing_setup.py
+# Practice-question coverage: Q5, Q10, Q24, Q66, Q68, Q78, Q96, Q111, Q112, Q115.
 # Run: uv run python 01-plan-and-manage/25_foundry_tracing_setup.py --check-connection
 """Foundry tracing setup guide and preflight.
 

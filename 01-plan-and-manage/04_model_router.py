@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/04_model_router.py
+# Practice-question coverage: Q81.
 """Model Router — use Responses API and let Foundry select model per prompt.
 
 Beginner note:

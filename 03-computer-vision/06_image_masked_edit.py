@@ -1,4 +1,5 @@
 # Run: uv run python 03-computer-vision/06_image_masked_edit.py
+# Practice-question coverage: Q27, Q30, Q54, Q95.
 """Mask-based image edit — only transparent pixels of the mask are intended editable region.
 
 A mask constrains the edit request better than prompt alone. Transparent pixels (alpha=0)

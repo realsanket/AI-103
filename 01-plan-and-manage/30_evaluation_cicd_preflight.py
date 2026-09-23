@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/30_evaluation_cicd_preflight.py [--apply]
+# Practice-question coverage: Q9, Q19, Q49, Q101, Q130.
 """Validate environment for running AI evaluations from CI/CD pipelines.
 
 Azure AI Foundry evaluations can run in GitHub Actions and Azure DevOps via

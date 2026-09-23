@@ -1,4 +1,5 @@
 # Run: uv run python 08-advanced-agents-other/25_computer_use_preflight.py
+# Practice-question coverage: Q22, Q76, Q86.
 """Preflight the preview Computer Use safety-acknowledgement loop.
 
 Computer Use lets a compatible model propose UI actions against a browser or

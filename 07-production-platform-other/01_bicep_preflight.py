@@ -1,4 +1,5 @@
 # Run: uv run python 07-production-platform-other/01_bicep_preflight.py [--apply --resource-group <rg> --location <region> --prefix <prefix>]
+# Practice-question coverage: Q119, Q129.
 """Locally validate Bicep platform assets; --apply provisions the private Foundry cell.
 
 Default run reads `bicep/main.bicep`, `bicep/main.bicepparam`, and the policy

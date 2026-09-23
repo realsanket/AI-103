@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/25_mcp_tool_preflight.py
+# Practice-question coverage: Q149.
 
 """MCP tool lab — connect trusted, read-only Northwind tools to a prompt agent.
 

@@ -1,4 +1,5 @@
 # Run: uv run python 04-text-and-speech/20_language_sentiment.py
+# Practice-question coverage: Q158.
 """Azure AI Language — structured sentiment with opinion mining.
 
 analyze_sentiment() with show_opinion_mining=True returns: (1) document-level

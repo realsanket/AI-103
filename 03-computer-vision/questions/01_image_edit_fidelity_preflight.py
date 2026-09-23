@@ -1,4 +1,5 @@
 # Run: uv run python 03-computer-vision/questions/01_image_edit_fidelity_preflight.py
+# Practice-question coverage: Q11, Q20, Q60.
 """Question supplement: preserve input identity while editing an image.
 
 Maps PDF questions 11, 20, and 60. The plan reflects the current image-edit

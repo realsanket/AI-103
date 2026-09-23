@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/26_agent_tracing.py
+# Practice-question coverage: Q5, Q10, Q24, Q47, Q56, Q58, Q66, Q68, Q78, Q96, Q111, Q115.
 """Client-side tracing with the Microsoft Foundry SDK.
 
 Two flows teach tracing from different angles:

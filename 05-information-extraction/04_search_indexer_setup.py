@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/04_search_indexer_setup.py --run [--wait]
+# Practice-question coverage: Q172.
 """Create/update the Blob data source and indexer, then optionally start ingestion.
 
 The indexer is the job that reads Blob files, runs the skillset (chunking +

@@ -1,4 +1,5 @@
 # Run: uv run python 09-current-ai-services-other/02_layout_markdown_tables.py [--apply --source-url <https> --show-markdown]
+# Practice-question coverage: Q51, Q74.
 """Extract layout + tables as Markdown using Document Intelligence v4.0 prebuilt-layout.
 
 `prebuilt-layout` adds document structure to OCR: tables, selection marks,

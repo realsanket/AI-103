@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/questions/01_access_and_metrics_preflight.py
+# Practice-question coverage: Q23, Q113, Q175.
 """Question supplement: keyless agent access and operational metrics.
 
 Maps PDF questions 23, 113, and 175. This is deliberately a local preflight:

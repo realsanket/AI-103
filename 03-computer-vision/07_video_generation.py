@@ -1,4 +1,5 @@
 # Run: uv run python 03-computer-vision/07_video_generation.py
+# Practice-question coverage: Q173.
 """Text-to-video via Sora 2 direct API — submit job, poll, download MP4.
 
 Beginner note:

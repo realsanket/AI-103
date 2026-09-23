@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/05_search_skillset.py
+# Practice-question coverage: Q171, Q172.
 """Create or update the chunking and embedding skillset.
 
 The skillset defines what happens at ingestion time — NOT at query time. It uses

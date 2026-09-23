@@ -1,4 +1,5 @@
 # Run: uv run python 04-text-and-speech/12_stt_real_time.py
+# Practice-question coverage: Q1, Q91.
 """Real-time streaming STT — continuous recognition from the default microphone.
 
 SpeechRecognizer with AudioConfig(use_default_microphone=True) streams audio to

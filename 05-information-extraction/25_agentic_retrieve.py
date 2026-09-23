@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/25_agentic_retrieve.py [--apply]
+# Practice-question coverage: Q14.
 """Call the retrieve action against the knowledge base created in lesson 24.
 
 The retrieve action (POST /knowledgebases/<name>/retrieve) fans a single user

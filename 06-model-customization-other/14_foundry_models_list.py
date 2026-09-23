@@ -1,4 +1,5 @@
 # Run: uv run python 06-model-customization-other/14_foundry_models_list.py [--apply] [--kind <openai|claude|all>]
+# Practice-question coverage: Q132, Q152.
 """List models available in the Foundry model catalog for this account.
 
 Foundry Models catalog groups models by publisher: Azure OpenAI models

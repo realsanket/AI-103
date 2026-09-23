@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/questions/01_rag_ingestion_contract.py
+# Practice-question coverage: Q21, Q87, Q94, Q121.
 """Question supplement: preserve RAG chunk provenance during document ingestion.
 
 Maps PDF questions 21, 87, 94, and 121. This application-level contract keeps

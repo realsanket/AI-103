@@ -1,4 +1,5 @@
 # Run: uv run python 03-computer-vision/16_image_generation_dalle.py [--apply] [--prompt "<text>"] [--size 1024x1024]
+# Practice-question coverage: Q136.
 """Generate images from text prompts using DALL-E 3 via Azure OpenAI.
 
 DALL-E 3 converts natural-language prompts into pixel images. Azure OpenAI

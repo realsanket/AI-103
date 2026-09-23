@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/03_search_hybrid_semantic.py
+# Practice-question coverage: Q118.
 """Hybrid + semantic ranking — keyword vs vector vs hybrid+semantic, side-by-side.
 
 Hybrid search combines BM25 (keyword) and HNSW (vector) candidates via reciprocal

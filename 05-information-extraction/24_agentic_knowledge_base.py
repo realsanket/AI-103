@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/24_agentic_knowledge_base.py [--apply]
+# Practice-question coverage: Q14.
 """Create a knowledge base that references multiple knowledge sources.
 
 A *knowledge base* is the query surface for agentic retrieval: one URL

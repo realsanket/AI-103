@@ -1,4 +1,5 @@
 # Run: uv run python 04-text-and-speech/30_gpt_live_webrtc_preflight.py
+# Practice-question coverage: Q128.
 """Preflight the GPT-Live WebRTC transport — SDP handshake shape, without any call.
 
 The WebRTC transport is browser- or native-client native: audio flows on a negotiated

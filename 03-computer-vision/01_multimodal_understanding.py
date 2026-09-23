@@ -1,4 +1,5 @@
 # Run: uv run python 03-computer-vision/01_multimodal_understanding.py
+# Practice-question coverage: Q126.
 """Multimodal understanding — ask a question about a local image via the Responses API.
 
 The Responses API accepts `input_image` content items alongside text. The image is

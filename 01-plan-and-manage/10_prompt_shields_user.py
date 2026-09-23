@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/10_prompt_shields_user.py
+# Practice-question coverage: Q65.
 """Prompt Shields — user prompt attack (jailbreak) detection. Two flows:
 
 Flow A — Content Safety API (direct REST):

@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/07_managed_identity_agent.py
+# Practice-question coverage: Q53, Q71.
 """Keyless project auth smoke test — DefaultAzureCredential end-to-end.
 
 Verifies three things in order:

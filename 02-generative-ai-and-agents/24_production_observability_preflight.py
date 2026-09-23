@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/24_production_observability_preflight.py
+# Practice-question coverage: Q58.
 # Run: uv run python 02-generative-ai-and-agents/24_production_observability_preflight.py --check-connection
 """Production observability guide and configuration preflight for Domain 2.
 

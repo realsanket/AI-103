@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/11_prompt_shields_docs.py
+# Practice-question coverage: Q3, Q37, Q38, Q39, Q40, Q42, Q72, Q167.
 """Prompt Shields — document (indirect injection) attack detection. Two flows:
 
 Flow A — Content Safety API (direct REST):

@@ -1,4 +1,5 @@
 # Run: uv run python 09-current-ai-services-other/01_read_ocr.py [--apply --source-url <https> --show-text]
+# Practice-question coverage: Q158, Q162.
 """Extract OCR text from one document using Document Intelligence v4.0 prebuilt-read.
 
 `prebuilt-read` returns OCR words, lines, paragraphs, language, and page

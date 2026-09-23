@@ -1,4 +1,5 @@
 # Run: CU_API_VERSION=2025-05-01-preview uv run python 05-information-extraction/13_cu_pro_mode.py
+# Practice-question coverage: Q36, Q46, Q122.
 """Pro-mode Content Understanding — cross-document reasoning over related files.
 
 CU Pro mode accepts multiple related document URLs in one analyze request and

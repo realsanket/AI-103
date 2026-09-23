@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/10_cu_prebuilt_layout.py
+# Practice-question coverage: Q2, Q84.
 """Content Understanding `prebuilt-layout` — structure-preserving extraction to Markdown.
 
 `prebuilt-layout` extracts pages, tables, figures, sections, and reading order into

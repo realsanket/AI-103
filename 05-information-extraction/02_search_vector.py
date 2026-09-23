@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/02_search_vector.py
+# Practice-question coverage: Q116, Q131, Q153.
 """Vector search — semantic similarity retrieval via server-side embedding.
 
 `VectorizableTextQuery` sends the query text to the index's configured vectorizer

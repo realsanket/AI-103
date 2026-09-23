@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/08_prompt_agent_create.py
+# Practice-question coverage: Q154, Q169.
 
 """Create a versioned Prompt Agent definition — instructions and function tool schemas.
 

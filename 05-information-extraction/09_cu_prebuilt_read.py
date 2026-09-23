@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/09_cu_prebuilt_read.py
+# Practice-question coverage: Q55, Q90.
 """Content Understanding `prebuilt-read` — basic OCR extraction to Markdown.
 
 `prebuilt-read` extracts words, paragraphs, and formulas into Markdown. It has

@@ -1,4 +1,5 @@
 # Run: uv run python 04-text-and-speech/07_language_ner.py
+# Practice-question coverage: Q150.
 """NER via Azure AI Language (prebuilt) — fixed categories with confidence scores.
 
 recognize_entities() is the discriminative counterpart to 01_llm_ner.py.

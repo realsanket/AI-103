@@ -1,4 +1,5 @@
 # Run: uv run python 07-production-platform-other/questions/01_security_operations_preflight.py
+# Practice-question coverage: Q70.
 """Question supplement: security-operations signal routing.
 
 Maps PDF question 70. It is a local design preflight only: centralized SOC

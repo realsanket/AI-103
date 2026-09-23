@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/27_agent_azure_ai_search_preflight.py
+# Practice-question coverage: Q4, Q31.
 
 """Azure AI Search agent tool lab — documented Foundry connection path.
 

@@ -1,4 +1,5 @@
 # Run: uv run python 03-computer-vision/11_ocr_image_injection_safety.py
+# Practice-question coverage: Q37, Q38, Q39, Q72, Q167.
 """OCR text treated as untrusted document content — Prompt Shields scan via `--run`.
 
 Run without flags to review the safe path: image -> OCR -> Prompt Shields

@@ -1,4 +1,5 @@
 # Run: uv run python 04-text-and-speech/05_language_pii.py
+# Practice-question coverage: Q127.
 """PII detection + redaction via Azure AI Language — prebuilt categories only.
 
 recognize_pii_entities() returns two things: (1) entity spans with category

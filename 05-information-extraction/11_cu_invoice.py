@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/11_cu_invoice.py
+# Practice-question coverage: Q36, Q46, Q90, Q170.
 """Content Understanding `prebuilt-invoice` — extract structured invoice fields.
 
 `prebuilt-invoice` extracts vendor name/address, customer name/address, invoice

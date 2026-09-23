@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/17_evaluator_groundedness.py
+# Practice-question coverage: Q64, Q69, Q98, Q100, Q134.
 """LLM self-critique loop — not a Foundry built-in evaluator.
 
 Beginner story:

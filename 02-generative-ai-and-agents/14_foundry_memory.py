@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/14_foundry_memory.py
+# Practice-question coverage: Q12, Q29, Q73, Q123, Q174.
 """Foundry Memory (preview): store lifecycle, agent recall, remember/forget, and direct APIs.
 
 Memory stores persist user preferences and conversation facts across sessions. The service

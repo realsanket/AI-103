@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/12_spotlighting.py
+# Practice-question coverage: Q3, Q42.
 """Spotlighting (preview) — extra document-attack defense.
 
 Why to use it:

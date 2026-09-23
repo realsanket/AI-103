@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/35_openai_function_calling.py [--apply]
+# Practice-question coverage: Q13.
 """Direct Azure OpenAI function calling; two-step: model → tool call → model.
 
 Beyond lesson 11 (agent-scoped function tools), this lab shows the raw

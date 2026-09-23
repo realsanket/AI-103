@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/26_agentic_answer_synthesis.py [--apply]
+# Practice-question coverage: Q14.
 """Toggle `answerSynthesis` on the retrieve call: get a formulated answer + citations.
 
 Lesson 25 returned `extractiveData` — a JSON string of the top chunks. This

@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/18_protected_material.py [--run]
+# Practice-question coverage: Q40, Q103, Q107.
 """Detect protected material in model output with Azure AI Content Safety.
 
 What: a GA Content Safety API that detects matching protected text in an LLM

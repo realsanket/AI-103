@@ -1,4 +1,5 @@
 # Run: uv run python 03-computer-vision/03_image_moderation.py
+# Practice-question coverage: Q32, Q59, Q63.
 """Image moderation — two flows: direct Content Safety API and guardrail-through-model.
 
 Beginner note:

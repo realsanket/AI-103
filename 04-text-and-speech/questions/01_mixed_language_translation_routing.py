@@ -1,4 +1,5 @@
 # Run: uv run python 04-text-and-speech/questions/01_mixed_language_translation_routing.py
+# Practice-question coverage: Q57.
 """Question supplement: route single-language transcript segments to Translator.
 
 Maps PDF question 57. Speech recognition or Language detection must establish

@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/31_openai_embeddings.py [--apply --model <embeddings-deployment>]
+# Practice-question coverage: Q116, Q131, Q153.
 """Call an Azure OpenAI embeddings deployment; print vector dim + first values.
 
 Embeddings turn text into fixed-length vectors for semantic search + RAG.

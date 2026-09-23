@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/02_deployment_types.py
+# Practice-question coverage: Q85, Q166.
 """Print deployment types supported by Foundry Models.
 
 Processing location and billing depend on deployment type. Stored data remains

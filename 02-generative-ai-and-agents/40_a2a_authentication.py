@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/40_a2a_authentication.py [--mode {key,entra,oauth,project-mi,agentic-id,none}] [--apply]
+# Practice-question coverage: Q13.
 
 """Lesson 40 - walk the five A2A outbound-connection auth modes.
 

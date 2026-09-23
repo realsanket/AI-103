@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/12_agent_openapi_tools.py
+# Practice-question coverage: Q7, Q67.
 
 """Agent with tools defined by an OpenAPI 3.0 spec.
 

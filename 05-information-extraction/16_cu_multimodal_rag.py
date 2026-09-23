@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/16_cu_multimodal_rag.py [--apply --source <url>]
+# Practice-question coverage: Q120, Q146.
 """CU multimodal extraction → bounded provenance-safe RAG records (preflight by default).
 
 Selects the right prebuilt CU analyzer by file extension (prebuilt-layout for docs,

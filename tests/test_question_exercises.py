@@ -69,6 +69,27 @@ class QuestionExerciseTests(unittest.TestCase):
         self.assertEqual(len(question_numbers), 175)
         self.assertEqual(set(question_numbers), set(range(1, 176)))
 
+    def test_question_maps_link_current_lessons_and_sources_declare_coverage(self) -> None:
+        coverage = Path("docs/question-coverage.md").read_text(encoding="utf-8")
+        rows = re.findall(r"^\| (\d+) \| (.*?) \| (.*?) \| ((?:Existing|New).*?) \|$", coverage, flags=re.MULTILINE)
+        self.assertTrue(rows)
+        for question, file_cell, _note, _status in rows:
+            links = re.findall(r"\]\(([^)]+\.py)\)", file_cell)
+            self.assertTrue(links, f"Q{question} has current coverage but no lesson-file link")
+            for link in links:
+                source = (Path("docs") / link).resolve()
+                marker = source.read_text(encoding="utf-8").splitlines()[1]
+                self.assertIn(f"Q{question}", marker, f"{source} does not declare Q{question}")
+
+        review_files = sorted(Path(".").glob("[0-9][0-9]-*/questions/README.md"))
+        self.assertEqual(len(review_files), 9)
+        review_questions = [
+            int(question)
+            for file in review_files
+            for question in re.findall(r"^\| Q(\d+) \|", file.read_text(encoding="utf-8"), flags=re.MULTILINE)
+        ]
+        self.assertEqual(sorted(review_questions), list(range(1, 176)))
+
 
 if __name__ == "__main__":
     unittest.main()

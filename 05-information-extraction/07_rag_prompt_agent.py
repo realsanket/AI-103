@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/07_rag_prompt_agent.py
+# Practice-question coverage: Q88.
 """Create the constrained Prompt Agent used by lesson 08's manual RAG orchestration.
 
 This agent has NO Azure AI Search tool attached — the application (lesson 08) owns

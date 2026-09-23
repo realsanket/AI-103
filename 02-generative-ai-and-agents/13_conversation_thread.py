@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/13_conversation_thread.py
+# Practice-question coverage: Q44, Q45, Q62, Q102.
 
 """Conversation threads — server-managed history via `client.conversations.create()`.
 

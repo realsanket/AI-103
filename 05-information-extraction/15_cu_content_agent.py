@@ -1,4 +1,5 @@
 # Run: uv run python 05-information-extraction/15_cu_content_agent.py
+# Practice-question coverage: Q170.
 """CU invoice extraction → ephemeral Foundry agent → bounded business review.
 
 Two-stage pipeline: (1) CU `prebuilt-invoice` extracts structured fields from

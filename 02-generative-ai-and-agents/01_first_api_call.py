@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/01_first_api_call.py
+# Practice-question coverage: Q53, Q155.
 
 """First Responses API call — keyless auth via DefaultAzureCredential.
 
