@@ -69,15 +69,6 @@ class QuestionExerciseTests(unittest.TestCase):
         self.assertEqual(len(question_numbers), 175)
         self.assertEqual(set(question_numbers), set(range(1, 176)))
 
-    def test_practice_files_have_each_question_once_without_answers_or_license_data(self) -> None:
-        practice_files = sorted(Path(".").glob("[0-9][0-9]-*/questions/practice.md"))
-        self.assertEqual(len(practice_files), 9)
-        content = "\n".join(path.read_text(encoding="utf-8") for path in practice_files)
-        question_numbers = [int(number) for number in re.findall(r"^## Q(\d+)$", content, flags=re.MULTILINE)]
-        self.assertEqual(len(question_numbers), 175)
-        self.assertEqual(set(question_numbers), set(range(1, 176)))
-        self.assertNotRegex(content, r"(?i)(correct answers?|explanation:|licensed to:|sarangj07@|gmail[.]com)")
-
 
 if __name__ == "__main__":
     unittest.main()

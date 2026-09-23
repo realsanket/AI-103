@@ -1,7 +1,5 @@
 # Domain 9 question review
 
-Start with the answer-hidden [practice questions](practice.md), then use the code and map below to review each item.
-
 | Questions | Code to study |
 |---|---|
 | Q51, Q74 | [`../02_layout_markdown_tables.py`](../02_layout_markdown_tables.py) |

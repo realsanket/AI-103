@@ -1,7 +1,5 @@
 # Domain 2 question review
 
-Start with the answer-hidden [practice questions](practice.md), then use the code and map below to review each item.
-
 | Questions | Code to study |
 |---|---|
 | Q6, Q79, Q83 | [`../04_web_search_tool.py`](../04_web_search_tool.py), [`../05_code_interpreter.py`](../05_code_interpreter.py), [`../06_file_search_tool.py`](../06_file_search_tool.py) |

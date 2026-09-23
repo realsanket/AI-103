@@ -1,7 +1,5 @@
 # Domain 8 question review
 
-Start with the answer-hidden [practice questions](practice.md), then use the code and map below to review each item.
-
 | Questions | Code to study |
 |---|---|
 | Q22, Q76, Q86 | [`../25_computer_use_preflight.py`](../25_computer_use_preflight.py) |

@@ -1,7 +1,5 @@
 # Domain 3 question review
 
-Start with the answer-hidden [practice questions](practice.md), then use the code and map below to review each item.
-
 | Questions | Code to study |
 |---|---|
 | Q11, Q20, Q60 | [`01_image_edit_fidelity_preflight.py`](01_image_edit_fidelity_preflight.py) |

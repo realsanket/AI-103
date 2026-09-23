@@ -1,7 +1,5 @@
 # Domain 4 question review
 
-Start with the answer-hidden [practice questions](practice.md), then use the code and map below to review each item.
-
 | Questions | Code to study |
 |---|---|
 | Q1, Q91 | [`../12_stt_real_time.py`](../12_stt_real_time.py), [`../14_tts_neural.py`](../14_tts_neural.py) |

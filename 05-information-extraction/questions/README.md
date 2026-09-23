@@ -1,7 +1,5 @@
 # Domain 5 question review
 
-Start with the answer-hidden [practice questions](practice.md), then use the code and map below to review each item.
-
 | Questions | Code to study |
 |---|---|
 | Q2, Q84 | [`../10_cu_prebuilt_layout.py`](../10_cu_prebuilt_layout.py) |

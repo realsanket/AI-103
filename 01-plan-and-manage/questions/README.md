@@ -1,7 +1,5 @@
 # Domain 1 question review
 
-Start with the answer-hidden [practice questions](practice.md), then use the code and map below to review each item.
-
 Run the normal domain lessons first. This folder contains a local supplement
 for questions where the existing labs did not expose the decision contract
 directly.

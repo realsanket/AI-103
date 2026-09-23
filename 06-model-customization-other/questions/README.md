@@ -1,7 +1,5 @@
 # Domain 6 question review
 
-Start with the answer-hidden [practice questions](practice.md), then use the code and map below to review each item.
-
 | Questions | Code to study |
 |---|---|
 | Q85 | [`../10_quota_ptu_preflight.py`](../10_quota_ptu_preflight.py), plus Domain 1 deployment selection |
