@@ -236,6 +236,10 @@ Model availability, SKU names, quotas, supported regions, capacity units, and bi
 
 A deployment `capacity` value is not a universal TPM conversion. Standard quota can be pooled by subscription, model/SKU, and location or zone. For provisioned SKUs, capacity represents PTUs and model-specific throughput differs by model and configuration.
 
+## Practice questions
+
+After completing this domain, use the [Domain 1 question review](questions/README.md). It maps the supplied practice questions to these lessons and keeps local-only supplements separate from numbered labs.
+
 ## Lesson map
 
 | # | Lesson | Runnable objective | Status / limitation |

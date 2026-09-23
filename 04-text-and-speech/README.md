@@ -229,6 +229,10 @@ Audio output?
 
 ---
 
+## Practice questions
+
+After completing this domain, use the [Domain 4 question review](questions/README.md). The supplement is local-only and routes mixed-language segments only after language is resolved.
+
 ## Lesson map
 
 | # | File | Runnable objective | Status |

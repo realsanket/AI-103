@@ -159,6 +159,10 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 
 ---
 
+## Practice questions
+
+After completing this domain, use the [Domain 3 question review](questions/README.md). Legacy Vision and Custom Vision source questions stay clearly labeled as compatibility review.
+
 ## Lesson map
 
 | # | File | Runnable objective | Default side effect |

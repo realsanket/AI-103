@@ -230,6 +230,10 @@ Required roles:
 
 ---
 
+## Practice questions
+
+After completing this domain, use the [Domain 5 question review](questions/README.md). The new ingestion supplement reinforces page and ACL provenance without replacing the Search asset lifecycle.
+
 ## Lesson map
 
 | # | File | Runnable objective | Status |

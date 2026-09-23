@@ -187,6 +187,10 @@ Preview prototyping without deployment overhead?
   Yes → Instant Access (West US 3, supported model list, pin version).
 ```
 
+## Practice questions
+
+After completing this domain, use the [Domain 6 question review](questions/README.md) for the mapped practice questions and cross-domain references.
+
 ## Lesson map
 
 | # | Lesson | Runnable objective | Status / limitation |

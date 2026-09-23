@@ -229,6 +229,10 @@ Preview features (Foundry IQ portal surfaces, Toolbox tool search, A2A, Routines
 | Recurrence on cron schedule | Routine (`type: schedule`) |
 | Event-driven unattended | Routine (supported event triggers) |
 
+## Practice questions
+
+After completing this domain, use the [Domain 8 question review](questions/README.md) for Computer Use, grounding, and MCP mappings.
+
 ## Lesson map
 
 | # | Lesson | Runnable objective | Status / limitation |

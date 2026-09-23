@@ -230,6 +230,10 @@ Need previous turns only inside one interaction?
 
 ---
 
+## Practice questions
+
+After completing this domain, use the [Domain 2 question review](questions/README.md). It maps the supplied practice questions to these lessons and keeps local-only supplements separate from numbered labs.
+
 ## Lesson map
 
 | # | File | Runnable objective | Default side effect |

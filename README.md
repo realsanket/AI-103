@@ -4,6 +4,8 @@ Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md). I
 
 Read [`docs/coverage.md`](docs/coverage.md) for an objective-by-objective, evidence-based map. A lesson existing here does not mean its Azure API, region, model, preview feature, or permission has been exercised in your subscription.
 
+Use [`docs/question-coverage.md`](docs/question-coverage.md) to study the supplied practice-question set after each domain. The map links every question to existing runnable code, a local question supplement, or an explicitly labeled compatibility/gap note.
+
 ## Repository map
 
 | Domain | Exam weight | Lessons | Start here |

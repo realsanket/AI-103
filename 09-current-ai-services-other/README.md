@@ -170,6 +170,10 @@ Labeled custom fields? → custom neural (lesson 05)
 | Documents have novel structure not in prebuilts | Custom neural |
 | Need signature detection or overlapping fields | Custom neural (v4.0 features) |
 
+## Practice questions
+
+After completing this domain, use the [Domain 9 question review](questions/README.md). It maps older Vision Read content to the current Document Intelligence equivalent.
+
 ## Lesson map
 
 | # | Lesson | Runnable objective | Status / limitation |

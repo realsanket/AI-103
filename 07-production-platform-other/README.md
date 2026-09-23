@@ -186,6 +186,10 @@ Client outside VNet cannot resolve or reach the private endpoint. GitHub-hosted 
 | Cross-region agent state migration | Not supported — recreate agents from source in target region |
 | Storage of thread files | User-uploaded thread files can be lost; define business fallback |
 
+## Practice questions
+
+After completing this domain, use the [Domain 7 question review](questions/README.md). Its security-operations supplement is local-only; it never creates a Sentinel workspace or changes diagnostic exports.
+
 ## Lesson map
 
 | # | Lesson | Runnable objective | Status / limitation |
