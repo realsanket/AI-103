@@ -1,5 +1,5 @@
 # Run: uv run python 05-information-extraction/08_rag_client_run.py
-# Practice-question coverage: Q35, Q88.
+# Practice-question coverage: Q35, Q88, Q123.
 """App-owned manual RAG — hybrid retrieve → prompt → Foundry agent → grounded answer.
 
 The application owns the full retrieval pipeline: it queries Search with a hybrid

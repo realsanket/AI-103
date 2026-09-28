@@ -1,4 +1,5 @@
 # Run: uv run python 08-advanced-agents-other/01_foundry_iq_connection_preflight.py [--apply]
+# Practice-question coverage: Q75.
 """Validate, then create a keyless Foundry IQ project connection to a Search knowledge base.
 
 Foundry IQ is a managed knowledge layer on Azure AI Search with agentic

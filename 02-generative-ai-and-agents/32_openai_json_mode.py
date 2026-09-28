@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/32_openai_json_mode.py [--apply]
+# Practice-question coverage: Q82.
 """Force strict JSON output via Responses API json_schema response format.
 
 Structured output (json_schema) constrains model output to a validated

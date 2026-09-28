@@ -1,5 +1,5 @@
 # Run: uv run python 01-plan-and-manage/19_groundedness_detection.py [--run]
-# Practice-question coverage: Q69, Q168.
+# Practice-question coverage: Q19, Q26, Q34, Q69, Q103.
 """Detect unsupported claims in generated text with Content Safety Groundedness.
 
 What: preview API that compares generated text with supplied grounding sources.

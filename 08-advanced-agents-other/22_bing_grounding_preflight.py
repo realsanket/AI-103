@@ -1,5 +1,5 @@
 # Run: uv run python 08-advanced-agents-other/22_bing_grounding_preflight.py
-# Practice-question coverage: Q42.
+# Practice-question coverage: Q6, Q42, Q79, Q86.
 """Build Grounding with Bing tool definitions without calling Bing.
 
 Grounding with Bing is distinct from the Responses Web Search tool. It uses a

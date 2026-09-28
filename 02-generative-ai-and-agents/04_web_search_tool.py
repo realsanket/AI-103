@@ -1,5 +1,4 @@
 # Run: uv run python 02-generative-ai-and-agents/04_web_search_tool.py
-# Practice-question coverage: Q6, Q79, Q86.
 
 """Built-in Web Search tool.
 

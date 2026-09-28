@@ -1,5 +1,5 @@
 # Run: uv run python 05-information-extraction/20_managed_search_agent_tool.py [--enable] [--apply] [--run]
-# Practice-question coverage: Q4, Q28, Q31, Q75, Q172.
+# Practice-question coverage: Q4, Q28, Q31, Q172.
 """Create and optionally invoke a managed Foundry agent with Azure AI Search tool.
 
 Where lesson 08 manually orchestrates retrieval in application code, this lesson

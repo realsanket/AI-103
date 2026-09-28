@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/48_hosted_agent_guardrails.py [--apply]
+# Practice-question coverage: Q63.
 """Attach a Responsible AI guardrail to a hosted agent.
 
 Hosted agents accept an optional `rai_config` on the version definition. Set

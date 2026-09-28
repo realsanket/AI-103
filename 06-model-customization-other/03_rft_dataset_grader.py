@@ -1,5 +1,4 @@
 # Run: uv run python 06-model-customization-other/03_rft_dataset_grader.py --dataset rft.jsonl --grader grader.py
-# Practice-question coverage: Q107.
 """Validate reinforcement fine-tuning prompts and Python grader source locally.
 
 RFT improves reasoning by rewarding correct answers. Each JSONL row ends in a

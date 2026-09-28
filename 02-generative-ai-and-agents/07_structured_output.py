@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/07_structured_output.py
+# Practice-question coverage: Q82.
 
 """Structured JSON output — Responses API `text.format` with `json_schema` + `strict=True`.
 

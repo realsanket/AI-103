@@ -1,5 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/23_langchain_tracing.py
-# Practice-question coverage: Q10, Q24.
+# Practice-question coverage: Q10, Q24, Q115.
 
 """LangChain agent with OpenTelemetry traces exported to Azure Monitor.
 

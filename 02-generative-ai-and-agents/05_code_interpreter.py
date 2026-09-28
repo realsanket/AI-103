@@ -1,5 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/05_code_interpreter.py
-# Practice-question coverage: Q6, Q22, Q76, Q79, Q83, Q86.
+# Practice-question coverage: Q6, Q22, Q76, Q79, Q83.
 
 """Built-in Code Interpreter.
 

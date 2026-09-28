@@ -1,4 +1,5 @@
 # Run: uv run python 06-model-customization-other/18_huggingface_models_preflight.py [--apply]
+# Practice-question coverage: Q132, Q152.
 """Discover HuggingFace-origin models available in the Foundry Models catalog.
 
 Foundry Models catalog includes curated open-source models from HuggingFace

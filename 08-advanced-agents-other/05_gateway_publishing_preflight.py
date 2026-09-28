@@ -1,4 +1,5 @@
 # Run: uv run python 08-advanced-agents-other/05_gateway_publishing_preflight.py [--apply --agent-name <name> --agent-version <int>]
+# Practice-question coverage: Q13.
 """Pin an agent's stable endpoint to one reviewed version before distribution.
 
 AI Gateway uses Azure API Management (APIM v2) to apply governance, quotas,

@@ -1,5 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/03_reasoning.py
-# Practice-question coverage: Q85.
+# Practice-question coverage: Q85, Q93.
 """Reasoning model call with streaming summary — demonstrates the `reasoning` parameter.
 
 Azure Foundry supports separate reasoning-tier deployments (e.g. o3, o4-mini). These

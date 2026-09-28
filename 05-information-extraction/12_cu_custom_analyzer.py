@@ -1,5 +1,5 @@
 # Run: uv run python 05-information-extraction/12_cu_custom_analyzer.py
-# Practice-question coverage: Q41, Q92.
+# Practice-question coverage: Q41, Q92, Q105.
 """Custom Content Understanding analyzer — domain-specific field schema on prebuilt-document.
 
 A custom analyzer combines a `baseAnalyzerId` (prebuilt-document) with a `fieldSchema`

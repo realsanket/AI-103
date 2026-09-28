@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/43_af_declarative_workflow.py [--apply]
+# Practice-question coverage: Q43.
 
 """Microsoft Agent Framework — load and execute a declarative YAML workflow.
 

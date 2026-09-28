@@ -1,4 +1,5 @@
 # Run: uv run python 01-plan-and-manage/20_provenance_detection.py [--run]
+# Practice-question coverage: Q59, Q63.
 """Detect C2PA or watermark provenance in media stored in Azure Blob Storage.
 
 What: preview asynchronous Content Safety operation that checks a media URI for
