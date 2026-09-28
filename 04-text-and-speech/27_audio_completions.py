@@ -19,11 +19,12 @@ Code path:
 
 What to watch. Response text = model's transcription or response to the audio.
 Empty or error = model deployment does not support audio input modality.
-Upgrade: gpt-4o-audio-preview supports input_audio; gpt-4o does not.
+Use an audio-capable chat deployment (gpt-audio family); text-only chat models
+reject input_audio. The retired gpt-4o-audio-preview is no longer available.
 
 Prerequisites / env vars:
-  PROJECT_ENDPOINT  — Foundry project HTTPS URL (used by openai_client())
-  AUDIO_MODEL       — GPT-4o audio deployment (e.g. gpt-4o-audio-preview)
+  AZURE_OPENAI_ENDPOINT — Azure OpenAI endpoint (used by openai_client())
+  AUDIO_MODEL       — audio chat deployment (e.g. gpt-audio-1.5 or gpt-audio-mini)
   --input-file      — path to WAV file (optional; synthesizes silent WAV if omitted)
   --apply           — send audio to model
 """
@@ -52,7 +53,7 @@ def _silent_wav_b64(sample_rate: int = 16000, duration_ms: int = 500) -> str:
 def preflight(input_file: str | None) -> None:
     model = os.environ.get("AUDIO_MODEL", "")
     print("Audio completions preflight (no cloud calls).")
-    print(f"- AUDIO_MODEL: {model or 'MISSING — set to gpt-4o-audio-preview deployment'}")
+    print(f"- AUDIO_MODEL: {model or 'MISSING — set to a gpt-audio family deployment'}")
     print(f"- input file: {input_file or '(none — will synthesize 0.5s silent WAV)'}")
     print("- modality: input_audio (WAV format)")
     print("- NOT the Realtime API — standard HTTP, single round trip")
@@ -62,7 +63,7 @@ def preflight(input_file: str | None) -> None:
 def apply(input_file: str | None) -> None:
     model = os.environ.get("AUDIO_MODEL", "")
     if not model:
-        raise SystemExit("Set AUDIO_MODEL to your gpt-4o-audio-preview deployment name.")
+        raise SystemExit("Set AUDIO_MODEL to your gpt-audio family deployment name.")
     if input_file:
         audio_b64 = base64.b64encode(Path(input_file).read_bytes()).decode()
         print(f"Using audio file: {input_file}")

@@ -40,6 +40,13 @@ What to watch
 - Editing the YAML alone (no Python change) alters routing behavior — this is
   the whole point of the declarative model.
 
+Runtime prerequisite
+--------------------
+`agent-framework-declarative` evaluates `=` PowerFx expressions with the .NET
+PowerFx engine (loaded through pythonnet), so install a .NET 8 or later runtime
+before running this lesson (`dotnet --list-runtimes`). Without it, expression
+evaluation fails with a "dotnet runtime not installed" error.
+
 Env vars
 --------
 - `PROJECT_ENDPOINT` and `DEFAULT_MODEL` — only needed if you extend the YAML

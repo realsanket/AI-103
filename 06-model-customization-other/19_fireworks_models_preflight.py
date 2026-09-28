@@ -27,6 +27,8 @@ Prerequisites / env vars:
 import argparse
 import os
 
+from _shared.config import load_env
+
 
 def preflight() -> None:
     print("Fireworks AI models preflight (no cloud calls).")
@@ -64,6 +66,7 @@ def apply() -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Check Fireworks AI model availability in Foundry.")
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args(argv)

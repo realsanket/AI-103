@@ -210,9 +210,9 @@ After completing this domain, use the [Domain 6 question review](questions/READM
 | 12 | [Router + Instant](12_router_instant.py) | Router deployment or Instant model call. | `--apply` one billable request per invocation. |
 | 13 | [Cost review](13_cost_review.py) | Local PTU × rate × hours arithmetic. | Local; not a bill or forecast. |
 | 14 | [Foundry Models catalog list](14_foundry_models_list.py) | List model SKUs available in subscription. | `--apply` control-plane read; subscription Reader needed. |
-| 15 | [Claude model call](15_claude_model_call.py) | Call a Claude partner model via Responses API. | `--apply --model` required; Azure Marketplace billing. |
-| 16 | [Model router](16_model_router.py) | Route simple vs complex prompt; observe which backing model selected. | `--apply --model <router-deployment>` required |
-| 17 | [DeepSeek R1](17_deepseek_r1.py) | Call DeepSeek R1; parse `<think>` reasoning chain. | `--apply --model <deepseek-deployment>` required |
+| 15 | [Claude model call](15_claude_model_call.py) | Call a Claude partner model through the Anthropic Messages API (`AnthropicFoundry`). | `--apply` plus `CLAUDE_DEPLOYMENT`/`--model`; Azure Marketplace billing. |
+| 16 | [Model router](16_model_router.py) | Route simple vs complex prompt; observe which backing model selected. | `--apply`; uses `MODEL_ROUTER_DEPLOYMENT` or `--model` |
+| 17 | [DeepSeek reasoning](17_deepseek_reasoning.py) | Call DeepSeek-V4-Pro (R1 retired); separate `<think>` reasoning from the answer. | `--apply` plus `DEEPSEEK_MODEL`/`--model` |
 | 18 | [HuggingFace models preflight](18_huggingface_models_preflight.py) | List HuggingFace-origin models in Foundry catalog. | `--apply` subscription-level read |
 | 19 | [Fireworks models preflight](19_fireworks_models_preflight.py) | Check Fireworks AI model availability in catalog. | `--apply` subscription-level read |
 
@@ -220,7 +220,7 @@ After completing this domain, use the [Domain 6 question review](questions/READM
 
 ## Stage 6 — Foundry Models catalog + partner models (lessons 14–15)
 
-Lessons 14 and 15 cover the Foundry model catalog beyond Azure OpenAI: enumerating all model SKUs visible in the subscription and calling a Claude partner model through the same Responses API client.
+Lessons 14 and 15 cover the Foundry model catalog beyond Azure OpenAI: enumerating all model SKUs visible in the subscription and calling a Claude partner model through its own Messages API.
 
 ### 14 — Foundry Models catalog list
 
@@ -242,26 +242,28 @@ uv run python 06-model-customization-other/14_foundry_models_list.py --apply --k
 
 ### 15 — Claude partner model call
 
-**Question answered:** Does the Responses API client work identically for Claude partner model deployments?
+**Question answered:** How do I call a Claude model deployed in Foundry, and how is that different from calling an Azure OpenAI deployment?
 
-**Background.** Claude models (Anthropic) in Foundry use the same `responses.create()` API as Azure OpenAI — only the deployment name differs. Billing is Azure Marketplace terms. This lesson proves API shape parity and surfaces `response.model` to identify which Claude variant served the request.
+**Background.** Claude models are Foundry Models from partners. You deploy them from the model catalog (an Azure Marketplace subscription; Global Standard, or Data Zone where offered), then call them with the Anthropic SDK's `AnthropicFoundry` client and the **Claude Messages API** — not the OpenAI Responses or Chat Completions client. The base URL is `https://<resource>.services.ai.azure.com/anthropic` (the lesson derives it from `FOUNDRY_ENDPOINT`), authentication is a Microsoft Entra token for `https://ai.azure.com/.default` (Cognitive Services User), and `model=` is your Claude deployment name. Reasoning is steered with `thinking={"type": "adaptive"}` and `output_config={"effort": ...}`. Billing follows the Marketplace offer, not Azure OpenAI meters.
 
 ```bash
-uv run python 06-model-customization-other/15_claude_model_call.py
-uv run python 06-model-customization-other/15_claude_model_call.py --apply --model <claude-deployment>
+uv run python 06-model-customization-other/15_claude_model_call.py                    # prints base URL and request body
+CLAUDE_DEPLOYMENT=<claude-deployment> uv run python 06-model-customization-other/15_claude_model_call.py --apply
 ```
 
-**Code path.** `openai_client().responses.create(model=claude_deployment, input=prompt)` → print `response.model` + `output_text`.
+**Code path.** `anthropic_base_url(FOUNDRY_ENDPOINT)` → `AnthropicFoundry(azure_ad_token_provider=get_bearer_token_provider(DefaultAzureCredential(), "https://ai.azure.com/.default"), base_url=...)` → `client.messages.create(model, max_tokens, messages, thinking, output_config)` → print `stop_reason`, text blocks, and token usage.
 
-**What to watch.** `model: claude-opus-4-*` or similar. Same response shape as Azure OpenAI. Billing differs — check Marketplace meters, not Azure OpenAI usage.
+**What to watch.** `stop_reason` is `end_turn` for a normal answer; `refusal` means Claude declined for safety (do not retry unchanged); `max_tokens` means the answer was cut off. Thinking blocks are not printed.
 
-**References:** [Claude models](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models) · [Claude models billing](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models-billing) · [Claude models hosting comparison](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models-hosting-comparison)
+**Troubleshooting.** 401 → wrong token scope; 403 → missing Cognitive Services User; 404 → wrong resource in the base URL or wrong deployment name; subscription eligibility errors → unsupported subscription type or billing country for the Marketplace offer.
+
+**References:** [Deploy and use Claude models](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/use-foundry-models-claude) · [Claude models in Foundry](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models) · [Claude models billing](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/claude-models-billing)
 
 ---
 
 ## Stage 7 — Model router + partner models catalog (lessons 16–19)
 
-Stage 7 extends the Foundry Models catalog beyond Azure OpenAI: model routing across a pool, reasoning chains from DeepSeek R1, and discovering HuggingFace and Fireworks AI models in the same catalog surface.
+Stage 7 extends the Foundry Models catalog beyond Azure OpenAI: model routing across a pool, reasoning output from DeepSeek-V4-Pro, and discovering HuggingFace and Fireworks AI models in the same catalog surface.
 
 ### 16 — Model router
 
@@ -271,10 +273,11 @@ Stage 7 extends the Foundry Models catalog beyond Azure OpenAI: model routing ac
 
 ```bash
 uv run python 06-model-customization-other/16_model_router.py
+uv run python 06-model-customization-other/16_model_router.py --apply                       # MODEL_ROUTER_DEPLOYMENT
 uv run python 06-model-customization-other/16_model_router.py --apply --model <router-deployment>
 ```
 
-**Code path.** `openai_client().responses.create(model=ROUTER_MODEL, input=prompt)` × 2 → print `response.model` per request.
+**Code path.** `openai_client().responses.create(model=MODEL_ROUTER_DEPLOYMENT, input=prompt)` × 2 → print `response.model` per request.
 
 **What to watch.** `response.model` differs between simple and complex prompts when the router has multiple backing models. Same model for both = single backing model or router not yet enabled.
 
@@ -282,22 +285,22 @@ uv run python 06-model-customization-other/16_model_router.py --apply --model <r
 
 ---
 
-### 17 — DeepSeek R1 reasoning chain
+### 17 — DeepSeek reasoning model
 
-**Question answered:** How does DeepSeek R1's `<think>` reasoning chain appear in the Responses API output?
+**Question answered:** How do I call a DeepSeek reasoning model sold by Azure and keep its reasoning separate from the answer?
 
-**Background.** DeepSeek R1 is a partner reasoning model in the Foundry catalog. It generates an internal chain of thought surfaced in `<think>...</think>` tags in `output_text`. It uses the identical Responses API client as Azure OpenAI — only the deployment name differs. Billing flows through Azure Marketplace.
+**Background.** DeepSeek-R1 and R1-0528 were retired in 2026 (R1 on 2026-08-13); Microsoft lists DeepSeek-V4-Pro (GA) as the replacement. DeepSeek models sold directly by Azure are called through the Azure OpenAI v1 endpoint with the standard OpenAI client and `chat.completions.create()` — only the deployment name differs. DeepSeek-V4-Pro supports text chat completions but not tool calling. Its reasoning can appear inside `<think>...</think>` at the start of `message.content` (some versions use `message.reasoning_content`). Show users only the answer, and do not append reasoning to later turns. Reasoning models ignore `temperature`/`top_p`; bound output with `max_tokens`.
 
 ```bash
-uv run python 06-model-customization-other/17_deepseek_r1.py
-uv run python 06-model-customization-other/17_deepseek_r1.py --apply --model <deepseek-deployment>
+uv run python 06-model-customization-other/17_deepseek_reasoning.py                                   # prints the request
+DEEPSEEK_MODEL=<deepseek-deployment> uv run python 06-model-customization-other/17_deepseek_reasoning.py --apply
 ```
 
-**Code path.** `openai_client().responses.create(model=DEEPSEEK_MODEL, input=prompt)` → `re.search(r"<think>(.*?)</think>", output_text)` → print thinking block + answer.
+**Code path.** `openai_client().chat.completions.create(model=DEEPSEEK_MODEL, messages=[...], max_tokens=...)` → `split_reasoning()` (prefers `reasoning_content`, else the `<think>` block) → print reasoning length, the answer, and token usage.
 
-**What to watch.** Non-empty `<think>` block = reasoning chain exposed. Text after `</think>` = final answer. Empty = deployment does not expose reasoning tags.
+**What to watch.** Reasoning tokens count toward usage and rate limits. An empty reasoning section is normal when the model decides not to reason.
 
-**References:** [DeepSeek R1 tutorial](https://learn.microsoft.com/azure/foundry/foundry-models/tutorials/get-started-deepseek-r1) · [Foundry Models catalog](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models) · [Generate responses](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/generate-responses)
+**References:** [Get started with a DeepSeek reasoning model](https://learn.microsoft.com/azure/foundry/foundry-models/tutorials/get-started-deepseek-r1) · [Reasoning models in Foundry](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/use-chat-reasoning) · [Model retirement schedule](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule)
 
 ---
 

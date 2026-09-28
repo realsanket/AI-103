@@ -27,7 +27,7 @@ directly.
 | Q56 | [`26_agent_tracing.py`](../26_agent_tracing.py) | L26 latency and token diagnosis | Existing |
 | Q58 | [`26_agent_tracing.py`](../26_agent_tracing.py), [`24_production_observability_preflight.py`](../../02-generative-ai-and-agents/24_production_observability_preflight.py) | L26 and D2 L24 latency decomposition | Existing |
 | Q59 | [`20_provenance_detection.py`](../20_provenance_detection.py), [`08_rbac_role_policies.py`](../08_rbac_role_policies.py) | L20 Content Safety identity reads Blob, L08 least-privilege RBAC | Existing |
-| Q63 | [`09_content_safety_filters.py`](../09_content_safety_filters.py), [`48_hosted_agent_guardrails.py`](../../02-generative-ai-and-agents/48_hosted_agent_guardrails.py), [`20_provenance_detection.py`](../20_provenance_detection.py) | L09 guardrail block action, D2 L48 agent guardrail, L20 Blob Data Reader identity | Existing; partial: tool-call and tool-response intervention points not configured |
+| Q63 | [`09_content_safety_filters.py`](../09_content_safety_filters.py), [`28_guardrail_policy_preflight.py`](../28_guardrail_policy_preflight.py), [`48_hosted_agent_guardrails.py`](../../02-generative-ai-and-agents/48_hosted_agent_guardrails.py), [`20_provenance_detection.py`](../20_provenance_detection.py) | L09 guardrail block action, L28 block controls at all four intervention points, D2 L48 agent guardrail, L20 Blob Data Reader identity | Existing |
 | Q64 | [`17_evaluator_groundedness.py`](../17_evaluator_groundedness.py) | L17 critique and regeneration | Existing |
 | Q65 | [`10_prompt_shields_user.py`](../10_prompt_shields_user.py) | L10 User Prompt Shields | Existing |
 | Q66 | [`21_foundry_evaluation.py`](../21_foundry_evaluation.py), [`25_foundry_tracing_setup.py`](../25_foundry_tracing_setup.py), [`26_agent_tracing.py`](../26_agent_tracing.py) | L21 evaluation and L25–26 observability | Existing; partial: no relevance evaluator configured |
@@ -56,7 +56,7 @@ directly.
 | Q139 | — | Control-plane resource concepts | Gap: multi-service resource exercise |
 | Q140 | — | Responsible AI governance | Gap: transparency exercise |
 | Q142 | Adjacent only: [`07_managed_identity_agent.py`](../07_managed_identity_agent.py), [`08_rbac_role_policies.py`](../08_rbac_role_policies.py) | L07–08 endpoint/auth boundary | Compatibility: source key flow conflicts with keyless baseline |
-| Q166 | [`02_deployment_types.py`](../02_deployment_types.py), [`03_deploy_model.py`](../03_deploy_model.py) | L02–03 regional deployment/version pinning | Existing; partial: L03 hard-codes GlobalStandard and sets no version-upgrade option |
+| Q166 | [`02_deployment_types.py`](../02_deployment_types.py), [`03_deploy_model.py`](../03_deploy_model.py) | L02 deployment types; L03 `--sku Standard --version-upgrade-option NoAutoUpgrade` | Existing |
 | Q167 | [`11_prompt_shields_docs.py`](../11_prompt_shields_docs.py), [`11_ocr_image_injection_safety.py`](../../03-computer-vision/11_ocr_image_injection_safety.py) | L11 plus D3 L11 indirect injection | Existing |
 | Q168 | [`21_foundry_evaluation.py`](../21_foundry_evaluation.py) | L21 evaluation run | Existing; partial: no RAG evaluators configured |
 | Q175 | [`01_access_and_metrics_preflight.py`](01_access_and_metrics_preflight.py), [`09_prompt_agent_invoke.py`](../../02-generative-ai-and-agents/09_prompt_agent_invoke.py) | `questions/01_access_and_metrics_preflight.py` plus D2 L09 `agents.get` | Existing |

@@ -41,14 +41,38 @@ from azure.mgmt.authorization.models import RoleAssignmentCreateParameters
 from _shared.config import settings
 
 
-# Role definition IDs are stable across Azure subscriptions.
+# Built-in role definition IDs are the same in every subscription. Foundry roles
+# were renamed from "Azure AI ..."; code should use these GUIDs, not names.
+# Sources: https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry and
+# https://learn.microsoft.com/azure/role-based-access-control/built-in-roles
 _ROLES = {
+    # Interact with agent endpoints only; assign at project or agent scope.
     "Foundry Agent Consumer": "eed3b665-ab3a-47b6-8f48-c9382fb1dad6",
+    # Build and develop in a project (data actions) and call deployed models.
     "Foundry User": "53ca6127-db72-4b80-b1b0-d745d6d5456d",
-    "Foundry Project Manager": "cb8ef501-606a-4895-b6ca-1c5c7e8c6f1e",
-    "Foundry Account Owner": "b9b44f4a-5a96-4534-b6dd-c635c5d6e6fc",
+    # Manage projects, build, publish agents; may assign only Foundry User.
+    "Foundry Project Manager": "eadc314b-1a2d-4efa-be10-5d325db5065e",
+    # Create accounts/projects and manage models; no project data actions.
+    "Foundry Account Owner": "e47c6f54-e4a2-4754-9501-8e0985b135e1",
+    # Management plus data actions. Rarely the least-privilege answer.
+    "Foundry Owner": "c883944f-8b7b-4483-af10-35834be79c4a",
+    # Cognitive Services roles target direct AI Services endpoints, not Foundry
+    # project scenarios. OpenAI User = direct *.openai.azure.com inference only.
+    "Cognitive Services OpenAI User": "5e0bd9bd-7b93-4f28-af87-19fc36ad61bd",
+    # Data actions across Language, Speech, Vision, Content Safety, and more.
+    "Cognitive Services User": "a97b65f3-24c7-4388-baec-2e87135dc908",
+    # Manage resources and deployments; no data-plane inference by itself.
+    "Cognitive Services Contributor": "25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68",
+    # Quota visibility; must be assigned at subscription scope.
+    "Cognitive Services Usages Reader": "bba48692-92b0-4667-a9ad-c31c7b334ac2",
     "Search Index Data Reader": "1407120a-92aa-4202-b7e9-c0e197c71c8f",
     "Search Index Data Contributor": "8ebe5a00-799e-43f5-93ac-243d3dce84a7",
+    "Search Service Contributor": "7ca78c08-252a-4471-8644-bb5ff32d4ba0",
+    "Storage Blob Data Reader": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+    "Storage Blob Data Contributor": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+    "Key Vault Secrets User": "4633458b-17de-408a-b874-0445c86b69e6",
+    "Log Analytics Reader": "73c42c96-874c-492b-b04d-ab87d138a893",
+    "Reader": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
 }
 
 _ROLE_GUID_TO_NAME = {v: k for k, v in _ROLES.items()}
@@ -130,7 +154,10 @@ def _print_roles() -> None:
     print(
         "\nLeast-privilege reminder:"
         " Foundry Agent Consumer for endpoint-only callers;"
-        " Foundry User for builders;"
+        " Foundry User for project builders;"
+        " Cognitive Services OpenAI User for direct OpenAI-endpoint inference;"
+        " Foundry Project Manager or Foundry Account Owner only to manage and"
+        " delegate Foundry User; Cognitive Services Usages Reader for quota review;"
         " wider roles only when required."
     )
 

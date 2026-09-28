@@ -21,6 +21,8 @@ reference_media = _lesson("08_reference_media_preflight.py")
 remix = _lesson("09_video_remix.py")
 provenance = _lesson("10_visual_provenance_policy.py")
 ocr_safety = _lesson("11_ocr_image_injection_safety.py")
+image_deployment = _lesson("16_image_model_deployment.py")
+video_generation = _lesson("07_video_generation.py")
 
 
 class DomainThreeAdvancedTests(TestCase):
@@ -30,6 +32,26 @@ class DomainThreeAdvancedTests(TestCase):
             with redirect_stdout(output):
                 lesson.main([])
             self.assertIn("No cloud calls made.", output.getvalue())
+
+    def test_image_deployment_uses_azure_cli_and_rejects_retired_dalle(self) -> None:
+        command = image_deployment.deployment_command("rg", "acct", "images")
+        self.assertEqual(command[:5], ["az", "cognitiveservices", "account", "deployment", "create"])
+        self.assertEqual(command[command.index("--model-name") + 1], "gpt-image-2")
+        self.assertEqual(command[command.index("--deployment-name") + 1], "images")
+        with self.assertRaisesRegex(ValueError, "retired"):
+            image_deployment.deployment_command("rg", "acct", "images", model="dall-e-3")
+        output = io.StringIO()
+        with patch.object(image_deployment.subprocess, "run") as run, redirect_stdout(output):
+            image_deployment.main([])
+        run.assert_not_called()
+        self.assertIn("Preflight only", output.getvalue())
+
+    def test_video_generation_defaults_to_preflight(self) -> None:
+        output = io.StringIO()
+        with redirect_stdout(output):
+            video_generation.main([])
+        self.assertIn("No cloud calls made.", output.getvalue())
+        self.assertIn("videos.create", output.getvalue())
 
     def test_reference_media_apply_uses_documented_input_reference(self) -> None:
         client = MagicMock()

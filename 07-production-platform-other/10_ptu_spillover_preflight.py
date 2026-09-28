@@ -29,6 +29,8 @@ Prerequisites / env vars:
 import argparse
 import os
 
+from _shared.config import load_env
+
 
 def preflight() -> None:
     checks = {
@@ -74,6 +76,7 @@ def apply(deployment: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Verify PTU spillover configuration on a deployment.")
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--deployment", default="", help="PTU deployment name to check.")

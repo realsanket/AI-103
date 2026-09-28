@@ -523,6 +523,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "agent-framework" },
+    { name = "anthropic" },
     { name = "azure-ai-contentsafety" },
     { name = "azure-ai-documentintelligence" },
     { name = "azure-ai-evaluation", extra = ["redteam"] },
@@ -558,6 +559,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "agent-framework", specifier = ">=1.0.0b1" },
+    { name = "anthropic", specifier = ">=0.60.0" },
     { name = "azure-ai-contentsafety", specifier = ">=1.0.0" },
     { name = "azure-ai-documentintelligence", specifier = ">=1.0.2" },
     { name = "azure-ai-evaluation", extras = ["redteam"], specifier = ">=1.18.3" },

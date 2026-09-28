@@ -1,10 +1,11 @@
-# Run: uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py [--apply --model <o-deployment>] [--effort low|medium|high]
-"""Call an o-series reasoning model and observe thinking token usage.
+# Run: uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py [--apply] [--model <reasoning-deployment>] [--effort low|medium|high]
+"""Call a reasoning model and observe thinking-token usage.
 
-Reasoning models (o1, o3, o3-mini) generate an internal chain of thought before
-producing a final answer. The reasoning budget is controlled by reasoning_effort
-(low/medium/high). Thinking tokens appear in usage.output_tokens_details.reasoning_tokens
-and are billed at the same rate as output tokens — they do NOT appear in output_text.
+Reasoning models (GPT-5 family, including gpt-5.6-terra; the deprecated o-series)
+generate an internal chain of thought before producing a final answer. The
+reasoning budget is controlled by reasoning effort (low/medium/high). Thinking
+tokens appear in usage.output_tokens_details.reasoning_tokens and are billed at
+the same rate as output tokens — they do NOT appear in output_text.
 
 Default preflight explains reasoning model concepts. --apply sends a multi-step
 math problem and prints the final answer plus thinking token count. This proves:
@@ -12,22 +13,20 @@ math problem and prints the final answer plus thinking token count. This proves:
 separately, (3) higher effort = more reasoning tokens + better accuracy.
 
 Code path:
-  --apply: openai_client().responses.create(model=O_MODEL, input=prompt,
+  --apply: openai_client().responses.create(model=REASONING_MODEL, input=prompt,
   reasoning={"effort": effort}) → output_text + usage.output_tokens_details.
 
 What to watch. reasoning_tokens > 0 on a complex prompt confirms reasoning is
 active. Increase effort if the answer is wrong on hard problems.
 
 Prerequisites / env vars:
-  PROJECT_ENDPOINT  — Foundry project HTTPS URL
-  O_MODEL           — o-series deployment name (o3-mini, o1, o3)
-  DEFAULT_MODEL     — fallback if O_MODEL not set
-  --model           — override deployment name
-  --effort          — low | medium | high (default: medium)
-  --apply           — send request to o-series model
+  AZURE_OPENAI_ENDPOINT — Azure OpenAI endpoint (used by openai_client())
+  REASONING_MODEL       — reasoning deployment name (for example gpt-5.6-terra)
+  --model               — override deployment name
+  --effort              — low | medium | high (default: medium)
+  --apply               — send request to the reasoning model
 """
 import argparse
-import os
 
 from _shared.config import settings
 from _shared.openai_client import openai_client
@@ -39,7 +38,7 @@ _PROMPT = (
 
 
 def preflight() -> None:
-    model = os.environ.get("O_MODEL") or settings().default_model or "o3-mini"
+    model = settings().reasoning_model
     print("Reasoning model preflight (no cloud calls).")
     print(f"- target deployment: {model}")
     print("- reasoning_effort: controls thinking-token budget (low/medium/high)")
@@ -69,7 +68,7 @@ def apply(model: str, effort: str) -> None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Call o-series reasoning model, show thinking tokens.")
     parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--model", default=os.environ.get("O_MODEL") or settings().default_model or "o3-mini")
+    parser.add_argument("--model", default=settings().reasoning_model, help="Reasoning deployment (REASONING_MODEL).")
     parser.add_argument("--effort", default="medium", choices=["low", "medium", "high"])
     args = parser.parse_args(argv)
     if not args.apply:

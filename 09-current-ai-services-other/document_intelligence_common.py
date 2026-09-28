@@ -1,20 +1,15 @@
 """Shared local validation and v4.0 GA client helpers for Document Intelligence."""
 from __future__ import annotations
 
-import os
-from pathlib import Path
 from urllib.parse import urlparse
 
-from dotenv import load_dotenv
-
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+from _shared.config import env
 
 API_VERSION = "2024-11-30"
 
 
 def configured(name: str) -> str:
-    value = os.getenv(name, "").strip()
-    return "" if value.startswith("<") else value
+    return env(name)
 
 
 def https_url(value: str, name: str) -> str:

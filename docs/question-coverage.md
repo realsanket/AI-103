@@ -50,7 +50,7 @@ repeats the same per-question file map.
 | 56 | [`26_agent_tracing.py`](../01-plan-and-manage/26_agent_tracing.py) | L26 latency and token diagnosis | Existing |
 | 58 | [`26_agent_tracing.py`](../01-plan-and-manage/26_agent_tracing.py), [`24_production_observability_preflight.py`](../02-generative-ai-and-agents/24_production_observability_preflight.py) | L26 and D2 L24 latency decomposition | Existing |
 | 59 | [`20_provenance_detection.py`](../01-plan-and-manage/20_provenance_detection.py), [`08_rbac_role_policies.py`](../01-plan-and-manage/08_rbac_role_policies.py) | L20 Content Safety identity reads Blob, L08 least-privilege RBAC | Existing |
-| 63 | [`09_content_safety_filters.py`](../01-plan-and-manage/09_content_safety_filters.py), [`48_hosted_agent_guardrails.py`](../02-generative-ai-and-agents/48_hosted_agent_guardrails.py), [`20_provenance_detection.py`](../01-plan-and-manage/20_provenance_detection.py) | L09 guardrail block action, D2 L48 agent guardrail, L20 Blob Data Reader identity | Existing; partial: tool-call and tool-response intervention points not configured |
+| 63 | [`09_content_safety_filters.py`](../01-plan-and-manage/09_content_safety_filters.py), [`28_guardrail_policy_preflight.py`](../01-plan-and-manage/28_guardrail_policy_preflight.py), [`48_hosted_agent_guardrails.py`](../02-generative-ai-and-agents/48_hosted_agent_guardrails.py), [`20_provenance_detection.py`](../01-plan-and-manage/20_provenance_detection.py) | L09 guardrail block action, L28 block controls at all four intervention points, D2 L48 agent guardrail, L20 Blob Data Reader identity | Existing |
 | 64 | [`17_evaluator_groundedness.py`](../01-plan-and-manage/17_evaluator_groundedness.py) | L17 critique and regeneration | Existing |
 | 65 | [`10_prompt_shields_user.py`](../01-plan-and-manage/10_prompt_shields_user.py) | L10 User Prompt Shields | Existing |
 | 66 | [`21_foundry_evaluation.py`](../01-plan-and-manage/21_foundry_evaluation.py), [`25_foundry_tracing_setup.py`](../01-plan-and-manage/25_foundry_tracing_setup.py), [`26_agent_tracing.py`](../01-plan-and-manage/26_agent_tracing.py) | L21 evaluation and L25–26 observability | Existing; partial: no relevance evaluator configured |
@@ -79,7 +79,7 @@ repeats the same per-question file map.
 | 139 | — | Control-plane resource concepts | Gap: multi-service resource exercise |
 | 140 | — | Responsible AI governance | Gap: transparency exercise |
 | 142 | Adjacent only: [`07_managed_identity_agent.py`](../01-plan-and-manage/07_managed_identity_agent.py), [`08_rbac_role_policies.py`](../01-plan-and-manage/08_rbac_role_policies.py) | L07–08 endpoint/auth boundary | Compatibility: source key flow conflicts with keyless baseline |
-| 166 | [`02_deployment_types.py`](../01-plan-and-manage/02_deployment_types.py), [`03_deploy_model.py`](../01-plan-and-manage/03_deploy_model.py) | L02–03 regional deployment/version pinning | Existing; partial: L03 hard-codes GlobalStandard and sets no version-upgrade option |
+| 166 | [`02_deployment_types.py`](../01-plan-and-manage/02_deployment_types.py), [`03_deploy_model.py`](../01-plan-and-manage/03_deploy_model.py) | L02 deployment types; L03 `--sku Standard --version-upgrade-option NoAutoUpgrade` | Existing |
 | 167 | [`11_prompt_shields_docs.py`](../01-plan-and-manage/11_prompt_shields_docs.py), [`11_ocr_image_injection_safety.py`](../03-computer-vision/11_ocr_image_injection_safety.py) | L11 plus D3 L11 indirect injection | Existing |
 | 168 | [`21_foundry_evaluation.py`](../01-plan-and-manage/21_foundry_evaluation.py) | L21 evaluation run | Existing; partial: no RAG evaluators configured |
 | 175 | [`01_access_and_metrics_preflight.py`](../01-plan-and-manage/questions/01_access_and_metrics_preflight.py), [`09_prompt_agent_invoke.py`](../02-generative-ai-and-agents/09_prompt_agent_invoke.py) | `questions/01_access_and_metrics_preflight.py` plus D2 L09 `agents.get` | Existing |
@@ -89,7 +89,7 @@ repeats the same per-question file map.
 | Q | Lesson file(s) | Coverage | Status |
 |---:|---|---|---|
 | 6 | [`05_code_interpreter.py`](../02-generative-ai-and-agents/05_code_interpreter.py), [`06_file_search_tool.py`](../02-generative-ai-and-agents/06_file_search_tool.py), [`22_bing_grounding_preflight.py`](../08-advanced-agents-other/22_bing_grounding_preflight.py) | L05 code interpreter, L06 file search, D8 L22 Grounding with Bing | Existing |
-| 7 | [`12_agent_openapi_tools.py`](../02-generative-ai-and-agents/12_agent_openapi_tools.py) | L12 OpenAPI tools | Existing; partial: L12 uses anonymous auth, not an API-key security scheme |
+| 7 | [`12_agent_openapi_tools.py`](../02-generative-ai-and-agents/12_agent_openapi_tools.py) | L12 `--auth connection` adds an `apiKey` security scheme to the spec | Existing |
 | 8 | [`16_workflow_conditional.py`](../02-generative-ai-and-agents/16_workflow_conditional.py) | L16 conditional workflow | Existing |
 | 12 | [`14_foundry_memory.py`](../02-generative-ai-and-agents/14_foundry_memory.py) | L14 Foundry Memory | Existing |
 | 13 | [`27_agent_azure_ai_search_preflight.py`](../02-generative-ai-and-agents/27_agent_azure_ai_search_preflight.py), [`40_a2a_authentication.py`](../02-generative-ai-and-agents/40_a2a_authentication.py), [`05_gateway_publishing_preflight.py`](../08-advanced-agents-other/05_gateway_publishing_preflight.py) | L27 forced tool_choice, L40 agent-identity auth, D8 L05 publishing identity | Existing |
@@ -103,7 +103,7 @@ repeats the same per-question file map.
 | 45 | [`13_conversation_thread.py`](../02-generative-ai-and-agents/13_conversation_thread.py) | L13 conversation continuity | Existing |
 | 52 | [`06_file_search_tool.py`](../02-generative-ai-and-agents/06_file_search_tool.py), [`27_agent_azure_ai_search_preflight.py`](../02-generative-ai-and-agents/27_agent_azure_ai_search_preflight.py) | L06 File Search for uploads, L27 Azure AI Search tool for the enterprise index | Existing |
 | 62 | [`13_conversation_thread.py`](../02-generative-ai-and-agents/13_conversation_thread.py) | L13 durable conversation state | Existing |
-| 67 | [`12_agent_openapi_tools.py`](../02-generative-ai-and-agents/12_agent_openapi_tools.py) | L12 OpenAPI connection auth | Existing; partial: L12 uses anonymous auth, not a connection-backed key |
+| 67 | [`12_agent_openapi_tools.py`](../02-generative-ai-and-agents/12_agent_openapi_tools.py) | L12 tool connected to the project connection (`OpenApiProjectConnectionAuthDetails`) | Existing |
 | 73 | [`06_file_search_tool.py`](../02-generative-ai-and-agents/06_file_search_tool.py), [`14_foundry_memory.py`](../02-generative-ai-and-agents/14_foundry_memory.py) | L14 memory and L06 File Search | Existing |
 | 76 | [`05_code_interpreter.py`](../02-generative-ai-and-agents/05_code_interpreter.py), [`06_file_search_tool.py`](../02-generative-ai-and-agents/06_file_search_tool.py), [`25_computer_use_preflight.py`](../08-advanced-agents-other/25_computer_use_preflight.py) | L05 code interpreter, L06 file search, D8 L25 computer use | Existing |
 | 79 | [`05_code_interpreter.py`](../02-generative-ai-and-agents/05_code_interpreter.py), [`22_bing_grounding_preflight.py`](../08-advanced-agents-other/22_bing_grounding_preflight.py) | L05 code interpreter, D8 L22 Grounding with Bing | Existing |
@@ -146,13 +146,13 @@ repeats the same per-question file map.
 | 124 | Adjacent only: [`09_video_remix.py`](../03-computer-vision/09_video_remix.py) | L09 video remix | Gap: video inpainting |
 | 126 | [`01_multimodal_understanding.py`](../03-computer-vision/01_multimodal_understanding.py) | L01 multimodal content input | Existing |
 | 135 | — | Custom Vision defect classifier | Compatibility: legacy Custom Vision |
-| 136 | [`16_image_generation_dalle.py`](../03-computer-vision/16_image_generation_dalle.py) | L16 DALL-E generation | Existing; partial: consumes a DALL-E deployment, does not deploy one |
+| 136 | [`16_image_model_deployment.py`](../03-computer-vision/16_image_model_deployment.py) | L16 deploys `gpt-image-2` with the Azure CLI (DALL-E 3 retired March 4, 2026) | Existing |
 | 143 | — | Custom Vision precision/recall | Compatibility: legacy Custom Vision |
 | 148 | — | Custom Vision classifier configuration | Compatibility: legacy Custom Vision |
 | 159 | — | Custom Vision defect detector | Compatibility: legacy Custom Vision |
 | 164 | — | Vision `imageType` API | Compatibility: legacy Vision API |
 | 165 | — | Custom Vision metrics | Compatibility: legacy Custom Vision |
-| 173 | [`07_video_generation.py`](../03-computer-vision/07_video_generation.py) | L07 async create and poll (REST equivalent of `videos.create`/`retrieve`) | Existing |
+| 173 | [`07_video_generation.py`](../03-computer-vision/07_video_generation.py) | L07 `videos.create` → `videos.retrieve` → `download_content` | Existing |
 
 ## 04 - Text and speech
 
@@ -166,7 +166,7 @@ repeats the same per-question file map.
 | 127 | [`05_language_pii.py`](../04-text-and-speech/05_language_pii.py) | L05 PII redaction and entity audit | Existing |
 | 128 | [`30_gpt_live_webrtc_preflight.py`](../04-text-and-speech/30_gpt_live_webrtc_preflight.py) | L30 GPT-Live WebRTC | Existing |
 | 137 | Adjacent only: [`07_language_ner.py`](../04-text-and-speech/07_language_ner.py) | L07 NER | Gap: custom-NER label quality |
-| 138 | [`15_tts_ssml_hd.py`](../04-text-and-speech/15_tts_ssml_hd.py) | L15 SSML pronunciation | Existing; partial: SSML prosody and style, no phoneme element |
+| 138 | [`15_tts_ssml_hd.py`](../04-text-and-speech/15_tts_ssml_hd.py) | L15 SSML `<phoneme>` pronunciation plus `<sub>`/`<say-as>` | Existing |
 | 147 | — | Immersive Reader | Compatibility: outside current lesson scope |
 | 150 | [`07_language_ner.py`](../04-text-and-speech/07_language_ner.py) | L07 Named Entity Recognition | Existing |
 | 151 | Adjacent only: [`07_language_ner.py`](../04-text-and-speech/07_language_ner.py) | L07 NER | Gap: entity-linking-specific exercise |
@@ -181,27 +181,27 @@ repeats the same per-question file map.
 | 2 | [`10_cu_prebuilt_layout.py`](../05-information-extraction/10_cu_prebuilt_layout.py) | L10 CU layout | Existing |
 | 4 | [`27_agent_azure_ai_search_preflight.py`](../02-generative-ai-and-agents/27_agent_azure_ai_search_preflight.py), [`20_managed_search_agent_tool.py`](../05-information-extraction/20_managed_search_agent_tool.py) | L20 managed Search tool and D2 L27 | Existing |
 | 14 | [`24_agentic_knowledge_base.py`](../05-information-extraction/24_agentic_knowledge_base.py), [`25_agentic_retrieve.py`](../05-information-extraction/25_agentic_retrieve.py), [`26_agentic_answer_synthesis.py`](../05-information-extraction/26_agentic_answer_synthesis.py) | L24–26 agentic retrieval | Existing |
-| 15 | Adjacent only: [`12_cu_custom_analyzer.py`](../05-information-extraction/12_cu_custom_analyzer.py), [`04_id_document.py`](../09-current-ai-services-other/04_id_document.py) | D5 L12 custom field schema, D9 L04 ID fields | Gap: validate `prebuilt-documentFieldSchema` before code |
+| 15 | [`12_cu_custom_analyzer.py`](../05-information-extraction/12_cu_custom_analyzer.py) | L12 `--propose-schema` runs `prebuilt-documentFieldSchema` | Existing |
 | 21 | [`01_rag_ingestion_contract.py`](../05-information-extraction/questions/01_rag_ingestion_contract.py), [`14_cu_markdown_for_rag.py`](../05-information-extraction/14_cu_markdown_for_rag.py) | `questions/01_rag_ingestion_contract.py` plus L14 structure-aware chunks | Existing |
 | 28 | [`20_managed_search_agent_tool.py`](../05-information-extraction/20_managed_search_agent_tool.py) | L20 Search tool index selection | Existing |
 | 31 | [`27_agent_azure_ai_search_preflight.py`](../02-generative-ai-and-agents/27_agent_azure_ai_search_preflight.py), [`20_managed_search_agent_tool.py`](../05-information-extraction/20_managed_search_agent_tool.py) | L20 Search connection | Existing |
 | 35 | [`08_rag_client_run.py`](../05-information-extraction/08_rag_client_run.py) | L08 manual RAG completeness | Existing |
-| 36 | [`11_cu_invoice.py`](../05-information-extraction/11_cu_invoice.py), [`13_cu_pro_mode.py`](../05-information-extraction/13_cu_pro_mode.py) | L11/L13 CU standard versus Pro | Existing |
+| 36 | Adjacent only: [`11_cu_invoice.py`](../05-information-extraction/11_cu_invoice.py), [`13_cu_cross_document_validation.py`](../05-information-extraction/13_cu_cross_document_validation.py) | L11 single-file standard analyzer, L13 GA cross-document replacement | Compatibility: CU Pro mode (`2025-05-01-preview`) retired July 15, 2026 |
 | 41 | [`12_cu_custom_analyzer.py`](../05-information-extraction/12_cu_custom_analyzer.py) | L12 custom analyzer | Existing |
-| 46 | [`11_cu_invoice.py`](../05-information-extraction/11_cu_invoice.py), [`13_cu_pro_mode.py`](../05-information-extraction/13_cu_pro_mode.py) | L11/L13 CU standard versus Pro | Existing |
+| 46 | Adjacent only: [`11_cu_invoice.py`](../05-information-extraction/11_cu_invoice.py), [`13_cu_cross_document_validation.py`](../05-information-extraction/13_cu_cross_document_validation.py) | L11 single-file standard analyzer, L13 GA cross-document replacement | Compatibility: CU Pro mode (`2025-05-01-preview`) retired July 15, 2026 |
 | 55 | [`09_cu_prebuilt_read.py`](../05-information-extraction/09_cu_prebuilt_read.py) | L09 CU OCR | Existing |
 | 84 | [`10_cu_prebuilt_layout.py`](../05-information-extraction/10_cu_prebuilt_layout.py), [`14_cu_markdown_for_rag.py`](../05-information-extraction/14_cu_markdown_for_rag.py) | L10/L14 layout Markdown RAG | Existing |
-| 87 | Adjacent only: [`12_cu_custom_analyzer.py`](../05-information-extraction/12_cu_custom_analyzer.py) | L12 custom analyzer fields | Gap: `estimateFieldSourceAndConfidence` exercise |
+| 87 | [`12_cu_custom_analyzer.py`](../05-information-extraction/12_cu_custom_analyzer.py) | L12 `estimateFieldSourceAndConfidence` plus confidence-based review routing | Existing |
 | 88 | [`07_rag_prompt_agent.py`](../05-information-extraction/07_rag_prompt_agent.py), [`08_rag_client_run.py`](../05-information-extraction/08_rag_client_run.py) | L07–08 retrieval-context control | Existing |
 | 90 | [`09_cu_prebuilt_read.py`](../05-information-extraction/09_cu_prebuilt_read.py), [`11_cu_invoice.py`](../05-information-extraction/11_cu_invoice.py) | L09–11 CU invoice pipeline | Existing |
 | 92 | [`12_cu_custom_analyzer.py`](../05-information-extraction/12_cu_custom_analyzer.py) | L12 custom CU analyzer | Existing |
 | 94 | Adjacent only: [`04_search_indexer_setup.py`](../05-information-extraction/04_search_indexer_setup.py), [`05_search_skillset.py`](../05-information-extraction/05_search_skillset.py) | L04–05 indexer and skillset | Gap: `normalized_images` OCR-skill exercise |
-| 114 | Adjacent only: [`14_cu_markdown_for_rag.py`](../05-information-extraction/14_cu_markdown_for_rag.py), [`16_cu_multimodal_rag.py`](../05-information-extraction/16_cu_multimodal_rag.py) | L14 layout Markdown for RAG, L16 multimodal RAG records | Gap: validate `prebuilt-documentSearch` before code |
+| 114 | [`14_cu_markdown_for_rag.py`](../05-information-extraction/14_cu_markdown_for_rag.py) | L14 `--analyzer prebuilt-documentSearch` RAG Markdown | Existing |
 | 116 | [`31_openai_embeddings.py`](../02-generative-ai-and-agents/31_openai_embeddings.py), [`02_search_vector.py`](../05-information-extraction/02_search_vector.py) | L02 vector search and D2 L31 | Existing |
 | 118 | [`03_search_hybrid_semantic.py`](../05-information-extraction/03_search_hybrid_semantic.py) | L03 hybrid/semantic retrieval | Existing |
 | 120 | [`16_cu_multimodal_rag.py`](../05-information-extraction/16_cu_multimodal_rag.py) | L16 multimodal RAG | Existing; partial: CU is not configured as a Search skill |
 | 121 | Adjacent only: [`05_search_skillset.py`](../05-information-extraction/05_search_skillset.py) | L05 skillset | Gap: OCR skill for scanned images |
-| 122 | [`13_cu_pro_mode.py`](../05-information-extraction/13_cu_pro_mode.py) | L13 CU Pro Mode | Existing |
+| 122 | Adjacent only: [`13_cu_cross_document_validation.py`](../05-information-extraction/13_cu_cross_document_validation.py) | L13 per-document extraction plus app-side consistency check | Compatibility: CU Pro mode (`2025-05-01-preview`) retired July 15, 2026 |
 | 141 | Adjacent only: [`04_search_indexer_setup.py`](../05-information-extraction/04_search_indexer_setup.py), [`05_search_skillset.py`](../05-information-extraction/05_search_skillset.py), [`06_search_custom_skill.py`](../05-information-extraction/06_search_custom_skill.py) | L04–06 Search enrichment | Gap: knowledge-store projections |
 | 144 | [`28_sharepoint_indexer_acls_preflight.py`](../05-information-extraction/28_sharepoint_indexer_acls_preflight.py) | L28 ACL/security trimming | Existing |
 | 145 | Adjacent only: [`18_search_monitoring.py`](../05-information-extraction/18_search_monitoring.py) | L18 monitoring | Gap: query-key rotation runbook |
@@ -234,7 +234,7 @@ repeats the same per-question file map.
 | Q | Lesson file(s) | Coverage | Status |
 |---:|---|---|---|
 | 22 | [`05_code_interpreter.py`](../02-generative-ai-and-agents/05_code_interpreter.py), [`25_computer_use_preflight.py`](../08-advanced-agents-other/25_computer_use_preflight.py) | L25 Computer Use plus D2 L05 | Existing |
-| 77 | [`09_mcp_get_started.py`](../08-advanced-agents-other/09_mcp_get_started.py), [`27_agent_azure_ai_search_preflight.py`](../02-generative-ai-and-agents/27_agent_azure_ai_search_preflight.py) | L09 MCP tool, D2 L27 forced tool_choice | Existing; partial: tool_choice does not target the MCP tool type |
+| 77 | [`09_mcp_get_started.py`](../08-advanced-agents-other/09_mcp_get_started.py), [`27_agent_azure_ai_search_preflight.py`](../02-generative-ai-and-agents/27_agent_azure_ai_search_preflight.py) | L09 `ToolChoiceMCP` forces the MCP tool, D2 L27 forced tool_choice | Existing |
 | 106 | Adjacent only: [`22_bing_grounding_preflight.py`](../08-advanced-agents-other/22_bing_grounding_preflight.py) | L22 Bing grounding | Gap: verify current forced-tool payload |
 | 149 | [`09_mcp_get_started.py`](../08-advanced-agents-other/09_mcp_get_started.py), [`25_mcp_tool_preflight.py`](../02-generative-ai-and-agents/25_mcp_tool_preflight.py), [`27_agent_azure_ai_search_preflight.py`](../02-generative-ai-and-agents/27_agent_azure_ai_search_preflight.py) | L09 MCP tool, D2 L25 MCP agent, D2 L27 forced tool_choice | Existing |
 

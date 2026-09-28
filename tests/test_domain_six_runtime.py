@@ -28,6 +28,9 @@ distillation = _lesson("04_distillation_dataset.py")
 batch = _lesson("09_batch_inference.py")
 cost = _lesson("13_cost_review.py")
 submission = _lesson("05_submit_training.py")
+claude = _lesson("15_claude_model_call.py")
+router = _lesson("16_model_router.py")
+deepseek = _lesson("17_deepseek_reasoning.py")
 
 
 class DomainSixRuntimeTests(TestCase):
@@ -89,6 +92,39 @@ class DomainSixRuntimeTests(TestCase):
             with redirect_stdout(stream):
                 submission.main(["--kind", "sft", "--train", str(source), "--model", "gpt-test"])
             self.assertIn("no cloud calls", stream.getvalue())
+
+    def test_claude_uses_anthropic_messages_endpoint_and_adaptive_thinking(self) -> None:
+        from types import SimpleNamespace
+
+        self.assertEqual(
+            claude.anthropic_base_url("https://northwind.services.ai.azure.com/"),
+            "https://northwind.services.ai.azure.com/anthropic",
+        )
+        with self.assertRaises(ValueError):
+            claude.anthropic_base_url("https://northwind.openai.azure.com")
+        body = claude.request_body("claude-sonnet-5", "high")
+        self.assertEqual(body["thinking"], {"type": "adaptive"})
+        self.assertEqual(body["output_config"], {"effort": "high"})
+        self.assertNotIn("temperature", body)
+        message = SimpleNamespace(content=[SimpleNamespace(type="thinking", thinking="..."), SimpleNamespace(type="text", text="Escalate.")])
+        self.assertEqual(claude.answer_text(message), "Escalate.")
+
+    def test_deepseek_separates_reasoning_from_answer(self) -> None:
+        from types import SimpleNamespace
+
+        tagged = SimpleNamespace(content="<think>step 1</think>\nFinal answer.")
+        self.assertEqual(deepseek.split_reasoning(tagged), ("step 1", "Final answer."))
+        field = SimpleNamespace(content="Final answer.", reasoning_content="step A")
+        self.assertEqual(deepseek.split_reasoning(field), ("step A", "Final answer."))
+        plain = SimpleNamespace(content="Just the answer.")
+        self.assertEqual(deepseek.split_reasoning(plain), ("", "Just the answer."))
+
+    def test_partner_model_and_router_preflights_make_no_calls(self) -> None:
+        for lesson in (claude, router, deepseek):
+            output = io.StringIO()
+            with redirect_stdout(output):
+                lesson.main([])
+            self.assertIn("no cloud calls", output.getvalue().lower())
 
     def test_ptu_estimate_is_local_math(self) -> None:
         self.assertEqual(cost.ptu_monthly_cost(2, 1.5, 10), 30.0)

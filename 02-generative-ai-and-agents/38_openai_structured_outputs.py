@@ -1,7 +1,7 @@
 # Run: uv run python 02-generative-ai-and-agents/38_openai_structured_outputs.py
 """Extract a typed Python object from model output using Pydantic structured outputs.
 
-Structured outputs (beta.chat.completions.parse) let you define a Pydantic schema and
+Structured outputs (chat.completions.parse) let you define a Pydantic schema and
 receive a typed Python object directly — no JSON parsing, no field validation. The
 difference from json_schema mode (lesson 32, Responses API): this uses the Chat
 Completions API endpoint with response_format=<PydanticModel>, returns
@@ -20,20 +20,15 @@ What to watch in the output:
 
 Prerequisites / env vars:
   AZURE_OPENAI_ENDPOINT  — https://<resource>.openai.azure.com
-  DEFAULT_MODEL          — deployment that supports structured outputs (gpt-4o 2024-08-06+)
+  DEFAULT_MODEL          — deployment that supports structured outputs (GPT-4.1 or newer)
   --apply                — call the live API (default: dry-run prints schema only)
 """
 
 import argparse
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from _shared.openai_client import openai_client  # noqa: E402
-
-
-class _CalendarEvent:
-    """Lazy import wrapper — Pydantic only loaded under --apply."""
+from _shared.config import settings
+from _shared.openai_client import openai_client
 
 
 def preflight() -> None:
@@ -55,13 +50,13 @@ def preflight() -> None:
     print("      date: str")
     print("      participants: list[str]")
     print()
-    print("API: client.beta.chat.completions.parse(model=..., messages=..., response_format=CalendarEvent)")
+    print("API: client.chat.completions.parse(model=DEFAULT_MODEL, messages=..., response_format=CalendarEvent)")
     print("Result: completion.choices[0].message.parsed  →  CalendarEvent instance")
     print()
     print("Key difference from lesson 07 / lesson 32:")
     print("  Lesson 07 — Responses API, json_schema + strict=True, returns dict via json.loads()")
     print("  Lesson 32 — Responses API, json_schema mode, returns dict via json.loads()")
-    print("  Lesson 38 — Chat Completions API, beta.parse, returns typed Pydantic object")
+    print("  Lesson 38 — Chat Completions API, parse(), returns typed Pydantic object")
 
 
 def apply() -> None:
@@ -72,29 +67,13 @@ def apply() -> None:
         date: str
         participants: list[str]
 
-    model = openai_client()
-    client = model._client  # unwrap to raw openai.OpenAI for beta endpoint
-
-    import os
-    from openai import OpenAI
-    from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-
-    endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/")
-    deployment = os.environ.get("DEFAULT_MODEL", "gpt-4o")
-
-    token_provider = get_bearer_token_provider(
-        DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
-    )
-
-    raw_client = OpenAI(
-        base_url=f"{endpoint}/openai/v1/",
-        api_key=token_provider,
-    )
+    client = openai_client()
+    deployment = settings().default_model
 
     sentence = "Alice and Bob are going to a science fair on Friday."
     print(f"Input: {sentence!r}")
 
-    completion = raw_client.beta.chat.completions.parse(
+    completion = client.chat.completions.parse(
         model=deployment,
         messages=[
             {"role": "system", "content": "Extract the event information."},

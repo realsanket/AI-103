@@ -38,7 +38,7 @@ matrix.
 |---|---|---|
 | Design Azure infrastructure for AI apps and agent-based solutions | D7 `07-production-platform-other`: current Bicep and Terraform regional-cell assets, VNet/private DNS/private endpoints, managed identity, Key Vault CMK, diagnostics, locks, policy, and explicit plan/apply wrappers | **Preflight / Opt-in** — assets are locally tested; Azure deployment and region capability remain subscription-dependent. |
 | Choose appropriate deployment options | D1 `02_deployment_types.py` | **Local** — prints documented comparison; does not query availability. |
-| Configure model and agent deployments | D1 `03_deploy_model.py`; D2 `08_prompt_agent_create.py` | **Runnable** — model lesson writes deployment; agent lesson creates version. |
+| Configure model and agent deployments | D1 `03_deploy_model.py` (SKU, capacity, version-upgrade policy); D2 `08_prompt_agent_create.py` | **Preflight / Opt-in** — model lesson prints the ARM body by default and writes the deployment only with `--apply`; agent lesson creates a version. |
 | Integrate Foundry projects with CI/CD pipelines | D7 contained GitHub OIDC/self-hosted-private-runner workflow plus explicit Bicep `what-if`/Terraform `plan` and `--apply` gate | **Local / Preflight / Opt-in** — workflow is intentionally not active and requires OIDC, runner, state backend, and environment review. |
 
 ### Manage, monitor, and secure AI systems
@@ -46,7 +46,7 @@ matrix.
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
 | Manage quotas, scaling, rate limits, and cost footprints for model and agent workloads | D1 `05_quotas_and_tpm.py`, `06_rate_limit_backoff.py`, deployment-type reference | **Partial** — quota inspection and retry only; no autoscaling or billing analysis. |
-| Monitor model performance, drift, safety events, and grounding quality | D1 `20_groundedness_detection.py`, `22_foundry_evaluation.py`, `23_continuous_evaluation.py`, `26_foundry_tracing_setup.py` | **Partial** — evaluation/continuous-rule/tracing paths exist; drift policy, alerts, and configured live service remain subscription-dependent. |
+| Monitor model performance, drift, safety events, and grounding quality | D1 `19_groundedness_detection.py`, `21_foundry_evaluation.py`, `22_continuous_evaluation.py`, `25_foundry_tracing_setup.py` | **Partial** — evaluation/continuous-rule/tracing paths exist; drift policy, alerts, and configured live service remain subscription-dependent. |
 | Monitor data ingestion quality, search index health, and relevance performance | D5 `04_search_indexer_setup.py` starts an indexer; D5 `03_search_hybrid_semantic.py` prints query results | **Partial** — no indexer-status, ingestion-quality, or relevance-evaluation monitor. |
 | Configure security, including managed identity, private networking, keyless credentials, and role policies | D1 `07_managed_identity_agent.py`, `08_rbac_role_policies.py`; D7 private regional-cell IaC, user-assigned identity, disabled local auth/public access, private DNS/endpoints, CMK Key Vault role, and reviewed Policy asset | **Preflight / Opt-in / Partial** — local assets do not prove subscription RBAC, private DNS resolution, CMK support, or a successful deployment. |
 
@@ -54,9 +54,9 @@ matrix.
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
-| Configure safety filters, guardrails, risk detection, and content moderation | D1 `09_content_safety_filters.py`–`15_blocklists.py`, `19_protected_material.py`–`21_provenance_detection.py` | **Runnable / Partial** — advanced features are preview and require service availability; L15 persists only with `--apply`. |
-| Apply responsible AI instrumentation, including evaluators, safety evaluations, and explanation tooling | D1 `22_foundry_evaluation.py`, `23_continuous_evaluation.py`, `25_red_teaming.py` | **Runnable / Partial** — cloud state/billing require `--apply`; rubric/evaluator availability is region dependent. |
-| Implement auditing through trace logging, provenance metadata, and approval workflows | D1 `18_agent_tracing.py`, `21_provenance_detection.py`, `24_human_feedback.py`, `26_foundry_tracing_setup.py` | **Runnable / Partial** — telemetry/provenance paths exist; approval workflow remains application architecture. |
+| Configure safety filters, guardrails, risk detection, and content moderation | D1 `09_content_safety_filters.py`–`15_blocklists.py`, `18_protected_material.py`–`20_provenance_detection.py`, `28_guardrail_policy_preflight.py` | **Runnable / Partial** — advanced features are preview and require service availability; L15 persists only with `--apply`. L28 builds a guardrail with controls at all four intervention points (tool call/response are preview) and creates it only with `--apply`. |
+| Apply responsible AI instrumentation, including evaluators, safety evaluations, and explanation tooling | D1 `21_foundry_evaluation.py`, `22_continuous_evaluation.py`, `24_red_teaming.py` | **Runnable / Partial** — cloud state/billing require `--apply`; rubric/evaluator availability is region dependent. |
+| Implement auditing through trace logging, provenance metadata, and approval workflows | D1 `26_agent_tracing.py`, `20_provenance_detection.py`, `23_human_feedback.py`, `25_foundry_tracing_setup.py` | **Runnable / Partial** — telemetry/provenance paths exist; approval workflow remains application architecture. |
 | Govern agent behavior with oversight modes, constraints, and tool-access controls | D1 `16_agent_basics.py`; D2 `09_prompt_agent_invoke.py`, `11_agent_function_tools.py`, `16_workflow_conditional.py` | **Partial** — instructions, argument validation, and routing; no explicit oversight-mode service configuration. |
 
 ## 2. Implement generative AI and agentic solutions (30–35%)
@@ -102,32 +102,32 @@ execution. A **Runnable** lesson can require configured Azure access; an
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
-| Implement a solution that generates images from text prompts and reference media | D3 `02_image_generation.py` | **Partial / Gap** — text-to-image code exists; no image-generation reference-media input flow exists. |
-| Implement a solution that generates videos from text prompts and reference media | D3 `05_video_generation.py`, `10_reference_media_preflight.py` | **Preflight / Opt-in** — L05 constructs text-to-video requests; L10 defaults to no-cloud guidance and, with `--apply`, validates one reference image then has a Sora submission path. No successful remote run is evidenced. |
-| Configure image-editing workflows, including inpainting, mask-based edits, and prompt-driven modifications | D3 `03_image_prompt_edit.py`, `04_image_masked_edit.py` | **Runnable** |
-| Implement workflows to edit generated videos | D3 `11_video_remix.py` | **Preflight / Opt-in / Partial** — default is local guidance; `--apply` has one fixed-prompt remix path for completed `video_` IDs, not a general video editor or a live-tested workflow. |
-| Select and apply appropriate generation and editing controls provided by platform | D3 `02_image_generation.py`–`05_video_generation.py`, `10_reference_media_preflight.py` | **Partial** — code fixes image size/quality/output format and video dimensions/duration; reference-media dimensions are locally checked only on opt-in apply. It does not expose or evaluate broader platform controls. |
+| Implement a solution that generates images from text prompts and reference media | D3 `04_image_generation.py`, `05_image_prompt_edit.py`, `16_image_model_deployment.py` | **Partial** — text-to-image (L04) and image-input edits (L05) exist; L16 deploys a GPT-image model only with `--apply`. No separate multi-reference composition flow. |
+| Implement a solution that generates videos from text prompts and reference media | D3 `07_video_generation.py`, `08_reference_media_preflight.py` | **Preflight / Opt-in** — L07 previews by default and, with `--apply`, runs Sora 2 `videos.create` → `videos.retrieve` → `download_content`; L08 validates one reference image and submits only with `--apply`. No successful remote run is evidenced. |
+| Configure image-editing workflows, including inpainting, mask-based edits, and prompt-driven modifications | D3 `05_image_prompt_edit.py`, `06_image_masked_edit.py` | **Runnable** |
+| Implement workflows to edit generated videos | D3 `09_video_remix.py` | **Preflight / Opt-in / Partial** — default is local guidance; `--apply` has one fixed-prompt remix path for completed `video_` IDs, not a general video editor or a live-tested workflow. |
+| Select and apply appropriate generation and editing controls provided by platform | D3 `04_image_generation.py`–`07_video_generation.py`, `08_reference_media_preflight.py` | **Partial** — code fixes image size/quality/output format and video dimensions/duration; reference-media dimensions are locally checked only on opt-in apply. It does not expose or evaluate broader platform controls. |
 
 ### Design and implement multimodal understanding workflows
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
 | Build a solution that analyzes visual context by using multimodal models | D3 `01_multimodal_understanding.py` | **Runnable** |
-| Configure apps to produce concise or detailed captions for single or multiple images | D3 `07_alt_text_captions.py` | **Runnable** |
+| Configure apps to produce concise or detailed captions for single or multiple images | D3 `02_alt_text_captions.py` | **Runnable** |
 | Implement a solution that enables question-answering grounded in visual evidence | D3 `01_multimodal_understanding.py` | **Partial** — image summary prompt, not a dedicated visual-Q&A interaction. |
-| Configure generation of alt-text and extended image descriptions aligned to accessibility guidelines | D3 `07_alt_text_captions.py` | **Runnable** |
-| Implement visual understanding by configuring Azure Content Understanding in Foundry Tools to extract visual characteristics | D3 `08_content_understanding_image.py`, `14_cu_blob_preflight.py`, `15_cu_visual_handoff.py` | **Runnable / Local / Preflight / Opt-in** — L08 has CU image-analysis code; L14 is local SAS/configuration inspection; L15 bounds a CU result only with `--apply`. CU request paths are not live-tested. |
-| Implement video analysis workflows to process and interpret video segments | D3 `09_video_analysis.py`, `15_cu_visual_handoff.py` | **Runnable / Opt-in** — L09 prints returned segment ranges/summaries; L15 can normalize bounded video segments with `--apply`. No successful CU operation is evidenced. |
-| Configure single-task and pro-mode Content Understanding pipelines | D5 CU lessons 09–13 | **Runnable / Cross-domain** — lesson 13 creates a Pro analyzer and submits comma-separated document URLs as multi-input `inputs`; Pro mode remains preview and input-type constrained. |
-| Implement solutions that identify objects, components, or regions within images or video | D3 `08_content_understanding_image.py`, `09_video_analysis.py`, `15_cu_visual_handoff.py` | **Partial** — output is Markdown, summary, or bounded time segments; no object/component/region extraction contract. |
+| Configure generation of alt-text and extended image descriptions aligned to accessibility guidelines | D3 `02_alt_text_captions.py` | **Runnable** |
+| Implement visual understanding by configuring Azure Content Understanding in Foundry Tools to extract visual characteristics | D3 `13_content_understanding_image.py`, `12_cu_blob_preflight.py`, `15_cu_visual_handoff.py` | **Runnable / Local / Preflight / Opt-in** — L13 has CU image-analysis code; L12 is local SAS/configuration inspection; L15 bounds a CU result only with `--apply`. CU request paths are not live-tested. |
+| Implement video analysis workflows to process and interpret video segments | D3 `14_video_analysis.py`, `15_cu_visual_handoff.py` | **Runnable / Opt-in** — L14 prints returned segment ranges/summaries; L15 can normalize bounded video segments with `--apply`. No successful CU operation is evidenced. |
+| Configure single-task and pro-mode Content Understanding pipelines | D5 CU lessons 09–13 | **Runnable / Partial** — lessons 09–12 are single-task GA analyzers. Pro mode's only API (`2025-05-01-preview`) was retired on July 15, 2026; lesson 13 shows the current replacement (one analyze per document plus app-side comparison) and preflights locally by default. |
+| Implement solutions that identify objects, components, or regions within images or video | D3 `13_content_understanding_image.py`, `14_video_analysis.py`, `15_cu_visual_handoff.py` | **Partial** — output is Markdown, summary, or bounded time segments; no object/component/region extraction contract. |
 
 ### Implement responsible AI for multimodal content
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
-| Implement filters to classify unsafe or disallowed visual content | D3 `06_image_moderation.py` | **Runnable** |
-| Detect and mitigate indirect prompt injection by using embedded text in images | D3 `13_ocr_image_injection_safety.py`; D1 `11_prompt_shields_docs.py` | **Preflight / Opt-in / Partial / Cross-domain** — D3 treats supplied OCR text as untrusted and scans it only with `--run`; it neither performs OCR nor proves an image-embedded-text path ran. |
-| Enforce visual policy rules, such as applying watermarks, flagging prohibited symbols, upholding brand usage requirements, and detecting potentially inappropriate content | D3 `06_image_moderation.py`, `12_visual_provenance_policy.py` | **Partial / Preflight / Opt-in** — L06 classifies image-harm categories; L12 defaults to policy guidance and has an opt-in provenance-marker detection path. No watermark application, symbol/brand enforcement, or live provenance result is evidenced. |
+| Implement filters to classify unsafe or disallowed visual content | D3 `03_image_moderation.py` | **Runnable** |
+| Detect and mitigate indirect prompt injection by using embedded text in images | D3 `11_ocr_image_injection_safety.py`; D1 `11_prompt_shields_docs.py` | **Preflight / Opt-in / Partial / Cross-domain** — D3 treats supplied OCR text as untrusted and scans it only with `--run`; it neither performs OCR nor proves an image-embedded-text path ran. |
+| Enforce visual policy rules, such as applying watermarks, flagging prohibited symbols, upholding brand usage requirements, and detecting potentially inappropriate content | D3 `03_image_moderation.py`, `10_visual_provenance_policy.py` | **Partial / Preflight / Opt-in** — L03 classifies image-harm categories; L10 defaults to policy guidance and has an opt-in provenance-marker detection path. No watermark application, symbol/brand enforcement, or live provenance result is evidenced. |
 
 ## 4. Implement text analysis solutions (10–15%)
 
@@ -179,23 +179,23 @@ claim any remote path was run successfully.
 |---|---|---|
 | Extract information by using multimodal pipelines that combine OCR, layout analysis, and field extraction | D5 `09_cu_prebuilt_read.py`, `10_cu_prebuilt_layout.py`, `11_cu_invoice.py`, `12_cu_custom_analyzer.py`, `16_cu_multimodal_rag.py` | **Runnable / Preflight / Opt-in / Partial** — each is a separate CU path. L16 selects a media analyzer and emits bounded records only with `--apply`; no single composed OCR/layout/field pipeline or live result is evidenced. |
 | Produce clean, grounded representations to use with agents and RAG by using Content Understanding | D5 `14_cu_markdown_for_rag.py`, `15_cu_content_agent.py`, `16_cu_multimodal_rag.py` | **Partial / Preflight / Opt-in** — L14 inspects markdown, L15 sends invoice fields to a model, and L16 emits bounded records after explicit CU submission; none indexes Markdown/records. |
-| Implement analyzers for generating structured or markdown outputs for downstream reasoning by using Content Understanding | D5 `10_cu_prebuilt_layout.py`, `12_cu_custom_analyzer.py`, `13_cu_pro_mode.py` | **Runnable** — Pro mode is preview and requires compatible multi-input documents. |
+| Implement analyzers for generating structured or markdown outputs for downstream reasoning by using Content Understanding | D5 `10_cu_prebuilt_layout.py`, `12_cu_custom_analyzer.py` (confidence/grounding, `prebuilt-documentFieldSchema` proposal), `13_cu_cross_document_validation.py`, `14_cu_markdown_for_rag.py` (`prebuilt-layout` or `prebuilt-documentSearch`) | **Runnable / Opt-in** — lessons 12–13 preflight locally and create analyzers only with `--apply`. |
 | Monitor data ingestion quality, index health, and relevance performance | D5 `18_search_monitoring.py`, `03_search_hybrid_semantic.py` | **Preflight / Opt-in / Partial** — L18 defaults to local configuration checks and `--run` reads one redacted indexer-status/document-count snapshot. It has no alerts, relevance evaluation, or live-success evidence. |
 
 ## Inventory summary
 
 | Domain | Numbered lessons present | Notes |
 |---|---:|---|
-| 1 — Plan and manage | 31 | `01`–`31`; advanced evaluation, tracing, control-plane, CI/CD, and red-team lessons remain preflight/opt-in where documented. |
-| 2 — Generative AI and agents | 39 | `01`–`39`; external tools are L25–L27, hosted-agent contracts L28–L30, and direct advanced OpenAI patterns L31–L39. |
+| 1 — Plan and manage | 35 | `01`–`34` plus `04b`; advanced evaluation, tracing, control-plane, CI/CD, guardrail, and red-team lessons remain preflight/opt-in where documented. |
+| 2 — Generative AI and agents | 49 | `01`–`49`; external tools are L25–L27, hosted-agent contracts L28–L30, direct advanced OpenAI patterns L31–L39, A2A/external agents L40–L42, Agent Framework workflows L43–L45, and preview tool/hosted-agent operations L46–L49. |
 | 3 — Computer vision | 16 | `01`–`16`; advanced paths remain preflight/local by default except explicit remote flags. |
-| 4 — Text and speech | 27 | `01`–`27`; Language, Speech, Translator, Voice, and governance paths retain separate endpoint/auth contracts. |
-| 5 — Information extraction | 21 | `00`–`20`; `00_search_index_setup.py` is included. L16–L20 are default **Preflight** paths; remote work is explicit **Opt-in**. |
+| 4 — Text and speech | 30 | `01`–`30`; Language, Speech, Translator, Voice, Realtime, and GPT-Live paths retain separate endpoint/auth contracts. |
+| 5 — Information extraction | 29 | `00`–`28`; `00_search_index_setup.py` is included. L12–L13 and L16–L28 default to local preflight; remote work is explicit **Opt-in**. L21–L27 cover agentic retrieval (knowledge sources, knowledge base, retrieve). |
 | 6 — Model customization and delivery | 20 | Supplemental curriculum; local validation/preflight first, every cloud request remains explicit. |
 | 7 — Production platform | 10 | Cross-domain infrastructure preflights; apply remains explicit and no live deployment is claimed. |
 | 8 — Advanced agents and current Foundry operations | 28 | `01`–`28`; remote mutations are explicit, L22–L27 are local typed/safety preflights, and L28 is a local/opt-in read-only telemetry view. |
 | 9 — Current AI services | 7 | `01`–`07`; Document Intelligence calls/builds remain opt-in and evidence-bounded. |
-| **Total** | **199** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
+| **Total** | **224** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
 
 Gaps and partial labels are intentional. They prevent a local study repository
 from claiming live implementation of hosted deployment, A2A, MCP, Toolbox,

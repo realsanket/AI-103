@@ -12,7 +12,7 @@
 | Q127 | [`05_language_pii.py`](../05_language_pii.py) | L05 PII redaction and entity audit | Existing |
 | Q128 | [`30_gpt_live_webrtc_preflight.py`](../30_gpt_live_webrtc_preflight.py) | L30 GPT-Live WebRTC | Existing |
 | Q137 | Adjacent only: [`07_language_ner.py`](../07_language_ner.py) | L07 NER | Gap: custom-NER label quality |
-| Q138 | [`15_tts_ssml_hd.py`](../15_tts_ssml_hd.py) | L15 SSML pronunciation | Existing; partial: SSML prosody and style, no phoneme element |
+| Q138 | [`15_tts_ssml_hd.py`](../15_tts_ssml_hd.py) | L15 SSML `<phoneme>` pronunciation plus `<sub>`/`<say-as>` | Existing |
 | Q147 | — | Immersive Reader | Compatibility: outside current lesson scope |
 | Q150 | [`07_language_ner.py`](../07_language_ner.py) | L07 Named Entity Recognition | Existing |
 | Q151 | Adjacent only: [`07_language_ner.py`](../07_language_ner.py) | L07 NER | Gap: entity-linking-specific exercise |

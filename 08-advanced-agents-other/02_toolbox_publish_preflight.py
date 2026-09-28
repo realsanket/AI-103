@@ -38,7 +38,7 @@ from pathlib import Path
 import subprocess
 from urllib.parse import urlparse
 
-from dotenv import load_dotenv
+from _shared.config import load_env
 
 
 DISALLOWED_SECRET_MARKERS = (
@@ -109,7 +109,7 @@ def preflight(manifest: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    load_dotenv()
+    load_env()
     parser = argparse.ArgumentParser(description="Preflight or create a current Foundry Toolbox.")
     parser.add_argument("--apply", action="store_true", help="Create the Toolbox and first version.")
     parser.add_argument("--manifest", type=Path, default=Path(__file__).with_name("toolbox.example.yaml"))

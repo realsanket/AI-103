@@ -69,7 +69,7 @@ import os
 import subprocess
 from urllib.parse import urlparse
 
-from dotenv import load_dotenv
+from _shared.config import load_env
 
 
 # ponytail: verbatim from doc's "Supported authentication methods" table.
@@ -239,7 +239,7 @@ def apply_connection(url: str, body: dict) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    load_dotenv()
+    load_env()
     parser = argparse.ArgumentParser(description="Preflight or create an A2A project connection.")
     parser.add_argument(
         "--mode",

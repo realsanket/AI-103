@@ -12,33 +12,42 @@ session, sends one text input item, reads events until response.done, and closes
 transcript in the response proves the model is live and reachable.
 
 Code path:
-  --apply: websockets.connect(wss://{endpoint}/openai/realtime?deployment={model}&api-version=...)
-  → session.update (modalities: text) → conversation.item.create (text input)
-  → response.create → read events until response.done → print transcript.
+  --apply: websockets.connect(wss://{resource}.openai.azure.com/openai/v1/realtime?model={deployment})
+  → session.update ({"type": "realtime", "output_modalities": ["text"]})
+  → conversation.item.create (text input) → response.create
+  → collect response.output_text.delta until response.done → print text.
+  The GA v1 surface replaced the preview `/openai/realtime?api-version=...&deployment=...`
+  URL and renamed events (`response.text.delta` → `response.output_text.delta`).
 
 What to watch. Response text from the model proves auth + routing works.
-401 = wrong AZURE_OPENAI_API_KEY or missing DefaultAzureCredential.
+401 = wrong AZURE_OPENAI_API_KEY, or the Entra identity lacks Cognitive Services User.
 1006/connection reset = wrong URL format or deployment not realtime-capable.
 
 Prerequisites / env vars:
   AZURE_OPENAI_ENDPOINT  — Azure OpenAI resource endpoint (https://...)
-  AZURE_OPENAI_API_KEY   — API key (omit to use DefaultAzureCredential)
-  REALTIME_MODEL         — realtime deployment (e.g. gpt-4o-realtime-preview)
+  AZURE_OPENAI_API_KEY   — runtime-only API key (omit to use DefaultAzureCredential,
+                           token scope https://ai.azure.com/.default)
+  REALTIME_MODEL         — GA realtime deployment (e.g. gpt-realtime or gpt-realtime-mini)
   --apply                — open WebSocket and exchange one text turn
 """
 import argparse
 import json
 import os
 
+from _shared.config import load_env
 
-def _realtime_url(endpoint: str, model: str, api_version: str = "2024-10-01-preview") -> str:
+
+DEFAULT_REALTIME_MODEL = "gpt-realtime"
+
+
+def _realtime_url(endpoint: str, model: str) -> str:
     base = endpoint.rstrip("/").replace("https://", "wss://")
-    return f"{base}/openai/realtime?deployment={model}&api-version={api_version}"
+    return f"{base}/openai/v1/realtime?model={model}"
 
 
 def preflight() -> None:
     endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "")
-    model = os.environ.get("REALTIME_MODEL", "gpt-4o-realtime-preview")
+    model = os.environ.get("REALTIME_MODEL", DEFAULT_REALTIME_MODEL)
     api_key = os.environ.get("AZURE_OPENAI_API_KEY", "")
     print("Realtime Audio WebSocket preflight (no cloud calls).")
     print(f"- AZURE_OPENAI_ENDPOINT: {'configured' if endpoint else 'MISSING'}")
@@ -63,7 +72,7 @@ def apply() -> None:
     endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "")
     if not endpoint:
         raise SystemExit("Set AZURE_OPENAI_ENDPOINT to your Azure OpenAI resource endpoint.")
-    model = os.environ.get("REALTIME_MODEL", "gpt-4o-realtime-preview")
+    model = os.environ.get("REALTIME_MODEL", DEFAULT_REALTIME_MODEL)
     api_key = os.environ.get("AZURE_OPENAI_API_KEY", "")
     url = _realtime_url(endpoint, model)
 
@@ -75,12 +84,14 @@ def apply() -> None:
             headers["api-key"] = api_key
         else:
             from azure.identity import DefaultAzureCredential
-            token = DefaultAzureCredential().get_token("https://cognitiveservices.azure.com/.default").token
+            token = DefaultAzureCredential().get_token("https://ai.azure.com/.default").token
             headers["Authorization"] = f"Bearer {token}"
 
         print(f"Connecting: {url}")
         async with websockets.connect(url, additional_headers=headers) as ws:
-            await ws.send(json.dumps({"type": "session.update", "session": {"modalities": ["text"]}}))
+            await ws.send(json.dumps(
+                {"type": "session.update", "session": {"type": "realtime", "output_modalities": ["text"]}}
+            ))
             await ws.send(json.dumps({
                 "type": "conversation.item.create",
                 "item": {
@@ -94,7 +105,7 @@ def apply() -> None:
             async for raw in ws:
                 event = json.loads(raw)
                 etype = event.get("type", "")
-                if etype == "response.text.delta":
+                if etype == "response.output_text.delta":
                     parts.append(event.get("delta", ""))
                 elif etype == "response.done":
                     break
@@ -104,6 +115,7 @@ def apply() -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Test Realtime Audio API WebSocket connection.")
     parser.add_argument("--apply", action="store_true", help="Open WebSocket + exchange one text turn.")
     args = parser.parse_args(argv)

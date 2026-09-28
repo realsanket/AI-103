@@ -1,7 +1,7 @@
-# Run: uv run python 02-generative-ai-and-agents/12_agent_openapi_tools.py
+# Run: uv run python 02-generative-ai-and-agents/12_agent_openapi_tools.py [--auth anonymous|connection] [--print-tool] [--keep]
 # Practice-question coverage: Q7, Q67.
 
-"""Agent with tools defined by an OpenAPI 3.0 spec.
+"""Agent with tools defined by an OpenAPI 3.0 spec, with anonymous or connection-key auth.
 
 Beginner note:
   The Foundry Agent Service reads the spec file → auto-wraps each operation
@@ -13,37 +13,56 @@ Beginner note:
   cannot call your laptop's localhost. Set `ORDERS_FN_ENDPOINT` to a deployed
   backend reachable from Agent Service (without `/api`; this script appends it).
 
-  This sample uses anonymous authentication only because its static order data
-  is public demo data. Do not use anonymous authentication for production APIs:
-  configure API-key or managed-identity authentication in the OpenAPI tool.
+Two auth modes:
+  --auth anonymous   (default) Public demo data only. Never for production APIs.
+  --auth connection  The API key lives in a Foundry project connection
+                     (Custom keys; key name `x-functions-key`). The spec gets an
+                     `apiKey` security scheme (`components.securitySchemes` +
+                     top-level `security`) and the tool uses
+                     `OpenApiProjectConnectionAuthDetails(project_connection_id=...)`.
+                     Agent Service then injects the header on every call. Without
+                     the security scheme, or without connecting the tool to the
+                     connection, the header is never sent (401 from the API).
+                     Deploy the Function with app setting ORDERS_REQUIRE_KEY=true
+                     so it actually demands the key.
+  (Managed identity is the third option: OpenApiManagedAuthDetails(audience=...).)
 
   Treat OpenAPI descriptions and responses as untrusted. Use least-privilege
   RBAC, validate arguments server-side, and review DPA, data residency,
-  retention, observability, region, and model/API costs. Delete lab agent
-  versions when done.
+  retention, observability, region, and model/API costs. The lab agent version
+  is deleted after the run unless you pass --keep.
+
+Env vars:
+  ORDERS_FN_ENDPOINT      — deployed Function origin without /api
+  ORDERS_CONNECTION_NAME  — project connection holding x-functions-key (--auth connection)
+  PROJECT_ENDPOINT, DEFAULT_MODEL
 """
+import argparse
+import copy
 import json
-import os
 from pathlib import Path
 from urllib.parse import urlparse
 
 from azure.ai.projects.models import (
     OpenApiAnonymousAuthDetails,
     OpenApiFunctionDefinition,
+    OpenApiProjectConnectionAuthDetails,
+    OpenApiProjectConnectionSecurityScheme,
     OpenApiTool,
     PromptAgentDefinition,
 )
 
-from _shared.config import settings
+from _shared.config import env, settings
 from _shared.foundry_client import active_agent_reference, project_client
 
 AGENT_NAME = "northwind-orders-agent"
 SPEC_PATH = Path(__file__).parent / "azure_functions_orders" / "northwind_spec.json"
+KEY_HEADER = "x-functions-key"
 
 
 def _load_spec_with_backend() -> dict:
     """Load the OpenAPI spec and override servers[0].url with ORDERS_FN_ENDPOINT."""
-    backend = os.environ.get("ORDERS_FN_ENDPOINT", "").rstrip("/")
+    backend = env("ORDERS_FN_ENDPOINT").rstrip("/")
     if not backend:
         raise SystemExit(
             "ORDERS_FN_ENDPOINT is not set in .env.\n"
@@ -67,17 +86,56 @@ def _load_spec_with_backend() -> dict:
     return spec
 
 
-def main() -> None:
-    spec = _load_spec_with_backend()
-    tool = OpenApiTool(
+def with_api_key_scheme(spec: dict, header: str = KEY_HEADER) -> dict:
+    """Return a copy of the spec that declares one apiKey header scheme for every operation."""
+    secured = copy.deepcopy(spec)
+    secured.setdefault("components", {}).setdefault("securitySchemes", {})["functionKey"] = {
+        "type": "apiKey",
+        "name": header,
+        "in": "header",
+    }
+    secured["security"] = [{"functionKey": []}]
+    return secured
+
+
+def build_tool(spec: dict, auth: str, connection_id: str = "") -> OpenApiTool:
+    if auth == "connection":
+        if not connection_id:
+            raise ValueError("--auth connection needs the project connection ID.")
+        spec = with_api_key_scheme(spec)
+        details = OpenApiProjectConnectionAuthDetails(
+            security_scheme=OpenApiProjectConnectionSecurityScheme(project_connection_id=connection_id)
+        )
+    else:
+        details = OpenApiAnonymousAuthDetails()
+    return OpenApiTool(
         openapi=OpenApiFunctionDefinition(
             name="northwind_orders",
             spec=spec,
             description="Read Northwind customer orders.",
-            auth=OpenApiAnonymousAuthDetails(),
+            auth=details,
         )
     )
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--auth", choices=("anonymous", "connection"), default="anonymous")
+    parser.add_argument("--print-tool", action="store_true", help="Print the tool JSON; no Azure call.")
+    parser.add_argument("--keep", action="store_true", help="Keep the agent version after the run.")
+    args = parser.parse_args(argv)
+
+    spec = _load_spec_with_backend()
+    connection_name = env("ORDERS_CONNECTION_NAME")
+    if args.auth == "connection" and not connection_name:
+        raise SystemExit("Set ORDERS_CONNECTION_NAME to the project connection that stores x-functions-key.")
+    if args.print_tool:
+        placeholder = f"<connection ID of {connection_name}>" if args.auth == "connection" else ""
+        print(json.dumps(build_tool(spec, args.auth, placeholder).as_dict(), indent=2))
+        return
+
     client = project_client()
+    connection_id = client.connections.get(connection_name).id if args.auth == "connection" else ""
     agent = client.agents.create_version(
         agent_name=AGENT_NAME,
         definition=PromptAgentDefinition(
@@ -87,17 +145,20 @@ def main() -> None:
                 "tools to answer questions about order status. If asked about an order "
                 "you cannot find, say so — do not invent data."
             ),
-            tools=[tool],
+            tools=[build_tool(spec, args.auth, connection_id)],
         ),
     )
-    print(f"Agent {agent.name} v{agent.version} created — tools discovered from OpenAPI spec.")
-
-    openai = client.get_openai_client()
-    response = openai.responses.create(
-        input="What is the status of order 1002?",
-        extra_body={"agent_reference": active_agent_reference(agent)},
-    )
-    print(response.output_text)
+    print(f"Agent {agent.name} v{agent.version} created ({args.auth} auth) — tools discovered from OpenAPI spec.")
+    try:
+        response = client.get_openai_client().responses.create(
+            input="What is the status of order 1002?",
+            extra_body={"agent_reference": active_agent_reference(agent)},
+        )
+        print(response.output_text)
+    finally:
+        if not args.keep:
+            client.agents.delete_version(agent_name=agent.name, agent_version=agent.version)
+            print(f"Deleted agent version {agent.version}.")
 
 
 if __name__ == "__main__":

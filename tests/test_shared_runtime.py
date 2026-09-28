@@ -36,6 +36,45 @@ class SharedRuntimeTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "PROJECT_ENDPOINT"):
                 current.require("PROJECT_ENDPOINT")
 
+    def test_template_placeholders_are_treated_as_unset(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "AZURE_OPENAI_ENDPOINT": "https://<resource>.openai.azure.com",
+                "AZURE_SUBSCRIPTION_ID": "<your-subscription-id>",
+                "DEFAULT_MODEL": "   ",
+                "SEARCH_INDEX": "<index>",
+            },
+            clear=True,
+        ):
+            current = config.settings()
+            self.assertEqual(current.azure_openai_endpoint, "")
+            self.assertEqual(current.azure_subscription_id, "")
+            self.assertEqual(current.default_model, "gpt-4.1-mini")
+            self.assertEqual(current.search_index, "northwind-docs")
+            self.assertEqual(config.env("AZURE_OPENAI_ENDPOINT", "fallback"), "fallback")
+            with self.assertRaisesRegex(RuntimeError, "AZURE_OPENAI_ENDPOINT"):
+                current.require("AZURE_OPENAI_ENDPOINT")
+
+    def test_load_env_drops_placeholders_but_keeps_shell_values(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as folder:
+            env_file = Path(folder) / ".env"
+            env_file.write_text(
+                "PROJECT_ENDPOINT=https://<resource>.services.ai.azure.com/api/projects/<project>\n"
+                "SEARCH_ENDPOINT=https://search.example.test\n"
+                "AZURE_RESOURCE_GROUP=<your-resource-group>\n"
+                "REALTIME_MODEL=\n",
+                encoding="utf-8",
+            )
+            with patch.dict(os.environ, {"AZURE_RESOURCE_GROUP": "rg-shell"}, clear=True):
+                config.load_env(env_file)
+                self.assertNotIn("PROJECT_ENDPOINT", os.environ)
+                self.assertEqual(os.environ.get("REALTIME_MODEL", "gpt-realtime"), "gpt-realtime")
+                self.assertEqual(os.environ["SEARCH_ENDPOINT"], "https://search.example.test")
+                self.assertEqual(os.environ["AZURE_RESOURCE_GROUP"], "rg-shell")
+
     @patch("_shared.openai_client.get_bearer_token_provider")
     @patch("_shared.openai_client.DefaultAzureCredential")
     @patch("_shared.openai_client.OpenAI")
@@ -197,51 +236,43 @@ class SharedRuntimeTests(unittest.TestCase):
             timeout=30.0,
         )
 
-    @patch.object(video_generation.Path, "write_bytes")
-    @patch.object(video_generation.httpx, "get")
-    @patch.object(video_generation.httpx, "post")
-    @patch.object(video_generation, "_token", return_value="token")
-    def test_sora_uses_direct_video_job_contract(
-        self, _token, post, get, write_bytes
-    ) -> None:
-        post.return_value = SimpleNamespace(
-            raise_for_status=lambda: None, json=lambda: {"id": "job-1"}
-        )
-        get.side_effect = [
-            SimpleNamespace(
-                raise_for_status=lambda: None,
-                json=lambda: {"status": "succeeded", "generations": [{"id": "gen-1"}]},
-            ),
-            SimpleNamespace(raise_for_status=lambda: None, content=b"video"),
-        ]
-        with patch.dict(
-            os.environ,
-            {"AZURE_OPENAI_ENDPOINT": "https://example.openai.azure.com"},
-            clear=True,
-        ):
-            video_generation.main()
+    def test_sora_uses_v1_videos_create_retrieve_download(self) -> None:
+        import tempfile
 
-        self.assertEqual(
-            post.call_args.args[0],
-            "https://example.openai.azure.com/openai/v1/video/generations/jobs?api-version=preview",
+        queued = SimpleNamespace(id="video_1", status="queued", progress=0)
+        done = SimpleNamespace(id="video_1", status="completed", progress=100)
+        content = SimpleNamespace(write_to_file=lambda path: Path(path).write_bytes(b"mp4"))
+        client = SimpleNamespace(
+            videos=SimpleNamespace(
+                create=lambda **kwargs: calls.append(("create", kwargs)) or queued,
+                retrieve=lambda video_id: calls.append(("retrieve", video_id)) or done,
+                download_content=lambda video_id, variant: calls.append(("download", video_id, variant)) or content,
+                delete=lambda video_id: calls.append(("delete", video_id)),
+            )
         )
-        body = post.call_args.kwargs["json"]
-        self.assertTrue(body["prompt"])
-        self.assertEqual(
-            {name: value for name, value in body.items() if name != "prompt"},
-            {
-                "model": "sora",
-                "width": 1280,
-                "height": 720,
-                "n_seconds": 5,
-            },
-        )
-        self.assertEqual(post.call_args.kwargs["headers"]["Authorization"], "Bearer token")
-        self.assertEqual(
-            get.call_args_list[1].args[0],
-            "https://example.openai.azure.com/openai/v1/video/generations/gen-1/content/video?api-version=preview",
-        )
-        write_bytes.assert_called_once_with(b"video")
+        calls: list = []
+        with tempfile.TemporaryDirectory() as folder, patch.object(
+            video_generation, "OUTPUT", Path(folder) / "video.mp4"
+        ), patch.object(video_generation.time, "sleep"):
+            video_generation.generate(client, model="sora-2", size="1280x720", seconds="4", delete_remote=True)
+            self.assertEqual((Path(folder) / "video.mp4").read_bytes(), b"mp4")
+        create = calls[0][1]
+        self.assertEqual({key: create[key] for key in ("model", "size", "seconds")}, {"model": "sora-2", "size": "1280x720", "seconds": "4"})
+        self.assertEqual(calls[1:], [("retrieve", "video_1"), ("download", "video_1", "video"), ("delete", "video_1")])
+        with self.assertRaisesRegex(ValueError, "seconds"):
+            video_generation.generate(client, model="sora-2", size="1280x720", seconds="5")
+
+    def test_sora_polling_reports_failure_and_timeout(self) -> None:
+        failed = SimpleNamespace(id="video_2", status="failed", error=SimpleNamespace(message="blocked"), progress=0)
+        with self.assertRaisesRegex(RuntimeError, "blocked"):
+            video_generation.wait_for_video(SimpleNamespace(), failed)
+        stuck = SimpleNamespace(id="video_3", status="in_progress", progress=5)
+        client = SimpleNamespace(videos=SimpleNamespace(retrieve=lambda video_id: stuck))
+        ticks = iter([0.0, 5.0, 11.0])
+        with self.assertRaises(TimeoutError):
+            video_generation.wait_for_video(
+                client, stuck, timeout=10, interval=5, sleep=lambda _seconds: None, clock=lambda: next(ticks)
+            )
 
 
 if __name__ == "__main__":

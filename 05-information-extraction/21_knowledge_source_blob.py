@@ -41,15 +41,9 @@ Prerequisites / env vars:
 """
 import argparse
 import json
-import os
 
 from _search_rest import _PREVIEW_API_VERSION, put_named
-from _shared.config import settings
-
-
-def _env(name: str, default: str = "") -> str:
-    v = os.environ.get(name, default)
-    return "" if v.startswith("<") else v
+from _shared.config import env as _env, settings
 
 
 def configuration() -> dict[str, str]:

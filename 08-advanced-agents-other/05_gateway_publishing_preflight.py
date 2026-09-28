@@ -40,7 +40,7 @@ import os
 import subprocess
 from urllib.parse import quote, urlparse
 
-from dotenv import load_dotenv
+from _shared.config import load_env
 
 
 def project_endpoint(value: str) -> str:
@@ -105,7 +105,7 @@ def preflight() -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    load_dotenv()
+    load_env()
     parser = argparse.ArgumentParser(description="Pin a current stable endpoint after gateway preflight.")
     parser.add_argument("--apply", action="store_true", help="Pin stable endpoint to reviewed version.")
     parser.add_argument("--agent-name", default=os.getenv("FOUNDRY_AGENT_NAME"))

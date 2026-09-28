@@ -71,7 +71,7 @@ Do not substitute a project endpoint for an Azure OpenAI endpoint. Both may cont
 # Azure OpenAI — deployment aliases, NOT model-family labels
 AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
 DEFAULT_MODEL=<visual-capable-chat-deployment>       # gpt-4.1, gpt-4o
-IMAGE_MODEL=<image-generation-deployment>            # gpt-image-1
+IMAGE_MODEL=<image-generation-deployment>            # gpt-image-2
 VIDEO_MODEL=<sora-deployment>                        # sora-2
 
 # Lesson 03 guardrail path
@@ -113,7 +113,7 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | 04 | Image generation call + local PNG written |
 | 05 | Image edit call + local PNG written |
 | 06 | Image edit call (with mask) + local PNG written |
-| 07 | Billable Sora video job + local MP4 downloaded |
+| 07 | Local preflight by default; `--apply` starts a billable Sora 2 job and downloads a local MP4 |
 | 08 | **Read-only** until `--apply` (then: billable Sora reference-image job, no download) |
 | 09 | **Read-only** until `--apply` (then: billable Sora remix job, no download) |
 | 10 | **Read-only** until `--run` (then: Content Safety Provenance API call) |
@@ -122,7 +122,7 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | 13 | CU async analyzer operation (requires `SAMPLE_IMAGE_URL`) |
 | 14 | CU async analyzer operation (requires `SAMPLE_VIDEO_URL`) |
 | 15 | **Read-only** until `--apply` (then: CU async analyzer operation) |
-| 16 | `--apply` generates image (DALL-E 3 billed per image); PNG saved to disk. |
+| 16 | Prints the `az` deployment command by default; `--apply` creates/updates the image deployment; `--generate` bills one image and saves a PNG. |
 
 ---
 
@@ -173,7 +173,7 @@ After completing this domain, use the [Domain 3 question review](questions/READM
 | 04 | `04_image_generation.py` | Generate `training_image.png` from prompt | Image generation + local PNG |
 | 05 | `05_image_prompt_edit.py` | Full-frame prompt edit of `product_photo.png` | Image edit + local PNG |
 | 06 | `06_image_masked_edit.py` | Mask-bounded edit of `product_photo.png` | Image edit + local PNG |
-| 07 | `07_video_generation.py` | Submit Sora text-to-video job, poll, download MP4 | Billable Sora job + local MP4 |
+| 07 | `07_video_generation.py` | Sora 2 `videos.create` → `videos.retrieve` poll → `download_content` MP4 | `--apply`: billable Sora 2 job + local MP4 |
 | 08 | `08_reference_media_preflight.py` | Preflight; `--apply` submits reference-image Sora job | **Read-only** until `--apply` |
 | 09 | `09_video_remix.py` | Preflight; `--apply` submits Sora remix for completed video ID | **Read-only** until `--apply` |
 | 10 | `10_visual_provenance_policy.py` | Preflight; `--run` detects C2PA/watermark signals in Blob URL | **Read-only** until `--run` |
@@ -182,7 +182,7 @@ After completing this domain, use the [Domain 3 question review](questions/READM
 | 13 | `13_content_understanding_image.py` | CU `prebuilt-imageSearch` on `SAMPLE_IMAGE_URL` | CU async operation |
 | 14 | `14_video_analysis.py` | CU `prebuilt-videoSearch` on `SAMPLE_VIDEO_URL` | CU async operation |
 | 15 | `15_cu_visual_handoff.py` | Bounded CU handoff; `--apply` submits and normalizes result | **Read-only** until `--apply` |
-| 16 | [Image generation](16_image_generation_dalle.py) | DALL-E 3 text→image; save PNG; show revised_prompt | `--apply` billed per image |
+| 16 | [Image model deployment](16_image_model_deployment.py) | Deploy `gpt-image-2` with the Azure CLI; verify with one image | `--apply` writes a deployment; `--generate` billed per image |
 
 ---
 
@@ -280,7 +280,7 @@ uv run python 03-computer-vision/04_image_generation.py
 
 **Exam cues.** Deployment alias ≠ model-family name. Each run overwrites the previous output. Generation success means bytes arrived, not visual acceptance or rights clearance.
 
-**References:** [Image generation how-to (DALL-E)](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e) · [Video generation concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/video-generation)
+**References:** [Image generation how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e) · [Video generation concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/video-generation)
 
 ---
 
@@ -305,7 +305,7 @@ uv run python 03-computer-vision/05_image_prompt_edit.py
 
 **Exam cues.** Prompt-only edit is full-frame generative transformation. `validate_edit_inputs` checks local format but not all remote API constraints (e.g., size limits, additional format requirements).
 
-**References:** [Image generation how-to (DALL-E)](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e)
+**References:** [Image generation how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e)
 
 ---
 
@@ -330,7 +330,7 @@ uv run python 03-computer-vision/06_image_masked_edit.py
 
 **Exam cues.** Mask validation only proves local format geometry and alpha channel. It does not prove semantic placement quality or exact outside-mask preservation. A mask constrains requested change; it is not a pixel lock.
 
-**References:** [Image generation how-to (DALL-E)](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e)
+**References:** [Image generation how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e)
 
 ---
 
@@ -340,25 +340,27 @@ Sora is an async job API: submit → poll → download. All three steps are visi
 
 ### 07 — Sora text-to-video
 
-**Question answered:** What does the Sora video generation async lifecycle look like?
+**Question answered:** What does the Sora 2 video generation async lifecycle look like in code?
 
-**Background.** Sora 2 generates video from a text prompt through an asynchronous job. Unlike synchronous image generation, the video job has three distinct steps: submit, poll for terminal state, then download. This lesson uses the raw `httpx` REST client so all three steps are explicit. Preview availability and region support vary — confirm before committing a design.
+**Background.** Sora 2 generates video from a text prompt through an asynchronous job on the Azure OpenAI v1 surface (`/openai/v1/videos`). Unlike synchronous image generation, there are three steps: `videos.create()` returns a `video_...` ID immediately, `videos.retrieve(id)` reports `queued` → `in_progress` → `completed`/`failed`, and `videos.download_content(id, variant="video")` returns the MP4. Sora 2 takes `size` (`1280x720` or `720x1280`) and `seconds` (`4`, `8`, `12`). The original `sora` model and its `/video/generations/jobs` shape (`width`, `height`, `n_seconds`) are retired. Two concurrent jobs per resource; finished videos are kept about 24 hours. Sora 2 is preview; its 2025-12-08 version retires October 15, 2026.
 
 ```bash
-uv run python 03-computer-vision/07_video_generation.py
+uv run python 03-computer-vision/07_video_generation.py                     # preflight, no cloud call
+uv run python 03-computer-vision/07_video_generation.py --apply             # billable job; keeps the video ID for remix
+uv run python 03-computer-vision/07_video_generation.py --apply --seconds 8 --delete-remote
 ```
 
 **Code path.**
-1. `_token()` → `DefaultAzureCredential().get_token("https://ai.azure.com/.default").token`
-2. `POST {AZURE_OPENAI_ENDPOINT}/openai/v1/video/generations/jobs?api-version=preview` → returns job id
-3. `_wait_for_job()` → GET polls every 5 s with 300 s deadline; raises on failure/cancellation
-4. GET `video/generations/{generation_id}/content/video` → downloads bytes → writes `northwind_video.mp4`
+1. `openai_client()` → `OpenAI(base_url=AZURE_OPENAI_ENDPOINT/openai/v1, api_key=<Entra token provider>)` (scope `https://ai.azure.com/.default`).
+2. `videos.create(model=VIDEO_MODEL, prompt=…, size=…, seconds=…)` → `video_...` ID.
+3. `wait_for_video()` polls `videos.retrieve(id)` every 10 s with a 600 s deadline; raises with the service error on `failed`, and on timeout leaves the job running and says so.
+4. `videos.download_content(id, variant="video").write_to_file(northwind_video.mp4)`; `--delete-remote` then calls `videos.delete(id)`.
 
-**What to watch in the output.** Job id printed on submit, status updates during polling, "saved: .../northwind_video.mp4" on success. Timeout does not cancel the remote job — reconcile the job id if the script times out.
+**What to watch in the output.** Video ID on submit, status and progress while polling, "saved: .../northwind_video.mp4" on success. Keep the ID if you want to remix it in lesson 09.
 
-**Exam cues.** Submit/poll/download is the required async lifecycle, not a single "generate video" call. A 300-second poll timeout does not cancel the remote Sora job. First generation selection is not a quality choice.
+**Exam cues.** Create a job, poll until complete, then download — `videos.create` + `videos.retrieve`, not a single "generate video" call. A client-side timeout does not cancel the remote job.
 
-**References:** [Sora video generation concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/video-generation)
+**References:** [Sora 2 video generation](https://learn.microsoft.com/azure/foundry/openai/concepts/video-generation) · [Model retirement schedule](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule)
 
 ---
 
@@ -589,26 +591,31 @@ uv run python 03-computer-vision/15_cu_visual_handoff.py --apply --source-url <H
 
 Image generation completes the visual pipeline: from analyzing images (stages 1–5) to creating them from text.
 
-### 16 — Image generation (DALL-E 3)
+### 16 — Deploy an image-generation model (Azure CLI)
 
-**Question answered:** How do I generate a PNG image from a text prompt using Azure OpenAI DALL-E 3?
+**Question answered:** How do I deploy an image-generation model for an app, and how do I prove the deployment works?
 
-**Background.** DALL-E 3 converts natural-language prompts into pixel images. Azure OpenAI hosts it as a named deployment; the API surface is `images.generate()`. The model often rewrites the prompt for safety or clarity — `revised_prompt` in the response shows how. Images are returned as base64-encoded PNG (`b64_json` format) to avoid URL expiry issues in CI. Billing is per-image, not per-token.
+**Background.** Image models deploy like any Foundry model: select it in the Foundry portal model catalog (**Models → Deploy**) or automate the same control-plane operation with `az cognitiveservices account deployment create`. Inference SDKs (Python, JavaScript) call an existing deployment; Azure Machine Learning studio and Microsoft Graph do not deploy Foundry models. (Management-plane tools — ARM/Bicep, the `azure-mgmt-cognitiveservices` SDK as in Domain 1 lesson 03, and Az PowerShell `New-AzCognitiveServicesAccountDeployment` — can also create deployments; the exam pairs Foundry with the Azure CLI.) DALL-E 3 was retired on March 4, 2026, and existing DALL-E deployments no longer work; the current image models are the GPT-image series, and this lesson deploys `gpt-image-2` (GA). Deploying needs a control-plane role (Cognitive Services Contributor or Foundry Account Owner); generating needs a data-plane role (Cognitive Services User).
 
 ```bash
-uv run python 03-computer-vision/16_image_generation_dalle.py
-uv run python 03-computer-vision/16_image_generation_dalle.py --apply
-uv run python 03-computer-vision/16_image_generation_dalle.py --apply --prompt "A watercolor painting of a mountain lake at dawn" --size 1024x1792
+# Preflight: print the az command; no Azure call
+uv run python 03-computer-vision/16_image_model_deployment.py
+
+# Create/update the deployment named IMAGE_MODEL (requires az login), then verify with one image
+uv run python 03-computer-vision/16_image_model_deployment.py --apply
+uv run python 03-computer-vision/16_image_model_deployment.py --generate
 ```
 
 **Code path.**
-1. `openai_client().images.generate(model=DALL_E_MODEL, prompt=prompt, n=1, size=size, response_format="b64_json")`.
-2. `base64.b64decode(response.data[0].b64_json)` → write bytes to `generated_image.png`.
-3. Print `revised_prompt` if present.
+1. `deployment_command()` builds `az cognitiveservices account deployment create --resource-group … --name <account> --deployment-name $IMAGE_MODEL --model-format OpenAI --model-name gpt-image-2 --model-version 2026-04-21 --sku-name GlobalStandard --sku-capacity 1` and rejects retired `dall-e-*` names.
+2. `--apply` runs the command with `subprocess.run(check=True)`.
+3. `--generate` calls `images.generate(model=IMAGE_MODEL, size="1024x1024", quality="low", output_format="png")` and saves `deployment_check.png` after validating the base64 image.
 
-**What to watch.** `revised_prompt` shows DALL-E's reinterpretation of the input. HTTP 400 = prompt policy rejection — rephrase. File size ~0.7 MB per 1024×1024 image.
+**What to watch.** A failed `az` call usually means missing quota for the model/SKU in that region or a missing control-plane role. A 404 on `--generate` means the deployment name in `IMAGE_MODEL` does not match what you deployed.
 
-**References:** [DALL-E how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e) · [DALL-E concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/models) · [Image generation with Flux](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/use-foundry-models-flux) · [Image generation tool (agents)](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/image-generation)
+**Exam cues.** "Deploy the image model" → Microsoft Foundry and the Azure CLI, not an inference SDK. `model=` in `images.generate` is the deployment name.
+
+**References:** [Image generation how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e) · [Create model deployments](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/create-model-deployments) · [Model retirement schedule](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule) · [Image generation tool (agents)](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/image-generation)
 
 ---
 
@@ -617,7 +624,7 @@ uv run python 03-computer-vision/16_image_generation_dalle.py --apply --prompt "
 | Feature | Status | Practical boundary |
 |---|---|---|
 | Multimodal Responses (image input) | GA | Visual capability varies by deployment; small text and numbers can be misread |
-| `images.generate` (DALL-E / gpt-image) | GA | Deployment alias required; not model-family name |
+| `images.generate` (GPT-image series) | GA (`gpt-image-2`) | Deployment alias required; DALL-E 3 retired March 4, 2026 |
 | `images.edit` with prompt only | GA | "Keep unchanged" is intent, not pixel preservation |
 | `images.edit` with mask | GA | Mask bounds edit intent; generation remains non-deterministic |
 | Sora video generation | Preview | Region/availability limited; async job lifecycle required |
@@ -725,7 +732,7 @@ It does **not** implement: custom CU analyzer creation; full ingestion pipeline 
 
 ### Image generation and editing
 
-- [Image generation how-to (DALL-E)](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e)
+- [Image generation how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/dall-e)
 
 ### Video generation (Sora)
 

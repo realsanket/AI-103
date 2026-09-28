@@ -2,8 +2,17 @@
 
 import azure.functions as func
 import json
+import os
 
 app = func.FunctionApp()
+
+# App setting ORDERS_REQUIRE_KEY=true switches both routes to function-key auth,
+# so callers must send the x-functions-key header (lesson 12 --auth connection).
+_AUTH_LEVEL = (
+    func.AuthLevel.FUNCTION
+    if os.environ.get("ORDERS_REQUIRE_KEY", "").lower() == "true"
+    else func.AuthLevel.ANONYMOUS
+)
 
 ORDERS = {
     "1001": {
@@ -27,7 +36,7 @@ ORDERS = {
 }
 
 @app.route(route="orders", methods=["GET"],
-           auth_level=func.AuthLevel.ANONYMOUS)
+           auth_level=_AUTH_LEVEL)
 def list_orders(req: func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse(
         json.dumps(list(ORDERS.values())),
@@ -35,7 +44,7 @@ def list_orders(req: func.HttpRequest) -> func.HttpResponse:
     )
 
 @app.route(route="orders/{order_id}", methods=["GET"],
-           auth_level=func.AuthLevel.ANONYMOUS)
+           auth_level=_AUTH_LEVEL)
 def get_order(req: func.HttpRequest) -> func.HttpResponse:
     order_id = req.route_params.get("order_id")
     order = ORDERS.get(order_id)

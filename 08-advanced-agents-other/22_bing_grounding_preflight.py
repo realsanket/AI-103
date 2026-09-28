@@ -32,6 +32,8 @@ from azure.ai.projects.models import (
     BingGroundingTool,
 )
 
+from _shared.config import load_env
+
 
 def bing_tool(connection_id: str, custom_instance: str | None = None):
     if not connection_id:
@@ -59,6 +61,7 @@ def bing_tool(connection_id: str, custom_instance: str | None = None):
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Build Grounding with Bing tool configuration.")
     parser.add_argument(
         "--connection-id",

@@ -17,6 +17,8 @@ from urllib.parse import parse_qs, urlsplit
 
 import httpx
 
+from _shared.config import load_env
+
 _API_VERSION = "2026-03-01"
 _TERMINAL = {"Succeeded", "Failed", "Cancelled", "ValidationFailed"}
 
@@ -97,6 +99,7 @@ def preflight() -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Apply reviewed Document Translation batch operations.")
     parser.add_argument("--apply", action="store_true", help="Perform one cloud batch operation.")
     parser.add_argument("--endpoint", help="HTTPS Translator resource endpoint.")

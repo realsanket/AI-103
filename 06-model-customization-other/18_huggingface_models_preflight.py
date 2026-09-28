@@ -29,6 +29,8 @@ Prerequisites / env vars:
 import argparse
 import os
 
+from _shared.config import load_env
+
 _HF_KEYWORDS = ("phi", "mistral", "llama", "meta", "falcon", "bloom", "qwen", "gemma", "deepseek", "jais")
 
 
@@ -66,6 +68,7 @@ def apply() -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="List HuggingFace models in Foundry catalog.")
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args(argv)

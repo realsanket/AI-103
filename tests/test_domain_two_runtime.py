@@ -79,6 +79,24 @@ class DomainTwoRuntimeTests(unittest.TestCase):
         self.assertEqual(tool.openapi.name, "northwind_orders")
         self.assertEqual(tool.openapi.spec["servers"], [{"url": "https://orders.example.test/api"}])
 
+    def test_openapi_connection_auth_adds_api_key_scheme(self) -> None:
+        with patch.dict("os.environ", {"ORDERS_FN_ENDPOINT": "https://orders.example.test"}):
+            spec = openapi_tools._load_spec_with_backend()
+        tool = openapi_tools.build_tool(spec, "connection", "/subscriptions/s/connections/orders-key")
+        body = tool.as_dict()["openapi"]
+        self.assertEqual(body["auth"]["type"], "project_connection")
+        self.assertEqual(body["auth"]["security_scheme"]["project_connection_id"], "/subscriptions/s/connections/orders-key")
+        self.assertEqual(body["spec"]["security"], [{"functionKey": []}])
+        self.assertEqual(
+            body["spec"]["components"]["securitySchemes"]["functionKey"],
+            {"type": "apiKey", "name": "x-functions-key", "in": "header"},
+        )
+        self.assertIn("schemas", body["spec"]["components"])
+        self.assertNotIn("security", spec, "the source spec must stay unmodified")
+        self.assertEqual(openapi_tools.build_tool(spec, "anonymous").as_dict()["openapi"]["auth"]["type"], "anonymous")
+        with self.assertRaisesRegex(ValueError, "connection ID"):
+            openapi_tools.build_tool(spec, "connection")
+
     def test_agent_reference_requires_active_version(self) -> None:
         active = SimpleNamespace(
             name="northwind", version="3", status=AgentVersionStatus.ACTIVE

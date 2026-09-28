@@ -249,7 +249,7 @@ After completing this domain, use the [Domain 2 question review](questions/READM
 | 09 | `09_prompt_agent_invoke.py` | Invoke agent, execute function tools safely | Model tokens |
 | 10 | `10_agent_web_search.py` | Register agent with built-in web search tool | Agent version |
 | 11 | `11_agent_function_tools.py` | End-to-end create + invoke + function loop | Agent version + model tokens |
-| 12 | `12_agent_openapi_tools.py` | Agent with OpenAPI tool and deployed Function backend | Agent version + model + API tokens |
+| 12 | `12_agent_openapi_tools.py` | Agent with OpenAPI tool (anonymous or connection-stored API key) and deployed Function backend | Temporary agent version + model + API tokens |
 | 13 | `13_conversation_thread.py` | Multi-turn conversation via `conversation.id` | Agent version + model tokens |
 | 14 | `14_foundry_memory.py` | Memory store lifecycle + agent recall + remember/forget + direct API update/search | Memory store persists (preview); scope cleaned up |
 | 15 | `15_workflow_intake.py` | Intake agent producing structured triage JSON | Agent version + model tokens |
@@ -321,15 +321,17 @@ uv run python 02-generative-ai-and-agents/01_first_api_call.py
 
 **Question answered:** How does the `temperature` parameter change output across the same prompt?
 
-**Background.** Temperature controls sampling entropy: 0.0 collapses the distribution toward the most likely token; 2.0 spreads it widely. This lesson runs the same prompt at 0.0, 1.0, and 2.0 to make the difference visible. The model is hard-coded to `gpt-4.1` because temperature range support is model-specific.
+**Background.** Temperature controls sampling entropy: 0.0 collapses the distribution toward the most likely token; 2.0 spreads it widely. This lesson runs the same prompt at 0.0, 1.0, and 2.0 to make the difference visible. Temperature applies to non-reasoning chat models such as the GPT-4.1 family; reasoning models (o-series, GPT-5 family) are steered with `reasoning.effort` instead. `model=` takes a deployment name, so the lesson uses `DEFAULT_MODEL` or `--model`.
 
 ```bash
 uv run python 02-generative-ai-and-agents/02_model_behavior.py
+uv run python 02-generative-ai-and-agents/02_model_behavior.py --model <non-reasoning-deployment>
 ```
 
 **Code path.**
-1. For `t` in `(0.0, 1.0, 2.0)`: `client.responses.create(model="gpt-4.1", temperature=t, input=…)`
-2. Prints `r.output_text` under each temperature header
+1. `model = --model or DEFAULT_MODEL`
+2. For `t` in `(0.0, 1.0, 2.0)`: `client.responses.create(model=model, temperature=t, input=…)`
+3. Prints `r.output_text` under each temperature header
 
 **What to watch in the output.** Temperature 0.0 output is nearly identical on repeated runs. Temperature 2.0 output diverges significantly. Compare several runs at each value — do not draw conclusions from one run.
 
@@ -343,7 +345,7 @@ uv run python 02-generative-ai-and-agents/02_model_behavior.py
 
 **Question answered:** How is a reasoning-tier model request configured differently from a standard call?
 
-**Background.** Reasoning-tier models (o3, o4-mini) use a separate parameter surface. The `temperature` parameter is replaced by `reasoning={"effort": "high", "summary": "detailed"}`. These deployments think silently and emit a structured summary before the final answer. They cost more and have higher latency — benchmark against representative problems before choosing effort level.
+**Background.** Reasoning-tier models (GPT-5 family such as `gpt-5.6-terra`; the deprecated o3/o4-mini retire 2026-11-19) use a separate parameter surface. The `temperature` parameter is replaced by `reasoning={"effort": "high", "summary": "detailed"}`. These deployments think silently and emit a structured summary before the final answer. They cost more and have higher latency — benchmark against representative problems before choosing effort level.
 
 ```bash
 uv run python 02-generative-ai-and-agents/03_reasoning.py
@@ -562,9 +564,9 @@ uv run python 02-generative-ai-and-agents/11_agent_function_tools.py
 
 ### 12 — OpenAPI tool and Function backend
 
-**Question answered:** How does Foundry turn a reachable OpenAPI spec into agent tools?
+**Question answered:** How does Foundry turn a reachable OpenAPI spec into agent tools, and how does it send an API key stored in a project connection?
 
-**Background.** The Foundry Agent Service reads an OpenAPI 3.0 spec and auto-wraps each operation as a callable tool — no glue code. The operation's `description` field is what the model reads to decide when to call which endpoint. The backend must be deployed and reachable from Agent Service; `localhost` is not reachable. This sample uses anonymous auth for static demo orders only.
+**Background.** The Foundry Agent Service reads an OpenAPI 3.0 spec and auto-wraps each operation as a callable tool — no glue code. The operation's `description` field is what the model reads to decide when to call which endpoint. The backend must be deployed and reachable from Agent Service; `localhost` is not reachable. OpenAPI tools support three auth types: anonymous, **project connection** (API key or bearer token stored in the connection), and managed identity (`audience`). For a connection key to be sent, two things must both be true: the spec declares an `apiKey` security scheme (`components.securitySchemes` + top-level `security`) whose `name` matches the connection's key, and the tool is connected to that connection. Miss either one and the header is never sent (401).
 
 **Before code.** Deploy the Function App and set `ORDERS_FN_ENDPOINT` (without `/api` suffix):
 ```bash
@@ -573,22 +575,29 @@ func start   # local contract test only — Agent Service cannot reach localhost
 curl http://localhost:7071/api/orders
 func azure functionapp publish <your-function-app-name>
 ```
+For `--auth connection`, set the Function app setting `ORDERS_REQUIRE_KEY=true`, create a **Custom keys** project connection with key `x-functions-key` and the function key as its value, and set `ORDERS_CONNECTION_NAME` (see `azure_functions_orders/README.md`).
 
 ```bash
+# Offline: print the tool definition the SDK would send
+uv run python 02-generative-ai-and-agents/12_agent_openapi_tools.py --auth connection --print-tool
+
+# Anonymous demo data (default) or connection-stored key
 uv run python 02-generative-ai-and-agents/12_agent_openapi_tools.py
+uv run python 02-generative-ai-and-agents/12_agent_openapi_tools.py --auth connection
 ```
 
 **Code path.**
-1. Loads `azure_functions_orders/northwind_spec.json`; overrides `servers[0].url` with `ORDERS_FN_ENDPOINT/api`
-2. `OpenApiFunctionDefinition(spec=spec, auth=OpenApiAnonymousAuthDetails())` → wraps spec operations
-3. `client.agents.create_version(…tools=[OpenApiTool(openapi=fn_def)])` → registers agent
-4. Invokes agent with order query → model calls spec operation → prints result
+1. Loads `azure_functions_orders/northwind_spec.json`; overrides `servers[0].url` with `ORDERS_FN_ENDPOINT/api`.
+2. `--auth connection`: `with_api_key_scheme()` adds `securitySchemes.functionKey = {type: apiKey, name: x-functions-key, in: header}` and `security: [{functionKey: []}]`; `client.connections.get(ORDERS_CONNECTION_NAME).id` feeds `OpenApiProjectConnectionAuthDetails(security_scheme=OpenApiProjectConnectionSecurityScheme(project_connection_id=...))`. Default: `OpenApiAnonymousAuthDetails()`.
+3. `client.agents.create_version(…tools=[OpenApiTool(openapi=fn_def)])` registers the agent.
+4. Invokes the agent with an order query → model calls the spec operation → prints the answer.
+5. Deletes the agent version unless `--keep`.
 
-**What to watch in the output.** Model calls the deployed Function's order endpoint and returns grounded order data. If Agent Service cannot reach the backend, the tool call fails with a network error.
+**What to watch in the output.** Model calls the deployed Function's order endpoint and returns grounded order data. With `ORDERS_REQUIRE_KEY=true` and anonymous auth, the tool call gets 401 — proof the key path matters. If Agent Service cannot reach the backend, the tool call fails with a network error.
 
-**Exam cues.** `func start` only validates the local Function contract. Production path: protect API with API key or Entra auth, select matching OpenAPI auth details, verify Agent Service egress/DNS.
+**Exam cues.** Key stored in a connection must be sent automatically → an **API key security scheme** in the spec plus **connecting the tool to that connection**. A per-operation header parameter or hard-coding the key is wrong; a bearer scheme is for OAuth/JWT tokens (store `Bearer <token>` under key `Authorization` if an API needs it). Entra-protected backends → managed identity with the target service's audience.
 
-**References:** [OpenAPI tools how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/openapi) · [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication)
+**References:** [OpenAPI tools how-to](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/openapi) · [Tool authentication](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/tool-authentication) · [Add a project connection](https://learn.microsoft.com/azure/foundry/how-to/connections-add)
 
 ---
 

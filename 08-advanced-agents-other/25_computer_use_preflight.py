@@ -21,6 +21,8 @@ Prerequisites / env vars:
 import argparse
 import os
 
+from _shared.config import load_env
+
 
 def acknowledge_safety_checks(
     call_id: str,
@@ -44,6 +46,7 @@ def acknowledge_safety_checks(
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Preflight Computer Use safety handling.")
     parser.add_argument("--example-approved", action="store_true")
     args = parser.parse_args(argv)

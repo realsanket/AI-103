@@ -20,7 +20,7 @@ What to watch:
 
 Prerequisites / env vars:
   AZURE_OPENAI_ENDPOINT — Azure OpenAI-compatible base URL
-  IMAGE_MODEL           — image-generation deployment name (e.g. gpt-image-1)
+  IMAGE_MODEL           — image-generation deployment name (e.g. gpt-image-2)
 """
 
 from _shared.config import SAMPLE_DATA, settings

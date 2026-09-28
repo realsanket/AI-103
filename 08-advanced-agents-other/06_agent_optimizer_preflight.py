@@ -42,7 +42,7 @@ import os
 from pathlib import Path
 import subprocess
 
-from dotenv import load_dotenv
+from _shared.config import load_env
 
 
 def validate_hosted_agent_root(root: Path) -> list[str]:
@@ -75,7 +75,7 @@ def preflight(root: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    load_dotenv()
+    load_env()
     parser = argparse.ArgumentParser(description="Preflight or operate Agent Optimizer.")
     parser.add_argument("--apply", action="store_true", help="Start an optimization job or apply selected candidate.")
     parser.add_argument("--agent-root", type=Path, required=False, default=Path("."))

@@ -30,6 +30,8 @@ import json
 import os
 import subprocess
 
+from _shared.config import load_env
+
 _REQUIRED_PERMISSIONS = ("Mail.Read", "Calendars.Read", "Sites.ReadWrite.All", "Chat.Read")
 
 
@@ -82,6 +84,7 @@ def apply() -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Validate Agent 365 M365 integration prerequisites.")
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args(argv)

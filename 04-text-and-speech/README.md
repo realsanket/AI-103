@@ -88,8 +88,8 @@ MCP (preview)
 | **Fast Transcription** | Sync REST: POST one file → transcript in same response. API: `/speechtotext/transcriptions:transcribe?api-version=2025-10-15`. |
 | **Batch Transcription** | Async REST for many files in a Blob container. Submit → poll → fetch → cleanup. |
 | **Neural voice** | Standard TTS. Name like `en-US-JennyNeural`. Plain text works. |
-| **Neural HD voice** | Higher-definition voice. Name contains `HD` (`AvaHDNeural`). SSML unlocks prosody and style. |
-| **SSML** | Speech Synthesis Markup Language. XML for TTS: `<voice>`, `<prosody>`, `<break>`, `<mstts:express-as>`. |
+| **Neural HD voice** | Dragon HD voice named `persona:DragonHDLatestNeural` (for example `en-US-Ava:DragonHDLatestNeural`). Supports a subset of SSML: `<phoneme>`, `<break>`, `<say-as>`, `<sub>`, but not `<prosody>` or `<mstts:express-as>`. |
+| **SSML** | Speech Synthesis Markup Language. XML for TTS: `<voice>`, `<phoneme>` (exact pronunciation), `<sub>`, `<say-as>`, `<prosody>`, `<break>`, `<mstts:express-as>`. |
 | **`TranslationRecognizer`** | Speech SDK class: audio → ASR + translation. NOT the Azure Translator REST service. |
 | **MAI-Transcribe** | Preview LLM-based STT model. `mai-transcribe-1.5` via the same Fast Transcription REST route with `enhancedMode`. Supports phrase lists. No prompt-tuning or diarization. |
 | **Voice Live** | Real-time bidirectional WebSocket. Audio → agent → synthesized audio. URL: `wss://<resource>.services.ai.azure.com/voice-live/realtime?api-version=2026-04-10`. |
@@ -252,7 +252,7 @@ After completing this domain, use the [Domain 4 question review](questions/READM
 | 12 | `12_stt_real_time.py` | Real-time STT from microphone | Requires mic permission |
 | 13 | `13_stt_batch.py` | Batch Transcription — async, many files | Needs container SAS; ~30 min |
 | 14 | `14_tts_neural.py` | TTS — neural voice to WAV | Check voice availability in region |
-| 15 | `15_tts_ssml_hd.py` | TTS — SSML + Neural HD voice | HD voice must be available in region |
+| 15 | `15_tts_ssml_hd.py` | TTS — SSML pronunciation (`<phoneme>`) and style, Dragon HD vs standard neural | HD voice must be available in region |
 | 16 | `16_speech_translation.py` | Speech translation from mic | Requires mic; uses SPEECH_REGION |
 | 17 | `17_llm_speech_preview.py` | MAI-Transcribe 1.5 + phrase list | Preview; check regional availability |
 | 18 | `18_voice_live_prompt_agent.py` | Voice Live WebSocket protocol demo | Preview; protocol only, no audio playback |
@@ -626,26 +626,32 @@ uv run python 04-text-and-speech/14_tts_neural.py
 
 ---
 
-### 15 — TTS SSML + Neural HD Voice
+### 15 — TTS SSML pronunciation and style
 
-**Question answered:** How do you control prosody, pauses, and expressive style in TTS?
+**Question answered:** How do you control pronunciation, pauses, and expressive style in TTS?
 
-**Background.** Neural HD voices (name contains `HD`: `AvaHDNeural`, `AndrewMultilingualNeural`) support expressive styles and higher-definition audio. Plain text works but SSML unlocks `<prosody rate>`, `<break>`, and `<mstts:express-as style>`. SSML is XML-strict — invalid markup fails the whole call. Voice availability and supported styles vary by region; test before depending on a specific voice/style combination.
+**Background.** SSML controls how text is spoken. `<phoneme alphabet="ipa" ph="...">` fixes the pronunciation of one word, `<sub alias>` expands abbreviations, `<say-as>` states the content type, `<break>` inserts pauses, and `<prosody>`/`<mstts:express-as>` change rate, pitch, and style. Voice families support different subsets: Dragon HD voices (`en-US-Ava:DragonHDLatestNeural`) support `<phoneme>`, `<break>`, `<say-as>`, `<sub>`, `<lang>`, and alias-only `<lexicon>`, but not `<prosody>` or `<mstts:express-as>`. Standard neural voices such as `en-US-JennyNeural` support the full SSML set. For many product names, host a custom lexicon and reference it with `<lexicon uri>` instead of repeating inline phonemes.
 
 ```bash
-uv run python 04-text-and-speech/15_tts_ssml_hd.py
+# Validate and print the SSML; no Azure call
+uv run python 04-text-and-speech/15_tts_ssml_hd.py --print-ssml
+
+# Synthesize with the Dragon HD voice (default) or the standard neural voice
+uv run python 04-text-and-speech/15_tts_ssml_hd.py --voice hd
+uv run python 04-text-and-speech/15_tts_ssml_hd.py --voice neural
 ```
 
 **Code path.**
-1. `speech_config()` + `AudioOutputConfig` → `SpeechSynthesizer`
-2. `speak_ssml_async(_SSML).get()` — SSML specifies AvaHDNeural, `express-as style=friendly`, 200ms break, `prosody rate=-5%`
-3. Check `ResultReason` → print OK or cleanup
+1. `build_ssml(voice)` builds one document: shared pronunciation block (`<break>`, `<say-as interpret-as="characters">`, `<phoneme alphabet="ipa">`, `<sub alias>`), plus `<mstts:express-as>` and `<prosody>` only for the standard neural voice.
+2. `unsupported_hd_elements()` parses the XML (proving it is well formed) and refuses to send `<prosody>`/`express-as` to a Dragon HD voice.
+3. `speech_config()` + `AudioOutputConfig` → `SpeechSynthesizer.speak_ssml_async(ssml).get()`.
+4. `ResultReason.SynthesizingAudioCompleted` keeps `northwind_ssml_<voice>.wav`; otherwise the file is removed and `cancellation_details.error_details` is printed.
 
-**What to watch.** Listen to `northwind_hd_announcement.wav` — pause after "Northwind" and slightly slower delivery. If it sounds flat, check that the SSML was sent correctly (not as plain text).
+**What to watch.** Listen for the pause after "Northwind", "gnocchi" spoken as the IPA string, and "4521" read digit by digit. The neural run also sounds friendlier and slightly slower.
 
-**Exam cues.** HD voice names contain `HD`. `<mstts:express-as>` styles differ per voice. SSML is XML; whitespace and namespace matter. Neural HD needs SSML for the best quality — plain text works but wastes HD capability.
+**Exam cues.** A word pronounced wrong → SSML `<phoneme>` (or a custom lexicon for many words), not a different voice or a speech-to-text phrase list. Abbreviation read wrong → `<sub>`. Styles differ per voice, and Dragon HD voices ignore `<prosody>`/`express-as`. SSML is XML; the namespace and well-formedness matter.
 
-**References:** [Text-to-speech overview](https://learn.microsoft.com/azure/ai-services/speech-service/text-to-speech) · [SSML documentation](https://learn.microsoft.com/azure/ai-services/speech-service/speech-synthesis-markup)
+**References:** [Text-to-speech overview](https://learn.microsoft.com/azure/ai-services/speech-service/text-to-speech) · [SSML pronunciation](https://learn.microsoft.com/azure/ai-services/speech-service/speech-synthesis-markup-pronunciation) · [HD voices and supported SSML](https://learn.microsoft.com/azure/ai-services/speech-service/high-definition-voices)
 
 ---
 
@@ -885,7 +891,7 @@ The Realtime Audio API is a WebSocket-based bidirectional stream — fundamental
 
 **Question answered:** How do I open a Realtime Audio WebSocket session and exchange one text turn to prove auth works?
 
-**Background.** The Realtime API (`/openai/realtime?deployment=...`) uses WebSocket, not HTTP POST. Audio is streamed as PCM16 chunks in real time. This lesson uses text modality only to verify the connection and auth before adding mic/speaker I/O. Requires `websockets` Python package. The endpoint is the Azure OpenAI resource endpoint (not the Foundry project endpoint).
+**Background.** The GA Realtime API (`wss://{resource}.openai.azure.com/openai/v1/realtime?model={deployment}`) uses WebSocket, not HTTP POST. Audio is streamed as PCM16 chunks in real time. This lesson uses text output only to verify the connection and auth before adding mic/speaker I/O. Requires the `websockets` Python package and a GA realtime deployment such as `gpt-realtime` or `gpt-realtime-mini`. The endpoint is the Azure OpenAI resource endpoint (not the Foundry project endpoint). The preview surface (`/openai/realtime?api-version=...&deployment=...`, `gpt-4o-realtime-preview`) is retired; GA also renamed events (`response.text.delta` → `response.output_text.delta`).
 
 ```bash
 uv run python 04-text-and-speech/26_realtime_audio_websocket.py
@@ -893,10 +899,10 @@ uv run python 04-text-and-speech/26_realtime_audio_websocket.py --apply
 ```
 
 **Code path.**
-1. `_realtime_url(endpoint, model)` → `wss://{resource}.openai.azure.com/openai/realtime?deployment={model}&api-version=...`.
-2. `websockets.connect(url, additional_headers={"api-key": KEY})`.
-3. Send `session.update` (modalities: text) → `conversation.item.create` (text input) → `response.create`.
-4. Read events until `response.done` → collect `response.text.delta` → print.
+1. `_realtime_url(endpoint, model)` → `wss://{resource}.openai.azure.com/openai/v1/realtime?model={deployment}`.
+2. `websockets.connect(url, additional_headers=...)` with an Entra bearer token (scope `https://ai.azure.com/.default`) or a runtime-only `api-key`.
+3. Send `session.update` (`{"type": "realtime", "output_modalities": ["text"]}`) → `conversation.item.create` (text input) → `response.create`.
+4. Read events until `response.done` → collect `response.output_text.delta` → print.
 
 **What to watch.** Model text reply proves connection + auth. `1006 ConnectionClosedError` = wrong URL format or deployment not realtime-capable. `401` = wrong API key or credential.
 
@@ -908,7 +914,7 @@ uv run python 04-text-and-speech/26_realtime_audio_websocket.py --apply
 
 **Question answered:** How do I send a WAV file to a model as input and receive a text response via standard HTTP?
 
-**Background.** Audio Completions extends `chat.completions.create()` with `input_audio` content blocks — standard HTTP, not WebSocket. The model transcribes the audio and responds. Use this for batch audio analysis where streaming latency is not needed. Requires a `gpt-4o-audio-preview` deployment. A silent WAV is used as a placeholder when no real audio file is supplied.
+**Background.** Audio Completions extends `chat.completions.create()` with `input_audio` content blocks — standard HTTP, not WebSocket. The model transcribes the audio and responds. Use this for batch audio analysis where streaming latency is not needed. Requires an audio-capable chat deployment such as `gpt-audio-1.5` or `gpt-audio-mini` (the older `gpt-4o-audio-preview` is retired). A silent WAV is used as a placeholder when no real audio file is supplied.
 
 ```bash
 uv run python 04-text-and-speech/27_audio_completions.py
@@ -921,7 +927,7 @@ uv run python 04-text-and-speech/27_audio_completions.py --apply --input-file re
 2. `openai_client().chat.completions.create(model=AUDIO_MODEL, modalities=["text"], messages=[{"role":"user","content":[{"type":"input_audio","input_audio":{"data":b64,"format":"wav"}}]}])`.
 3. `choices[0].message.content` → print.
 
-**What to watch.** Text response = model's transcription/answer to the audio. Empty response or error = deployment does not support `input_audio` modality (upgrade to `gpt-4o-audio-preview`).
+**What to watch.** Text response = model's transcription/answer to the audio. Empty response or error = deployment does not support `input_audio` modality (use a `gpt-audio` family deployment).
 
 **References:** [Audio completions quickstart](https://learn.microsoft.com/azure/foundry/openai/audio-completions-quickstart) · [Realtime audio how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/realtime-audio) · [Speech to text quickstart](https://learn.microsoft.com/azure/ai-services/speech-service/get-started-speech-to-text)
 
@@ -1089,7 +1095,7 @@ Plan → Code → Test → Review → Stage → Release
 | "MAI-Transcribe supports diarization" | ❌ — supports phrase lists and verbatim style; no diarization |
 | "Custom Speech needs endpoint GUID for batch" | ❌ — Batch transcription references model in request body; only real-time needs GUID |
 | "Extractive and Abstractive summarization use the same kind" | ❌ — separate `kind` values: `ExtractiveSummarization` / `AbstractiveSummarization` |
-| "GPT-Live is the same as the Realtime API" | ❌ — GPT-Live is full-duplex (`/openai/v1/live/sessions`, `gpt-live-1`); Realtime API is turn-based (`/openai/realtime?deployment=...`, `gpt-4o-realtime-preview`) |
+| "GPT-Live is the same as the Realtime API" | ❌ — GPT-Live is full-duplex (`/openai/v1/live/sessions`, `gpt-live-1`); Realtime API is turn-based (`/openai/v1/realtime?model=...`, `gpt-realtime`) |
 | "You can switch GPT-Live delegation modes with `session.update`" | ❌ — sparse `session.update` only patches `delegation.responses` sub-fields. Mode change = new session |
 | "Browsers can open a GPT-Live WebRTC session directly" | ❌ — no ephemeral client keys; a trusted backend must proxy the SDP exchange with the API key or Entra credentials |
 | "session.commentary.appended proves the model spoke the content" | ❌ — it only proves injection was accepted; speech and context run independently in full-duplex |

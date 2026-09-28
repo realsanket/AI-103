@@ -33,6 +33,8 @@ import sys
 import urllib.request
 import urllib.error
 
+from _shared.config import load_env
+
 
 def preflight() -> None:
     mcp_url = os.environ.get("MCP_SERVER_URL", "")
@@ -118,6 +120,7 @@ def _check(name: str, value: str, required: bool, hint: str = "") -> None:
 
 
 def main() -> None:
+    load_env()
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()

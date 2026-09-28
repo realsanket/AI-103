@@ -43,7 +43,7 @@ import os
 from pathlib import Path
 import subprocess
 
-from dotenv import load_dotenv
+from _shared.config import load_env
 
 
 SECRET_MARKERS = ("secret", "password", "api_key", "authorization:", "bearer ")
@@ -95,7 +95,7 @@ def preflight(manifest: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    load_dotenv()
+    load_env()
     parser = argparse.ArgumentParser(description="Preflight or create a Foundry routine.")
     parser.add_argument("--apply", action="store_true", help="Create the routine.")
     parser.add_argument("--dispatch", action="store_true", help="Dispatch once after creating it; requires --apply.")

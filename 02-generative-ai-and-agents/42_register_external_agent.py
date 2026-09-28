@@ -71,7 +71,7 @@ import json
 import os
 from urllib.parse import urlparse
 
-from dotenv import load_dotenv
+from _shared.config import load_env
 
 
 OTEL_SNIPPET = '''\
@@ -195,7 +195,7 @@ def apply_delete(endpoint: str, name: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    load_dotenv()
+    load_env()
     parser = argparse.ArgumentParser(
         description="Preflight or register an external agent for Foundry tracing / evaluation.",
     )

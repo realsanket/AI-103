@@ -2,7 +2,7 @@
 # Practice-question coverage: Q85, Q93.
 """Reasoning model call with streaming summary — demonstrates the `reasoning` parameter.
 
-Azure Foundry supports separate reasoning-tier deployments (e.g. o3, o4-mini). These
+Azure Foundry supports separate reasoning-tier deployments (e.g. gpt-5.6-terra). These
 use a different parameter surface: `reasoning={"effort": "high", "summary": "detailed"}`
 instead of `temperature`. The model thinks silently, then emits a reasoning summary and
 final answer as a stream. Use `REASONING_MODEL` (a deployment name, not a model family).
@@ -17,7 +17,7 @@ What to watch:
 
 Prerequisites / env vars:
   AZURE_OPENAI_ENDPOINT — Azure OpenAI-compatible base URL
-  REASONING_MODEL       — name of a deployed reasoning-capable model (e.g. o4-mini)
+  REASONING_MODEL       — name of a deployed reasoning-capable model (e.g. gpt-5.6-terra)
 """
 
 from _shared.openai_client import openai_client

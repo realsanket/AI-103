@@ -24,6 +24,8 @@ import os
 
 from azure.ai.projects.models import FabricIQPreviewTool, WorkIQPreviewTool
 
+from _shared.config import load_env
+
 
 def iq_tool(kind: str, connection_id: str):
     if not connection_id:
@@ -39,6 +41,7 @@ def iq_tool(kind: str, connection_id: str):
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Build Fabric IQ or Work IQ tool configuration.")
     parser.add_argument("--kind", choices=("fabric", "work"))
     parser.add_argument("--connection-id")

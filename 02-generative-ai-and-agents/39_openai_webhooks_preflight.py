@@ -32,6 +32,8 @@ import os
 import sys
 import urllib.request
 
+from _shared.config import load_env
+
 
 def preflight(webhook_url: str, webhook_name: str, event_types: list[str]) -> None:
     endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "https://<resource>.openai.azure.com").rstrip("/")
@@ -106,6 +108,7 @@ def apply(webhook_url: str, webhook_name: str, event_types: list[str]) -> None:
 
 
 def main() -> None:
+    load_env()
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--webhook-url", default=os.environ.get("WEBHOOK_URL", ""))

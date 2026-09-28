@@ -44,7 +44,7 @@ Two complementary services for information extraction and retrieval:
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-> **Current runtime note.** `_search_rest.py` and `_shared/cu_client.py` currently send a redacted `Authorization: ******` header. Live REST calls (L00, L04–L05, L09–L17) cannot authenticate as checked in. SDK-backed calls (L01–L03, L18–L20) and the Foundry project client (L07–L08, L15) have separate credential paths.
+> **Runtime note.** `_search_rest.py` and `_shared/cu_client.py` send an Entra ID bearer token (`https://search.azure.com/.default` and `https://cognitiveservices.azure.com/.default`). A token proves identity only; the caller still needs the data-plane role on the target Search service or Foundry resource.
 
 ---
 
@@ -93,9 +93,9 @@ CU is a document extraction service, not a corpus search engine. Search retrieve
 | **Hybrid search** | BM25 + vector combined by reciprocal rank fusion (RRF). |
 | **Semantic ranker** | L2 reranker over initial BM25/RRF candidates. Does NOT scan full corpus. |
 | **WebApiSkill** | Custom enrichment: Search POSTs batched records to your HTTPS endpoint at ingestion. |
-| **CU analyzer** | Reusable CU definition. Standard mode: one URL. Pro mode (preview): multiple related URLs. |
-| **Standard mode** | GA CU mode (`2025-11-01`). Single input. Extract/classify/generate fields. |
-| **Pro mode** | Preview CU mode (`2025-05-01-preview`). Multi-document reasoning. Only classify/generate. |
+| **CU analyzer** | Reusable CU definition. GA `2025-11-01` analyzes one input per request. |
+| **Standard mode** | GA CU mode (`2025-11-01`). Single input. Extract/classify/generate fields with optional confidence and grounding. |
+| **Pro mode** | Retired preview (`2025-05-01-preview`, retired July 15, 2026). Multi-document reasoning in one request. Replace with per-document analysis plus app-side comparison (L13). |
 | **Markdown RAG** | CU → structure-preserving Markdown → header+recursive chunking → embedding. |
 | **Security trimming** | Enforcing document access BEFORE evidence is sent to model. ACL filter on query, not on prompt. |
 
@@ -250,9 +250,9 @@ After completing this domain, use the [Domain 5 question review](questions/READM
 | 09 | `09_cu_prebuilt_read.py` | Basic OCR → Markdown | CU_READ_SOURCE_URL optional |
 | 10 | `10_cu_prebuilt_layout.py` | Layout-preserving extraction | CU_LAYOUT_SOURCE_URL required |
 | 11 | `11_cu_invoice.py` | Invoice field extraction | SAMPLE_INVOICE_URL required |
-| 12 | `12_cu_custom_analyzer.py` | Custom domain schema creation + optional analysis | Creates persistent analyzer |
-| 13 | `13_cu_pro_mode.py` | Cross-document reasoning (preview) | Needs preview API version |
-| 14 | `14_cu_markdown_for_rag.py` | CU Markdown → chunk inspection | Inspect only; no indexing |
+| 12 | `12_cu_custom_analyzer.py` | Custom schema with confidence/grounding + review routing; schema proposal | `--apply` creates persistent analyzer; `--delete` cleans up |
+| 13 | `13_cu_cross_document_validation.py` | Cross-document validation on GA (replaces retired Pro mode) | `--apply` creates analyzer + one analyze per file |
+| 14 | `14_cu_markdown_for_rag.py` | `prebuilt-layout` or `prebuilt-documentSearch` Markdown → chunk inspection | Inspect only; no indexing |
 | 15 | `15_cu_content_agent.py` | CU invoice fields → ephemeral agent review | SAMPLE_INVOICE_URL required |
 | 16 | `16_cu_multimodal_rag.py` | CU media → provenance-safe records | `--apply` for cloud call |
 | 17 | `17_search_custom_skill_deploy.py` | Wire WebApiSkill into pipeline | `--apply` for cloud; endpoint required |
@@ -557,71 +557,90 @@ uv run python 05-information-extraction/11_cu_invoice.py
 
 ## Stage 5 — Content Understanding: Custom and Advanced (lessons 12–16)
 
-Custom schemas, cross-document Pro mode, Markdown chunking for RAG, and the CU→agent→multimodal handoff patterns.
+Custom schemas with confidence and grounding, cross-document validation, Markdown chunking for RAG, and the CU→agent→multimodal handoff patterns.
 
-### 12 — Custom CU Analyzer
+### 12 — Custom CU Analyzer with confidence and grounding
 
-**Question answered:** How do you define a domain-specific field schema on top of a prebuilt CU base?
+**Question answered:** How do you define a domain-specific field schema, prove where each value came from, and route uncertain values to people?
 
-**Background.** A custom analyzer adds a `fieldSchema` to a `baseAnalyzerId`. Three field methods: `extract` (pull value from doc), `classify` (map to an enum), `generate` (LLM produces a value — not source truth). This lesson creates the `northwind-support-notice` analyzer (ticket_id, sla_tier, breach_penalty_usd, summary) and optionally analyzes a document.
+**Background.** A custom analyzer adds a `fieldSchema` to a `baseAnalyzerId` (`prebuilt-document`). Field methods: `extract` (value as written), `classify` (map to an `enum`), `generate` (model-produced value — not source truth). In GA `2025-11-01`, confidence and grounding are opt-in: `config.estimateFieldSourceAndConfidence: true` returns a 0–1 `confidence` and a `source` location for every field, and per-field `estimateSourceAndConfidence` overrides it. **`extract` fields must set `estimateSourceAndConfidence: true`.** To discover fields for a new document type, the utility analyzer `prebuilt-documentFieldSchema` proposes a starting schema from a sample.
 
 ```bash
+# Preflight: validate and print the analyzer definition; no Azure call
 uv run python 05-information-extraction/12_cu_custom_analyzer.py
+
+# Propose a schema from a sample (runtime-only SAS URL in your shell)
+CU_SUPPORT_NOTICE_URL='<https-blob-sas-url>' uv run python 05-information-extraction/12_cu_custom_analyzer.py --propose-schema
+
+# Create the analyzer (persistent), analyze the sample, then clean up
+CU_SUPPORT_NOTICE_URL='<https-blob-sas-url>' uv run python 05-information-extraction/12_cu_custom_analyzer.py --apply
+uv run python 05-information-extraction/12_cu_custom_analyzer.py --delete
 ```
 
 **Code path.**
-1. `create_analyzer(ANALYZER_ID, _DEFINITION)` → PUT custom analyzer to CU resource
-2. If `CU_CUSTOM_SOURCE_URL` set: `analyze(ANALYZER_ID, url)` → poll → print fields
+1. `validate_definition()` rejects `extract` fields without `estimateSourceAndConfidence` and `classify` fields without an `enum`.
+2. `--propose-schema` → `analyze("prebuilt-documentFieldSchema", url)` → print the proposed fields for review.
+3. `--apply` → `create_analyzer()` (PUT, polls the operation) → `analyze()` → `review_queue()` prints value, confidence, source, and `needs_review` (below 0.80 or missing confidence).
+4. `--delete` → `delete_analyzer()`.
 
-**What to watch in the output.** `analyzer 'northwind-support-notice' ready.` With URL: structured fields including `sla_tier` classified into the enum and `summary` generated by the model.
+**What to watch in the output.** `REVIEW` rows for low-confidence fields, each with a `source` such as `D(1,…)` (page + polygon) the reviewer can open. `summary` is generated; treat it as a draft even with high confidence.
 
-**Exam cues.** `generate` fields are model output — not source truth. `extract` needs detectable layout. Pro mode does not support `extract`. Standard vs custom: same async API pattern.
+**Roles.** Cognitive Services Content Understanding Reader can analyze; Contributor can create/update but not delete; Owner can delete.
 
-**References:** [Content Understanding custom analyzers](https://learn.microsoft.com/azure/ai-services/content-understanding/tutorial/create-custom-analyzer) · [Standard and Pro modes](https://learn.microsoft.com/azure/ai-services/content-understanding/overview)
+**Exam cues.** Per-field confidence plus source location → `estimateFieldSourceAndConfidence`. Labeled samples improve accuracy but do not add confidence. `enableSegment` splits content; it does not add confidence. Propose a schema for a new document type → `prebuilt-documentFieldSchema`.
+
+**References:** [Create a custom analyzer](https://learn.microsoft.com/azure/ai-services/content-understanding/tutorial/create-custom-analyzer) · [Analyzer reference: `estimateFieldSourceAndConfidence`](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/analyzer-reference) · [Confidence, grounding, and labeled samples](https://learn.microsoft.com/azure/ai-services/content-understanding/document/analyzer-improvement) · [Prebuilt and utility analyzers](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/prebuilt-analyzers)
 
 ---
 
-### 13 — CU Pro Mode (Cross-Document)
+### 13 — Cross-document validation (replaces retired Pro mode)
 
-**Question answered:** How do you reason over multiple related documents in a single CU analysis request?
+**Question answered:** How do you check consistency across related documents now that CU Pro mode is retired?
 
-**Background.** CU Pro mode (`2025-05-01-preview`) accepts multiple document URLs in one request and generates cross-document output. The mortgage scenario here checks consistency of borrower name/DOB across application form, pay stub, and bank statement. Pro mode supports only `generate` and `classify` — not `extract`. It returns no grounding/confidence metadata. This is NOT a better one-document OCR switch.
+**Background.** Standard mode analyzes one file per request; it is the only mode in GA `2025-11-01`, whose analyze `inputs` array accepts a single item. Pro mode (`2025-05-01-preview`) accepted several related files in one request and reasoned across them, optionally against reference data — the exam still uses it as "multiple files → pro, single file → standard". That preview API was retired on July 15, 2026 and returns HTTP 410. Agentic mode (`2026-06-01-preview`) reasons over one document for calculations and validation; it is not multi-file. The current pattern: extract the same identity fields from each document with confidence and grounding, then compare them in application code.
 
 ```bash
-CU_API_VERSION=2025-05-01-preview uv run python 05-information-extraction/13_cu_pro_mode.py
+# Preflight: analyzer JSON and comparison rules; no Azure call
+uv run python 05-information-extraction/13_cu_cross_document_validation.py
+
+# Analyze each package document (runtime-only SAS URLs), then clean up
+CU_PACKAGE_SOURCE_URLS='<sas-1>,<sas-2>,<sas-3>' uv run python 05-information-extraction/13_cu_cross_document_validation.py --apply
+uv run python 05-information-extraction/13_cu_cross_document_validation.py --delete
 ```
 
 **Code path.**
-1. `create_analyzer(ANALYZER_ID, _DEFINITION with mode="pro")`
-2. `analyze()` with comma-separated URL list → poll → print `fields.consistency_summary`
+1. `_DEFINITION` classifies `document_type` and extracts `borrower_name` and `date_of_birth` with `estimateSourceAndConfidence`.
+2. `--apply` → `create_analyzer()` → one `analyze()` call per URL.
+3. `consistency_report()` normalizes case and whitespace, lists consistent fields, mismatches (value per document), and review items below 0.80 confidence with their source location.
 
-**What to watch in the output.** A generated consistency summary comparing fields across documents. Restore `CU_API_VERSION` to `2025-11-01` after this lesson.
+**What to watch in the output.** `mismatched.borrower_name` shows which document disagrees; `review` lists low-confidence values to check before accepting a match.
 
-**Exam cues.** Pro ≠ better standard OCR. Pro = multi-document reasoning. Standard = single doc, extract/classify/generate. Pro = classify/generate only. Always restore GA API version after Pro lesson.
+**Exam cues.** Single file, extract/classify/generate → standard mode. Multiple related files reasoned together, or validation against reference data → Pro mode on the exam; in current services, per-document extraction plus deterministic comparison (or agentic mode per document).
 
-**References:** [Content Understanding overview](https://learn.microsoft.com/azure/ai-services/content-understanding/overview) · [CU service limits](https://learn.microsoft.com/azure/ai-services/content-understanding/service-limits)
+**References:** [What's new in Content Understanding](https://learn.microsoft.com/azure/ai-services/content-understanding/whats-new) · [Migrate from preview to GA](https://learn.microsoft.com/azure/ai-services/content-understanding/how-to/migration-preview-to-ga) · [Agentic mode](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/agentic-mode)
 
 ---
 
 ### 14 — CU Markdown for RAG Chunking
 
-**Question answered:** How do you inspect chunk boundaries when using structure-preserving CU Markdown as RAG source?
+**Question answered:** Which analyzer produces RAG-ready Markdown, and how do you inspect chunk boundaries?
 
-**Background.** `prebuilt-layout` Markdown preserves headers, tables, and figures. `MarkdownHeaderTextSplitter` splits on H1/H2/H3 headers, then `RecursiveCharacterTextSplitter` (800-char, 100-char overlap) cuts further. This produces semantically cleaner chunks than pure character splitting. This lesson prints chunks for inspection only — it does NOT embed or index them.
+**Background.** `prebuilt-layout` Markdown preserves headers, tables, hyperlinks, and figures without a language model. `prebuilt-documentSearch` is the RAG analyzer: layout Markdown plus figure descriptions, chart/diagram analysis, handwritten annotations, and a one-paragraph summary; it uses the resource's default model deployments. `prebuilt-read` is raw OCR text, and `prebuilt-documentFieldSchema` proposes a field schema — neither produces RAG-optimized Markdown. `MarkdownHeaderTextSplitter` splits on H1/H2/H3, then `RecursiveCharacterTextSplitter` (800 chars, 100 overlap) cuts further. This lesson prints chunks for inspection only — it does NOT embed or index them.
 
 ```bash
-uv run python 05-information-extraction/14_cu_markdown_for_rag.py
+CU_MARKDOWN_SOURCE_URL='<https-blob-sas-url>' uv run python 05-information-extraction/14_cu_markdown_for_rag.py
+CU_MARKDOWN_SOURCE_URL='<https-blob-sas-url>' uv run python 05-information-extraction/14_cu_markdown_for_rag.py --analyzer prebuilt-documentSearch
 ```
 
 **Code path.**
-1. `analyze("prebuilt-layout", CU_LAYOUT_SOURCE_URL)` → extract `contents[0].markdown`
-2. `MarkdownHeaderTextSplitter` → `RecursiveCharacterTextSplitter` → print count + first chunk
+1. `analyze(--analyzer, CU_MARKDOWN_SOURCE_URL)` → `contents[0].markdown` (+ the summary field for `prebuilt-documentSearch`).
+2. `MarkdownHeaderTextSplitter` → `RecursiveCharacterTextSplitter` → print count + first chunk.
 
-**What to watch in the output.** Chunk count and first chunk. Tables should stay together within a chunk. If all chunks are same length, header splitting didn't find H1/H2/H3 — try a document with clear heading structure.
+**What to watch in the output.** Chunk count and first chunk. Tables should stay together within a chunk. `prebuilt-documentSearch` adds a summary line and figure descriptions inside the Markdown.
 
-**Exam cues.** These chunks are NOT indexed. Uploading them to this repo's index without generating vectors breaks vector retrieval. Use L04/L05 (integrated skillset) or generate client-side embeddings with provenance fields.
+**Exam cues.** RAG-optimized Markdown with semantic structure → `prebuilt-documentSearch`. Layout plus tables/QR codes without a language model → `prebuilt-layout`. Raw text only, cheapest → `prebuilt-read`. These chunks are NOT indexed; use L04/L05 (integrated skillset) or generate client-side embeddings with provenance fields.
 
-**References:** [CU Markdown output](https://learn.microsoft.com/azure/ai-services/content-understanding/document/markdown) · [CU build RAG solution tutorial](https://learn.microsoft.com/azure/ai-services/content-understanding/tutorial/build-rag-solution)
+**References:** [Prebuilt analyzers](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/prebuilt-analyzers) · [CU Markdown output](https://learn.microsoft.com/azure/ai-services/content-understanding/document/markdown) · [CU build RAG solution tutorial](https://learn.microsoft.com/azure/ai-services/content-understanding/tutorial/build-rag-solution)
 
 ---
 
@@ -687,7 +706,7 @@ uv run python 05-information-extraction/17_search_custom_skill_deploy.py --apply
 ```
 
 **Code path.**
-1. Validate `SKILL_ENDPOINT_URL` (HTTPS required)
+1. Validate `CUSTOM_SKILL_URL` (HTTPS required)
 2. With `--apply`: clone skillset.json → insert `WebApiSkill` → PUT derived skillset; clone indexer.json → retarget → PUT
 3. With `--run`: `run_indexer(name)`
 
@@ -940,12 +959,12 @@ uv run python 05-information-extraction/27_agentic_reasoning_effort_preflight.py
 
 | Feature | Status | Practical boundary |
 |---------|--------|--------------------|
-| CU Pro mode (L13) | Preview (`2025-05-01-preview`) | PDF/TIFF/image only; 100 MB/150 pages total; generate/classify only |
-| CU standard (L09–L12, L14–L16) | GA (`2025-11-01`) | Extract/classify/generate; single URL per analyze |
+| CU Pro mode | Retired (`2025-05-01-preview`, July 15, 2026) | Calls return HTTP 410; L13 shows the GA replacement pattern |
+| CU standard (L09–L16) | GA (`2025-11-01`) | Extract/classify/generate; one input per analyze; `extract` fields need `estimateSourceAndConfidence` |
+| CU agentic mode | Preview (`2026-06-01-preview`) | `config.workflow: "agentic"`; one input file per request |
 | Semantic ranker (L03) | GA | Region/SKU dependent; separate billing |
 | `AzureAISearchTool` (L20) | GA | Requires Foundry project connection + matching roles |
 | Integrated vectorization (L04–L05) | GA | Embedding model/dimension must match index schema |
-| `_search_rest.py` Authorization header | Not yet working | Live REST calls (L00, L04–L05, L09–L17) cannot authenticate as checked in |
 
 ---
 
@@ -1010,7 +1029,7 @@ Plan → Schema design → IaC review → Stage deploy → Indexer run → Quali
 | "Uploading L14 chunks makes them vector-searchable" | ❌ — needs client-generated vector + complete index document shape |
 | "Search and CU are interchangeable" | ❌ — Search = retrieve across corpus; CU = extract from one submitted document |
 | "CU accepts local files because Python can read them" | ❌ — CU service fetches HTTPS URL; `file://` is not reachable |
-| "Pro mode = better standard extraction" | ❌ — Pro = multi-document reasoning; no `extract`, no grounding, preview only |
+| "Pro mode = better standard extraction" | ❌ — Pro was multi-document reasoning (retired preview); it never improved single-document extraction |
 | "Prompt instructions enforce document permissions" | ❌ — ACL must trim Search results before model input |
 | "L07 agent autonomously searches the index" | ❌ — L07 has no Search tool; L08 does retrieval in app code |
 | "Source URL citation proves an answer is grounded" | ❌ — provenance must be evaluated; URL alone doesn't prove claim-to-source mapping |

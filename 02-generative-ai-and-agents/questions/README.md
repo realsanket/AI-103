@@ -5,7 +5,7 @@
 | Question | Lesson file(s) | Coverage note | Status |
 |---:|---|---|---|
 | Q6 | [`05_code_interpreter.py`](../05_code_interpreter.py), [`06_file_search_tool.py`](../06_file_search_tool.py), [`22_bing_grounding_preflight.py`](../../08-advanced-agents-other/22_bing_grounding_preflight.py) | L05 code interpreter, L06 file search, D8 L22 Grounding with Bing | Existing |
-| Q7 | [`12_agent_openapi_tools.py`](../12_agent_openapi_tools.py) | L12 OpenAPI tools | Existing; partial: L12 uses anonymous auth, not an API-key security scheme |
+| Q7 | [`12_agent_openapi_tools.py`](../12_agent_openapi_tools.py) | L12 `--auth connection` adds an `apiKey` security scheme to the spec | Existing |
 | Q8 | [`16_workflow_conditional.py`](../16_workflow_conditional.py) | L16 conditional workflow | Existing |
 | Q12 | [`14_foundry_memory.py`](../14_foundry_memory.py) | L14 Foundry Memory | Existing |
 | Q13 | [`27_agent_azure_ai_search_preflight.py`](../27_agent_azure_ai_search_preflight.py), [`40_a2a_authentication.py`](../40_a2a_authentication.py), [`05_gateway_publishing_preflight.py`](../../08-advanced-agents-other/05_gateway_publishing_preflight.py) | L27 forced tool_choice, L40 agent-identity auth, D8 L05 publishing identity | Existing |
@@ -19,7 +19,7 @@
 | Q45 | [`13_conversation_thread.py`](../13_conversation_thread.py) | L13 conversation continuity | Existing |
 | Q52 | [`06_file_search_tool.py`](../06_file_search_tool.py), [`27_agent_azure_ai_search_preflight.py`](../27_agent_azure_ai_search_preflight.py) | L06 File Search for uploads, L27 Azure AI Search tool for the enterprise index | Existing |
 | Q62 | [`13_conversation_thread.py`](../13_conversation_thread.py) | L13 durable conversation state | Existing |
-| Q67 | [`12_agent_openapi_tools.py`](../12_agent_openapi_tools.py) | L12 OpenAPI connection auth | Existing; partial: L12 uses anonymous auth, not a connection-backed key |
+| Q67 | [`12_agent_openapi_tools.py`](../12_agent_openapi_tools.py) | L12 tool connected to the project connection (`OpenApiProjectConnectionAuthDetails`) | Existing |
 | Q73 | [`06_file_search_tool.py`](../06_file_search_tool.py), [`14_foundry_memory.py`](../14_foundry_memory.py) | L14 memory and L06 File Search | Existing |
 | Q76 | [`05_code_interpreter.py`](../05_code_interpreter.py), [`06_file_search_tool.py`](../06_file_search_tool.py), [`25_computer_use_preflight.py`](../../08-advanced-agents-other/25_computer_use_preflight.py) | L05 code interpreter, L06 file search, D8 L25 computer use | Existing |
 | Q79 | [`05_code_interpreter.py`](../05_code_interpreter.py), [`22_bing_grounding_preflight.py`](../../08-advanced-agents-other/22_bing_grounding_preflight.py) | L05 code interpreter, D8 L22 Grounding with Bing | Existing |

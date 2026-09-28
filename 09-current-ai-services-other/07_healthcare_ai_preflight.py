@@ -34,6 +34,8 @@ import os
 import urllib.error
 import urllib.request
 
+from _shared.config import load_env
+
 
 def preflight(model: str) -> None:
     endpoint = os.environ.get("HEALTHCARE_AI_ENDPOINT", "")
@@ -86,6 +88,7 @@ def apply(model: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Probe healthcare AI model endpoint.")
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--model", default="cxr", choices=["cxr", "medimage"])

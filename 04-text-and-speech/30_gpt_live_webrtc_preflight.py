@@ -35,6 +35,8 @@ import argparse
 import json
 import os
 
+from _shared.config import load_env
+
 
 def _sessions_url(endpoint: str) -> str:
     # WebRTC session creation is HTTPS POST from the backend, not WSS.
@@ -91,6 +93,7 @@ def preflight() -> None:
 
 def main(argv: list[str] | None = None) -> None:
     # No --apply on purpose. Kept argparse for consistency with sibling lessons.
+    load_env()
     parser = argparse.ArgumentParser(description="Preflight the GPT-Live WebRTC handshake (no cloud calls).")
     parser.parse_args(argv)
     preflight()

@@ -30,18 +30,14 @@ class DomainThreeRuntimeTests(unittest.TestCase):
         self.assertTrue(image_data_url(source).startswith("data:image/png;base64,"))
 
     def test_sora_failure_includes_service_reason(self) -> None:
-        response = SimpleNamespace(
-            raise_for_status=lambda: None,
-            json=lambda: {
-                "status": "failed",
-                "failure_reason": "content_policy_violation",
-            },
+        queued = SimpleNamespace(id="video_9", status="queued", progress=0)
+        failed = SimpleNamespace(
+            id="video_9", status="failed", progress=0, error=SimpleNamespace(code="content_policy_violation", message=None)
         )
-        with patch.object(video_generation.httpx, "get", return_value=response):
+        client = SimpleNamespace(videos=SimpleNamespace(retrieve=lambda video_id: failed))
+        with patch.object(video_generation.time, "sleep"):
             with self.assertRaisesRegex(RuntimeError, "content_policy_violation"):
-                video_generation._wait_for_job(
-                    "https://example.openai.azure.com/status", {"Authorization": "Bearer token"}
-                )
+                video_generation.wait_for_video(client, queued)
 
     def test_accessibility_draft_flags_invalid_labeling(self) -> None:
         response = SimpleNamespace(output_text="Description without required labels")

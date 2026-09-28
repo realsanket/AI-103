@@ -38,6 +38,8 @@ import argparse
 import json
 import os
 
+from _shared.config import load_env
+
 
 def _live_url(endpoint: str) -> str:
     base = endpoint.rstrip("/").replace("https://", "wss://")
@@ -157,6 +159,7 @@ def apply() -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Drive one GPT-Live session lifecycle over WebSocket.")
     parser.add_argument("--apply", action="store_true", help="Open WebSocket + run one session.start/close cycle.")
     args = parser.parse_args(argv)

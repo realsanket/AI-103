@@ -4,10 +4,39 @@ from functools import lru_cache
 from pathlib import Path
 import json
 import os
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 
 _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(_ENV_FILE)
+
+
+def is_placeholder(value: str) -> bool:
+    """True for template values such as `<your-id>` or `https://<resource>.openai.azure.com`."""
+    return "<" in value
+
+
+def load_env(path: Path = _ENV_FILE) -> None:
+    """Load `.env` without overriding the shell, then drop blank and placeholder entries.
+
+    Copying `.env.example` leaves values like `https://<resource>.openai.azure.com`
+    and blank optional keys. Removing them from `os.environ` means lessons that
+    read `os.getenv(name, default)` see "missing" and use their default instead
+    of an empty string or a placeholder host.
+    """
+    load_dotenv(path)
+    for key, value in dotenv_values(path).items():
+        if value is None:
+            continue
+        if (not value.strip() or is_placeholder(value)) and os.environ.get(key) == value:
+            del os.environ[key]
+
+
+def env(key: str, default: str = "") -> str:
+    """Read one environment variable; blank values and template placeholders count as unset."""
+    value = os.environ.get(key, "").strip()
+    return default if not value or is_placeholder(value) else value
+
+
+load_env()
 
 
 @dataclass(frozen=True)
@@ -138,8 +167,7 @@ def format_hit_categories(
 
 
 def _opt(key: str, default: str = "") -> str:
-    v = os.environ.get(key, default)
-    return "" if v.startswith("<") else v
+    return env(key, default)
 
 
 @lru_cache
@@ -149,9 +177,9 @@ def settings() -> Settings:
         azure_openai_endpoint=_opt("AZURE_OPENAI_ENDPOINT").rstrip("/"),
         project_endpoint=_opt("PROJECT_ENDPOINT"),
         default_model=_opt("DEFAULT_MODEL", "gpt-4.1-mini"),
-        reasoning_model=_opt("REASONING_MODEL", "o4-mini"),
-        image_model=_opt("IMAGE_MODEL", "gpt-image-1"),
-        video_model=_opt("VIDEO_MODEL", "sora"),
+        reasoning_model=_opt("REASONING_MODEL", "gpt-5.6-terra"),
+        image_model=_opt("IMAGE_MODEL", "gpt-image-2"),
+        video_model=_opt("VIDEO_MODEL", "sora-2"),
         embedding_model=_opt("EMBEDDING_MODEL", "text-embedding-3-large"),
         model_router_deployment=_opt("MODEL_ROUTER_DEPLOYMENT", "model-router"),
         deployment_name=_opt("DEPLOYMENT_NAME"),

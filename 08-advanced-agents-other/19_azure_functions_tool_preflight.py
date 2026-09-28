@@ -31,6 +31,8 @@ import sys
 import urllib.request
 import urllib.error
 
+from _shared.config import load_env
+
 
 def preflight(queue_name: str) -> None:
     storage_ep = os.environ.get("STORAGE_QUEUE_ENDPOINT", "")
@@ -117,6 +119,7 @@ def _check(name: str, value: str, required: bool) -> None:
 
 
 def main() -> None:
+    load_env()
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--queue-name", default="get-weather-input-queue")

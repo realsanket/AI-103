@@ -63,7 +63,7 @@ import os
 import subprocess
 from urllib.parse import quote, urlparse
 
-from dotenv import load_dotenv
+from _shared.config import load_env
 
 
 def project_endpoint(value: str) -> str:
@@ -168,7 +168,7 @@ def verify_card(card_url: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    load_dotenv()
+    load_env()
     parser = argparse.ArgumentParser(description="Preflight or enable incoming A2A on a Foundry agent.")
     parser.add_argument("--apply", action="store_true", help="PATCH the agent through the SDK.")
     parser.add_argument("--verify", action="store_true", help="After apply, GET the v1.0 card.")

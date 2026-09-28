@@ -1,6 +1,6 @@
 # AI-103 runnable study repository
 
-Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md). It has **199 numbered Python lessons** across five exam domains, three supplemental domains, and a production-platform IaC lab. Lessons use Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many make billable remote calls or change persistent cloud state.
+Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md). It has **224 numbered Python lessons** across five exam domains, three supplemental domains, and a production-platform IaC lab. Lessons use Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many make billable remote calls or change persistent cloud state.
 
 Read [`docs/coverage.md`](docs/coverage.md) for an objective-by-objective, evidence-based map. A lesson existing here does not mean its Azure API, region, model, preview feature, or permission has been exercised in your subscription.
 
@@ -98,20 +98,20 @@ Start from [`.env.example`](.env.example). It contains endpoint/name placeholder
 | Domain 2 OpenAPI sample | `ORDERS_FN_ENDPOINT` |
 | Domain 8 advanced Foundry-agent labs | `FOUNDRY_IQ_SEARCH_ENDPOINT`, `FOUNDRY_IQ_KNOWLEDGE_BASE`, `FOUNDRY_TOOLBOX_NAME`, `FOUNDRY_SKILL_NAME`, `API_CENTER_RESOURCE_ID`, Bing/IQ/enterprise tool connection IDs, `BROWSER_PROJECT_CONNECTION_ID`, `COMPUTER_USE_MODEL` |
 
-Template defaults currently include `gpt-4.1-mini`, `o4-mini`, `gpt-image-1`, `sora`, `text-embedding-3-large`, `model-router`, `northwind-docs`, and `northwind-docs-vector`. Replace model values with deployment names available to your resource. `settings()` treats placeholder values beginning with `<` as unset.
+Template defaults currently include `gpt-4.1-mini` (deprecated; retires 2027-04-14, kept for temperature lessons that need a non-reasoning model), `gpt-5.6-terra` (reasoning; replaces o4-mini), `gpt-image-2`, `sora-2`, `text-embedding-3-large`, `model-router`, `northwind-docs`, and `northwind-docs-vector`. Model values are deployment names: replace them with deployments available to your resource and check the [model retirement schedule](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule). `settings()`/`env()` treat blank values and values containing a `<placeholder>` as unset.
 
 Lesson-local environment inputs are deliberately not template defaults:
 
 | Lesson area | Additional value |
 |---|---|
-| CU document lessons | `CU_READ_SOURCE_URL`, `CU_LAYOUT_SOURCE_URL`, `SAMPLE_INVOICE_URL`, `CU_SUPPORT_NOTICE_URL`, `CU_PRO_SOURCE_URLS`, `CU_MARKDOWN_SOURCE_URL` |
+| CU document lessons | `CU_READ_SOURCE_URL`, `CU_LAYOUT_SOURCE_URL`, `SAMPLE_INVOICE_URL`, `CU_SUPPORT_NOTICE_URL`, `CU_PACKAGE_SOURCE_URLS` (comma-separated), `CU_MARKDOWN_SOURCE_URL`: runtime-only HTTPS Blob SAS URLs; never commit them. |
 | D9 Document Intelligence document lessons | `DI_READ_SOURCE_URL`, `DI_LAYOUT_SOURCE_URL`, `DI_INVOICE_SOURCE_URL`, `DI_ID_SOURCE_URL`, `DI_TRAINING_CONTAINER_URL`: runtime-only HTTPS URLs that can contain a Blob SAS; never commit them. |
 | D3 hosted visual media | `SAMPLE_IMAGE_URL`, `SAMPLE_VIDEO_URL`: service-reachable HTTPS URL or short-lived read-only Blob SAS; never `file://` |
 | Batch STT | `BATCH_STT_CONTAINER_SAS`: runtime-only container SAS with read and list permission; use shell, Key Vault, or CI secret store, never `.env.example` or source |
 | Translator document batch | `TRANSLATOR_DOCUMENT_KEY`: runtime-only secret for D4 L23; use Key Vault/CI secret store, never `.env.example` or source |
 | OpenAPI agent | `ORDERS_FN_ENDPOINT`: deployed Function URL; Agent Service cannot call `localhost` |
 
-Set `CU_API_VERSION=2025-11-01` for standard CU lessons. Domain 5 lesson 13 requires its documented preview value, `2025-05-01-preview`. `SPEECH_REGION` is needed by batch Speech REST and LLM Speech preview URLs; normal `SpeechConfig` uses `SPEECH_ENDPOINT`.
+Set `CU_API_VERSION=2025-11-01` for every CU lesson. The `2025-05-01-preview` API that carried CU Pro mode was retired on July 15, 2026; Domain 5 lesson 13 now shows the GA cross-document pattern. `SPEECH_REGION` is needed by batch Speech REST and LLM Speech preview URLs; normal `SpeechConfig` uses `SPEECH_ENDPOINT`.
 
 ### Minimal path versus full path
 
@@ -211,26 +211,26 @@ uv run python 09-current-ai-services-other/06_di_vs_cu_decision.py --scenario st
 | Vector retrieval / hybrid / semantic ranking | Azure AI Search | File Search |
 | Content moderation | Content Safety | Prompt Shields, which targets prompt injection |
 | Prompt injection with document text | Prompt Shields document flow | content moderation |
-| Standard CU / Pro CU | individual extraction / multi-document reasoning preview | Pro mode accepts multiple document URLs |
+| Standard CU / Pro CU | individual extraction / multi-document reasoning (retired preview) | GA analyzes one input per request; compare fields across documents in code (D5 L13) |
 
 ## Availability, cost, and mutation warnings
 
 | Area | What changes or costs |
 |---|---|
-| D1 L03 | Creates/updates deployment and allocates billable capacity. |
+| D1 L03 | `--apply` creates/updates a deployment and allocates billable capacity; default run only prints the request body. |
 | D1 L04, L06–L18 | Inference and Content Safety calls; L15 persists blocklist/items only with `--apply`; L18 can export governed token/latency/safety telemetry without prompt/output attributes. |
 | D1 L19–L21 | Content Safety checks; L21 polls a Blob-backed provenance job only with `--run`. |
 | D1 L22–L25 | Evaluations, monitoring rules, telemetry feedback, and red-team scans only with explicit `--apply`; can persist state and bill. |
 | D1 L26 | Local tracing/App Insights preflight only; no Azure call or mutation. |
-| D1 L27–L31 | Control-plane reads, local policy validation, Log Analytics read, optional evaluation, and optional red-team probe; remote work remains explicit. |
+| D1 L27–L31 | Control-plane reads, local guardrail/policy validation (L28 `--apply` creates a guardrail RAI policy), Log Analytics read, optional evaluation, and optional red-team probe; remote work remains explicit. |
 | D2 L01–L22 | Model/tool calls; agent versions, vector stores/files, memory stores/items, workflow assets, Functions, and telemetry can persist or bill. |
 | D2 L23–L27 | Tracing/observability and external-tool preflights. Toolbox publish/invoke and MCP/Search agent probes are explicit and can persist or bill. |
 | D2 L28–L30 | Local hosted-agent contract/A2A/CI-CD checks; deployment remains a separate explicit operation. |
 | D2 L31–L39 | Direct embeddings/JSON/caching/function/reasoning/web/structured-output calls and local webhook preflight; remote model/tool calls require explicit flags. |
-| D3 | L01–L09 contain remote-call paths; L02–L05 can overwrite generated files after successful responses. L10/L11/L15 are local preflights unless `--apply`; L12/L13 are local preflights unless `--run`; L14 is local only. These opt-in paths are not evidence of a successful live call. Sora 2, provenance, and CU availability remain service/region/version dependent. |
+| D3 | L01–L06 and L13–L14 contain remote-call paths; L02, L04–L06 can overwrite generated files after successful responses. L07–L09, L15, and L16 are local preflights unless `--apply` (L16 `--generate` also bills one image); L10–L11 are local preflights unless `--run`; L12 is local only. These opt-in paths are not evidence of a successful live call. Sora 2, provenance, and CU availability remain service/region/version dependent. |
 | D4 L01–L20 | Remote-call paths; batch STT uses Blob and Speech processing. L18 creates then deletes an agent version and is protocol-only, not end-to-end voice playback. |
 | D4 L21–L25 | L21/L22/L23/L24 default to no-cloud-call preflights; `--run` lists Speech MCP tools (L21), sends reviewed text (L22), or streams Voice Live audio (L24). L23 `--apply` submits, inspects, or cancels a billable Document Translation batch with persistent Blob output. L25 reads local configuration only. These paths are not live-tested here. |
-| D5 | L00–L05 and L07–L15 contain documented cloud-call or persistent-resource paths; L06 is local. Indexer runs invoke embeddings. L16–L20 default to local preflights: L16 `--apply` submits CU input; L17 `--apply` mutates Search (`--run` starts indexing); L18/L19 `--run` are read-only; L20 requires `--enable` plus `--apply` and/or `--run`. These paths are not evidence of a successful live operation. |
+| D5 | L00–L05, L07–L11, and L14–L15 contain documented cloud-call or persistent-resource paths; L06 is local; L12–L13 create CU analyzers only with `--apply` and clean up with `--delete`. Indexer runs invoke embeddings. L16–L20 default to local preflights: L16 `--apply` submits CU input; L17 `--apply` mutates Search (`--run` starts indexing); L18/L19 `--run` are read-only; L20 requires `--enable` plus `--apply` and/or `--run`. These paths are not evidence of a successful live operation. |
 | D6 | L00–L03 and L13 are local only. L04 creates teacher-generated local candidates only with `--apply`; L05 uploads data and submits a training job only with `--apply`; L06 reads a job only with `--apply`; L07 creates/updates a deployment only with `--apply`; L08, L11, and L12 make billable inference calls only with `--apply`; L09 uploads input and creates a Batch job only with `--apply`; L10 reads management-plane quota/deployments only with `--apply`. These paths are not evidence of a successful live operation. |
 | D7 | Offline preflight reads local IaC only. Bicep defaults to Azure `what-if`; Terraform defaults to `plan`. Each engine mutates Azure only with explicit `--apply`. The separate policy deployment can deny unapproved connections after nonproduction review. No live deployment, private connectivity, CMK, CI/CD, failover, or recovery success is claimed. |
 | D8 | All 28 labs default to local preflight or typed request construction. Explicit `--apply` paths can create/manage Foundry IQ connections, Toolbox/Skill versions, A2A cards, routines, hosted agents, gateway routing, optimizer jobs, probes, or a read-only Log Analytics query. These operations can persist cloud state or bill except the telemetry read; no successful live operation is evidenced. |

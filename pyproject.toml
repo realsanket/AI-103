@@ -10,6 +10,8 @@ dependencies = [
     # Foundry / OpenAI Responses API
     "openai>=1.60.0",
     "azure-ai-projects>=2.0.0",
+    # Claude partner models on Foundry (Anthropic Messages API via AnthropicFoundry)
+    "anthropic>=0.60.0",
     # Azure AI Search
     "azure-search-documents>=11.6.0b8",
     # Azure AI Language

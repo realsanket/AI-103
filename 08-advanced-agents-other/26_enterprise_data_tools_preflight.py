@@ -30,6 +30,8 @@ from azure.ai.projects.models import (
     ToolProjectConnection,
 )
 
+from _shared.config import load_env
+
 
 def enterprise_tool(kind: str, connection_id: str):
     if not connection_id:
@@ -51,6 +53,7 @@ def enterprise_tool(kind: str, connection_id: str):
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Build enterprise-data tool definitions.")
     parser.add_argument("--kind", choices=("fabric", "sharepoint"))
     parser.add_argument("--connection-id")

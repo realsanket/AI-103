@@ -7,11 +7,12 @@ simple prompt routes to a fast/cheap model; a complex one routes to a more capab
 model. The selected backing model is visible in response.model. Router configuration
 (which models, routing policy) is managed in the Foundry portal or via Bicep.
 
-Default preflight checks ROUTER_MODEL env var. --apply sends two prompts — one
-trivial, one complex — and shows which backing model each request selected.
+Default preflight shows the router deployment (MODEL_ROUTER_DEPLOYMENT, the same
+setting Domain 1 lesson 04 uses). --apply sends two prompts — one trivial, one
+complex — and shows which backing model each request selected.
 
 Code path:
-  --apply: openai_client().responses.create(model=ROUTER_MODEL, input=prompt) × 2
+  --apply: openai_client().responses.create(model=MODEL_ROUTER_DEPLOYMENT, input=prompt) × 2
   → response.model shows the backing model the router selected per request.
 
 What to watch. response.model differs between simple and complex prompts when router
@@ -19,14 +20,14 @@ has multiple backing models. Same model for both = single backing model configur
 or router not yet in your subscription/region.
 
 Prerequisites / env vars:
-  PROJECT_ENDPOINT  — Foundry project HTTPS URL
-  ROUTER_MODEL      — model router deployment name
-  --model           — override deployment name
+  AZURE_OPENAI_ENDPOINT   — Azure OpenAI endpoint (used by openai_client())
+  MODEL_ROUTER_DEPLOYMENT — model router deployment name (default model-router)
+  --model                 — override deployment name
   --apply           — send two prompts and print routing decisions
 """
 import argparse
-import os
 
+from _shared.config import settings
 from _shared.openai_client import openai_client
 
 _SIMPLE = "What is 2 + 2?"
@@ -38,9 +39,9 @@ _COMPLEX = (
 
 
 def preflight() -> None:
-    model = os.environ.get("ROUTER_MODEL", "")
+    model = settings().model_router_deployment
     print("Model router preflight (no cloud calls).")
-    print(f"- ROUTER_MODEL: {model or 'MISSING — set to your model router deployment name'}")
+    print(f"- MODEL_ROUTER_DEPLOYMENT: {model}")
     print("- Router selects backing model per request based on complexity + cost policy.")
     print("- response.model shows the actual model that handled each request.")
     print("- Configure routing policy in Foundry portal → Deployments → Model Router.")
@@ -61,13 +62,13 @@ def apply(router_model: str) -> None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Test model router deployment, observe routing decisions.")
     parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--model", default=os.environ.get("ROUTER_MODEL", ""))
+    parser.add_argument("--model", default=settings().model_router_deployment)
     args = parser.parse_args(argv)
     if not args.apply:
         preflight()
         return
     if not args.model:
-        raise SystemExit("Set ROUTER_MODEL env var or pass --model.")
+        raise SystemExit("Set MODEL_ROUTER_DEPLOYMENT or pass --model.")
     apply(args.model)
 
 

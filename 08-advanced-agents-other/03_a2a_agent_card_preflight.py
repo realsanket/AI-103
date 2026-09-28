@@ -47,7 +47,7 @@ import os
 import subprocess
 from urllib.parse import quote, urlparse
 
-from dotenv import load_dotenv
+from _shared.config import load_env
 
 
 def a2a_tool(
@@ -148,7 +148,7 @@ def preflight(endpoint: str | None, agent_name: str | None) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    load_dotenv()
+    load_env()
     parser = argparse.ArgumentParser(description="Preflight or enable A2A and an agent card.")
     parser.add_argument("--apply", action="store_true", help="PATCH the agent endpoint and card.")
     parser.add_argument("--verify", action="store_true", help="Fetch v1.0 agent card; requires --apply.")

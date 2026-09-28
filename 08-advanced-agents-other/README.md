@@ -245,7 +245,7 @@ After completing this domain, use the [Domain 8 question review](questions/READM
 | 06 | [Agent Optimizer](06_agent_optimizer_preflight.py) | Run optimization or apply candidate locally | `--apply` requires Python hosted-agent azd project; never deploys |
 | 07 | [Hosted agent deploy](07_hosted_agent_deploy_preflight.py) | Preflight + `azd deploy` a Python hosted agent | `--apply` containers bill immediately |
 | 08 | [Hosted agent env vars](08_hosted_agent_env_preflight.py) | Set runtime env var (or KV ref) on hosted agent | `--apply` PATCHes agent; use KV ref for secrets |
-| 09 | [MCP get started](09_mcp_get_started.py) | Connect agent to MCP server; list discovered tools | `--apply` creates ephemeral probe agent + deletes |
+| 09 | [MCP get started](09_mcp_get_started.py) | Connect agent to MCP server; force the MCP tool with `tool_choice`; print discovered tools | `--apply` creates a temporary agent version + deletes it |
 | 10 | [MCP security preflight](10_mcp_security_preflight.py) | Validate MCP security checklist + optional policy JSON | Local; no cloud call |
 | 11 | [Agent memory](11_agent_memory.py) | Create vector store, upload fact, attach to agent, verify recall, cleanup | `--apply` creates + deletes cloud resources |
 | 12 | [Agent routines preflight](12_agent_routines_preflight.py) | Validate routine JSON (cron/event trigger definition) | Local; no cloud call |
@@ -568,21 +568,29 @@ uv run python 08-advanced-agents-other/08_hosted_agent_env_preflight.py --apply 
 
 ### 09 — MCP get started
 
-**Question answered:** How do I connect a Foundry agent to an MCP server and list available tools?
+**Question answered:** How do I connect a Foundry agent to an MCP server, make it call the MCP tool every time, and see which tools the server exposes?
 
-**Background.** MCP lets agents discover and call tools on any MCP-compatible server. Connection auth flows through Foundry project connections (managed identity). This lesson creates an ephemeral probe agent, lists its MCP tools, then deletes it — proves discovery without a persistent artifact.
+**Background.** MCP lets agents discover and call tools on any MCP-compatible server, such as a knowledge base exposed as an MCP endpoint. A prompt agent gets an `MCPTool(server_label, server_url, project_connection_id)`; authenticated servers use a project connection so tokens never live in the agent definition. With `tool_choice="auto"` the model can skip the knowledge base and answer from its weights (no grounded citations). `"required"` forces *some* tool. `ToolChoiceMCP(server_label=..., name=...)` — JSON `{"type": "mcp", "server_label": ..., "name": ...}` — forces the MCP tool on every run. The lesson sets it on the agent definition; one Responses call can also pass `tool_choice`.
 
 ```bash
-export MCP_CONNECTION_NAME=my-mcp-connection
-uv run python 08-advanced-agents-other/09_mcp_get_started.py
-uv run python 08-advanced-agents-other/09_mcp_get_started.py --apply
+export MCP_SERVER_URL=https://<mcp-server>/mcp
+export MCP_CONNECTION_NAME=my-mcp-connection   # optional; authenticated servers only
+export MCP_TOOL_NAME=kbsearch                  # optional; force one specific tool
+uv run python 08-advanced-agents-other/09_mcp_get_started.py            # prints agent definition, no cloud call
+uv run python 08-advanced-agents-other/09_mcp_get_started.py --apply    # temporary agent version, one question
 ```
 
-**Code path.** `agents.create_version()` with MCP tool config → `agents.list_tools()` → print tool names → `agents.delete()`.
+**Code path.**
+1. `mcp_definition()` validates the HTTPS, non-localhost URL and builds `PromptAgentDefinition(tools=[MCPTool(...)], tool_choice=ToolChoiceMCP(...))`. `require_approval` stays `"always"` unless `--trust-server`.
+2. `--apply`: `client.connections.get(MCP_CONNECTION_NAME).id` (when set) → `agents.create_version()` → `responses.create(agent_reference)`.
+3. `print_mcp_items()` prints the `mcp_list_tools` discovery item (tool names), any `mcp_approval_request` (not approved by the probe), and `mcp_call` results.
+4. `agents.delete_version()` in `finally`.
 
-**What to watch.** Tool names from MCP server. Zero tools = connection name wrong or server empty. Probe agent always deleted before exit.
+**What to watch.** The `mcp_list_tools` line lists the server's tools. With approval `"always"`, the run stops at an approval request — approve reviewed read-only calls as in Domain 2 lesson 25. Zero tools = wrong URL/connection or an empty server.
 
-**References:** [MCP get started](https://learn.microsoft.com/azure/foundry/mcp/get-started) · [MCP available tools](https://learn.microsoft.com/azure/foundry/mcp/available-tools) · [Build your own MCP server](https://learn.microsoft.com/azure/foundry/mcp/build-your-own-mcp-server)
+**Exam cues.** Agent sometimes answers without calling the knowledge-base MCP tool → set `tool_choice` to the MCP type (and tool name). `response_format` shapes output; tool definitions (`tools`/toolset) only make tools available.
+
+**References:** [MCP tool for agents](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/model-context-protocol) · [MCP get started](https://learn.microsoft.com/azure/foundry/mcp/get-started) · [MCP available tools](https://learn.microsoft.com/azure/foundry/mcp/available-tools)
 
 ### 10 — MCP security preflight
 

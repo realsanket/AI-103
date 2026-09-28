@@ -3,7 +3,7 @@
 ## Purpose
 
 Hands-on, current Microsoft Foundry and Azure AI learning repository. It has
-**199 numbered Python lessons** across five AI-103 domains plus four current
+**224 numbered Python lessons** across five AI-103 domains plus four current
 supplemental domains. Domain READMEs are teaching source of truth; this file is
 the operational handoff for future coding sessions.
 
@@ -15,11 +15,11 @@ new labs.
 
 | Area | Lessons | Read first |
 |---|---:|---|
-| 01 Plan and manage | 31 | `01-plan-and-manage/README.md` |
-| 02 Generative AI and agents | 39 | `02-generative-ai-and-agents/README.md` |
+| 01 Plan and manage | 35 | `01-plan-and-manage/README.md` |
+| 02 Generative AI and agents | 49 | `02-generative-ai-and-agents/README.md` |
 | 03 Computer vision | 16 | `03-computer-vision/README.md` |
-| 04 Text and speech | 27 | `04-text-and-speech/README.md` |
-| 05 Information extraction | 21 | `05-information-extraction/README.md` |
+| 04 Text and speech | 30 | `04-text-and-speech/README.md` |
+| 05 Information extraction | 29 | `05-information-extraction/README.md` |
 | 06 Model customization and delivery | 20 | `06-model-customization-other/README.md` |
 | 07 Production platform | 10 | `07-production-platform-other/README.md` |
 | 08 Advanced agents | 28 | `08-advanced-agents-other/README.md` |
@@ -53,7 +53,9 @@ Use Entra ID and least-privilege RBAC. A successful
 
 ### Environment-variable groups
 
-Copy `.env.example` to `.env`; values beginning with `<` are treated as unset.
+Copy `.env.example` to `.env`; blank values and any value containing a
+`<placeholder>` are treated as unset. Read environment values through
+`_shared.config.settings()`/`env()`, or call `load_env()` before `os.getenv`.
 Do not add runtime secrets to the template.
 
 | Group | Representative variables | Used by |

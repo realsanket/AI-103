@@ -169,7 +169,7 @@ For a managed identity, enable or attach the identity, then assign roles to its 
 | 25 | Local preflight only; connecting App Insights is an explicit portal/IaC decision. |
 | 26 | Model and Content Safety requests; exports governed telemetry; requires `PROJECT_ENDPOINT` and Foundry User. |
 | 27 | Live subscription-wide read; needs subscription `Reader` or `Cognitive Services Usages Reader`. |
-| 28 | Local JSON validation only; no cloud call. |
+| 28 | Local guardrail body + policy validation by default; `--apply` creates or updates an account guardrail (RAI policy) through ARM `2026-01-15-preview`; needs Foundry Account Owner. |
 | 29 | Live KQL read on Log Analytics; needs `Log Analytics Reader` on workspace. |
 | 30 | Local preflight + optional cloud eval; `--apply` calls CoherenceEvaluator against one sample. |
 | 31 | Local preflight + optional red-team probe; `--apply` runs one objective with baseline and Base64 attacks (billed compute). |
@@ -246,7 +246,7 @@ After completing this domain, use the [Domain 1 question review](questions/READM
 |---:|---|---|---|
 | 01 | [Model catalog](01_model_catalog_list.py) | List Foundry project deployments. | Live read. |
 | 02 | [Deployment types](02_deployment_types.py) | Compare deployment families. | Local reference; availability varies. |
-| 03 | [Deploy model](03_deploy_model.py) | Create/update Global Standard deployment through management plane. | Writes cloud state and can allocate billable capacity. |
+| 03 | [Deploy model](03_deploy_model.py) | Preview, then `--apply`, a deployment with an explicit SKU and version-upgrade policy through the management plane. | `--apply` writes cloud state and can allocate billable capacity. |
 | 04 | [Model Router](04_model_router.py) | Route Responses API requests through router; print selected model. | Live inference; router deployment required. |
 | 04b | [Responses model routing](04b_responses_model_routing.py) | Same Responses API for `model-router` vs a named deployment; pick by trigger conditions. | `--apply` sends 2 requests (1 router + 1 named). |
 | 05 | [Quotas](05_quotas_and_tpm.py) | List deployments and location usage. | Live control-plane read; subscription permission. |
@@ -272,7 +272,7 @@ After completing this domain, use the [Domain 1 question review](questions/READM
 | 25 | [Foundry tracing setup](25_foundry_tracing_setup.py) | Preflight project/App Insights tracing governance. | Local, read-only guidance; portal setup still required. |
 | 26 | [Manual tracing](26_agent_tracing.py) | SDK auto-instrumentation + custom parent span; fetch App Insights CS from project. | Live calls; client-side only, not server-side Foundry tracing. |
 | 27 | [Control Plane fleet inventory](27_control_plane_fleet_inventory.py) | Read Foundry accounts + deployments subscription-wide. | Live read; `--apply` needed. |
-| 28 | [Guardrail policy preflight](28_guardrail_policy_preflight.py) | Validate a Control Plane compliance policy JSON. | Local only; portal creation manual. |
+| 28 | [Guardrail policy preflight](28_guardrail_policy_preflight.py) | Build a guardrail with controls at all four intervention points; validate a Control Plane compliance policy JSON. | Local by default; `--apply` writes the guardrail; tool intervention points are preview. |
 | 29 | [Cluster analysis reader](29_observability_cluster_analysis.py) | KQL summary of GenAI dependencies from Log Analytics. | Live read; `--apply --workspace-id`. |
 | 30 | [Evaluation CI/CD preflight](30_evaluation_cicd_preflight.py) | Validate env + run one-sample coherence eval; print CI pipeline patterns. | `--apply` submits cloud eval job. |
 | 31 | [AI red teaming preflight](31_ai_red_teaming_preflight.py) | Probe a real deployment and interpret ASR with its denominator. | `--apply` billable; purple environment; two Violence pairs. |
@@ -367,23 +367,39 @@ uv run python 01-plan-and-manage/02_deployment_types.py
 
 **Important:** Azure has two planes. Control plane = manage resources (create/delete deployments, set SKUs). Data plane = use resources (send prompts, get completions). `AIProjectClient` is data-plane only — it has no `.deployments.create()`. You need `CognitiveServicesManagementClient` from `azure-mgmt-cognitiveservices`.
 
-**Before code.** Use a nonproduction Foundry resource; set `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `FOUNDRY_ENDPOINT`, `DEPLOYMENT_NAME`, and `DEPLOYMENT_MODEL_NAME`. Optionally pin `DEPLOYMENT_MODEL_VERSION`. Caller needs `Cognitive Services Contributor` or similar control-plane role — that role does not grant model inference.
+**Before code.** Use a nonproduction Foundry resource; set `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `FOUNDRY_ENDPOINT`, `DEPLOYMENT_NAME`, and `DEPLOYMENT_MODEL_NAME`. Optionally pin `DEPLOYMENT_MODEL_VERSION` (required with `NoAutoUpgrade`). `--apply` needs `Cognitive Services Contributor`, `Foundry Account Owner`, or a similar control-plane role — those roles do not grant model inference.
 
 ```bash
-uv run python 01-plan-and-manage/03_deploy_model.py
+# Preflight (default): print the ARM request body; no Azure call
+uv run python 01-plan-and-manage/03_deploy_model.py --sku Standard --version-upgrade-option NoAutoUpgrade
+
+# Create or update the deployment after reviewing region, quota, and cost
+uv run python 01-plan-and-manage/03_deploy_model.py --sku Standard --version-upgrade-option NoAutoUpgrade --apply
 ```
 
 **Code path.**
 
 1. `settings()` separates existing `DEFAULT_MODEL` alias from the model family being deployed.
-2. `foundry_account_name()` validates and extracts the resource name from `FOUNDRY_ENDPOINT` — prevents silently accepting an OpenAI/project URL.
-3. `CognitiveServicesManagementClient` targets the Azure management plane.
-4. `begin_create_or_update()` supplies `Sku(name="GlobalStandard")` and `DeploymentModel(format="OpenAI", name=..., version=...)`.
-5. Waiting on `.result()` reports actual provisioning state. Success prints `state: Succeeded`; if already deployed the SDK returns the existing deployment idempotently.
+2. `deployment_body()` validates SKU, capacity, and upgrade option before any cloud call. `NoAutoUpgrade` without a pinned `DEPLOYMENT_MODEL_VERSION` is rejected.
+3. Without `--apply`, the lesson prints the body and missing settings, then stops.
+4. `foundry_account_name()` validates and extracts the resource name from `FOUNDRY_ENDPOINT` — prevents silently accepting an OpenAI/project URL.
+5. `CognitiveServicesManagementClient.deployments.begin_create_or_update()` sends `Sku(name=--sku, capacity=--capacity)` and `DeploymentProperties(model=..., version_upgrade_option=...)`.
+6. Waiting on `.result()` reports actual provisioning state. Success prints `state: Succeeded`; the call is a PUT, so re-running the same body is idempotent.
+
+**Deployment type and upgrade policy.**
+
+| Setting | Values | Effect |
+|---|---|---|
+| `--sku` | `Standard`, `GlobalStandard`, `DataZoneStandard`, provisioned and batch SKUs | `Standard` (and regional `ProvisionedManaged`) keep inference in the deployment region; global types may process anywhere; data-zone types stay in the US/EU/APAC zone. |
+| `--version-upgrade-option` | `OnceNewDefaultVersionAvailable` | Moves to each new default version automatically. |
+| | `OnceCurrentVersionExpired` (unset behaves the same) | Upgrades only when the current version retires. |
+| | `NoAutoUpgrade` | Opts out. You upgrade manually; the deployment stops working when its pinned version retires. |
+
+A requirement such as "process in one region and standardize on a model version" maps to `--sku Standard --version-upgrade-option NoAutoUpgrade` plus a pinned version and a retirement calendar owner.
 
 **Production practice.** Pin or deliberately govern model versions, tags, region, SKU, capacity, rollback owner, and cleanup. A `Succeeded` state does not prove data-plane RBAC, cost fit, model quality, or an SLO.
 
-**References:** [Create model deployments](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/create-model-deployments) · [Automate quota and deployments](https://learn.microsoft.com/azure/foundry/openai/how-to/automate-quota-deployments) · [Model deployment policy](https://learn.microsoft.com/azure/foundry/how-to/model-deployment-policy)
+**References:** [Create model deployments](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/create-model-deployments) · [Model versions and upgrade policy](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/model-versions) · [Automate quota and deployments](https://learn.microsoft.com/azure/foundry/openai/how-to/automate-quota-deployments) · [Model deployment policy](https://learn.microsoft.com/azure/foundry/how-to/model-deployment-policy)
 
 ### 04 — Route mixed work with Model Router
 
@@ -552,6 +568,8 @@ If any one is mismatched, access fails even when another piece looks correct.
 | Broad AI Services data operations on resource | `Cognitive Services User` where required | Resource | Broader data-plane capability set. |
 | Quota inspection | `Cognitive Services Usages Reader` or `Reader` | Subscription | Usage visibility is subscription scoped. |
 | Telemetry query | `Log Analytics Reader` (+ protected-table role if required) | Monitoring resource | Trace/log read access boundary. |
+
+`--list-roles` prints the built-in role definition GUID behind each alias. Foundry roles were renamed from `Azure AI User`, `Azure AI Project Manager`, `Azure AI Account Owner`, and `Azure AI Owner`; the GUIDs did not change, so automation should match roles by GUID rather than display name. Microsoft's RBAC guidance also says not to use `Cognitive Services ...` roles for Foundry project scenarios (except `Cognitive Services Usages Reader` for quota), and not to use `Azure AI Developer`, which targets hubs and Azure Machine Learning workspaces.
 
 **High-yield exam traps**
 
@@ -1603,26 +1621,43 @@ uv run python 01-plan-and-manage/27_control_plane_fleet_inventory.py --apply
 
 ### 28 — Guardrail policy preflight
 
-**Question answered:** Does my Control Plane compliance policy JSON have the correct Azure Policy structure before I upload it?
+**Question answered:** How do I configure one guardrail that screens user input, tool calls, tool responses, and output — and prove deployments carry a guardrail?
 
-**Background.** Control Plane compliance policies (Operate → Compliance → Create policy) build on Azure Policy. Portal creates them; this lab validates the JSON structure your reviewer would upload. Zero cloud call — pure structural validation of `properties.policyRule` (if/then/effect), `mode`, and guardrail-control references.
+**Background.** A Foundry guardrail is an account-level RAI policy (`Microsoft.CognitiveServices/accounts/raiPolicies`). Each control combines a risk, an intervention point, and an action. The four intervention points map to the policy `source` field:
+
+| Intervention point | `source` | Scope | Typical control |
+|---|---|---|---|
+| User input | `Prompt` | Models and agents | Jailbreak (user input attack), harm categories |
+| Tool call (preview) | `PreToolCall` | Agents only | Harm categories in data the agent sends to a tool |
+| Tool response (preview) | `PostToolCall` | Agents only | Indirect attack (prompt injection) returned by a tool |
+| Output | `Completion` | Models and agents | Harm categories, protected material |
+
+`blocking: true` means **Annotate and block**; `false` means **Annotate only**. Tool-call and tool-response controls take effect only for tools that support moderation: Azure AI Search, Azure Functions, OpenAPI, SharePoint grounding, Fabric data agent, Bing grounding/custom search, and Browser Automation. The `PreToolCall`/`PostToolCall` sources exist in management API `2026-01-15-preview`; GA `2025-06-01` knows only `Prompt`/`Completion`. Each active point adds roughly 50–100 ms latency.
+
+The second artifact is a Control Plane compliance policy (Azure Policy) that audits or denies model deployments without `raiPolicyName`. The validator accepts literal effects and `[parameters('effect')]` references, checking the parameter's default and allowed values.
 
 ```bash
-# No file — print sample structure
+# Local: print the four-point guardrail body and validate the sample compliance policy
 uv run python 01-plan-and-manage/28_guardrail_policy_preflight.py
 
-# Validate your policy JSON
+# Validate your own compliance policy JSON
 uv run python 01-plan-and-manage/28_guardrail_policy_preflight.py --policy-file my-policy.json
+
+# Create or update the guardrail on the Foundry account (Foundry Account Owner)
+uv run python 01-plan-and-manage/28_guardrail_policy_preflight.py --guardrail-name northwind-agent-guardrail --apply
 ```
 
 **Code path.**
-1. Read JSON → assert `properties`, `properties.policyRule`, `properties.mode`, `properties.parameters` present.
-2. Assert `policyRule.then.effect` in `{Audit, Deny, Modify, AuditIfNotExists, DeployIfNotExists}`.
-3. Grep rule for guardrail markers (`contentSafety`, `promptShield`, `protectedMaterial`, `jailbreak`, `pii`). Warn if none.
+1. `guardrail_body()` adds Hate/Sexual/Selfharm/Violence at every intervention point, Jailbreak at user input, Indirect Attack at tool response, and protected material at output. `intervention_summary()` prints the matrix for review.
+2. `validate_policy()` checks `mode`, `policyRule.if/then`, and resolves the effect (literal or parameter reference) against `{Audit, Deny, Modify, AuditIfNotExists, DeployIfNotExists, Disabled}`, then reports guardrail references such as `raiPolicyName`.
+3. `--apply` PUTs the guardrail to ARM with a `https://management.azure.com/.default` token. Creating it changes nothing until you assign it.
+4. Assign it: deployment `properties.raiPolicyName` (lesson 03 body), prompt agent `PromptAgentDefinition(..., rai_config=RaiConfig(rai_policy_name=<full ARM ID>))`, or hosted agent (Domain 2 lesson 48).
 
-**What to watch.** `Policy JSON is structurally valid` + list of guardrail markers detected. Missing marker warning = policy doesn't reference any Foundry guardrail control (rewrite before uploading).
+**What to watch.** The matrix shows every intervention point populated. The compliance policy reports `raiPolicyName` as its guardrail reference. After assignment, a blocked request returns `content_filter` details that name the risk and intervention point.
 
-**References:** [Quickstart: create guardrail policy](https://learn.microsoft.com/azure/foundry/control-plane/quickstart-create-guardrail-policy) · [Guardrails guided setup](https://learn.microsoft.com/azure/foundry/guardrails/guided-set-up) · [Enforce limits on models](https://learn.microsoft.com/azure/foundry/control-plane/how-to-enforce-limits-models) · [Manage compliance + security](https://learn.microsoft.com/azure/foundry/control-plane/how-to-manage-compliance-security)
+**Exam cues.** "Screen what a tool returns for prompt injection" → Indirect attack at the **tool response** point. "Stop harmful data being sent to a tool" → **tool call** point. User input attacks can only be scanned at user input. Tool points are agent-only preview features and need a moderation-capable tool.
+
+**References:** [Intervention points](https://learn.microsoft.com/azure/foundry/guardrails/intervention-points) · [Create guardrails](https://learn.microsoft.com/azure/foundry/guardrails/how-to-create-guardrails) · [RAI Policies REST (2026-01-15-preview)](https://learn.microsoft.com/rest/api/microsoftfoundry/accountmanagement/rai-policies/create-or-update?view=rest-microsoftfoundry-accountmanagement-2026-01-15-preview) · [Quickstart: create guardrail policy](https://learn.microsoft.com/azure/foundry/control-plane/quickstart-create-guardrail-policy) · [Manage compliance + security](https://learn.microsoft.com/azure/foundry/control-plane/how-to-manage-compliance-security)
 
 ### 29 — Cluster analysis triage reader
 

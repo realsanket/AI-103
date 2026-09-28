@@ -39,13 +39,15 @@ Prerequisites / env vars:
   PROJECT_ENDPOINT             — Foundry project endpoint
   DEFAULT_MODEL                — chat deployment used as PromptAgent model
   WORK_IQ_PROJECT_CONNECTION_ID — /subscriptions/.../connections/<work-iq-conn>
+                                 (falls back to WORK_IQ_CONNECTION_ID, the name
+                                 Domain 8 lesson 23 and .env.example use)
   AZURE_AI_AGENT_NAME          — optional; agent name shown in payload
 """
 import argparse
 import json
 import os
 
-from _shared.config import settings
+from _shared.config import env, settings
 
 DEFAULT_AGENT_NAME = "work-iq-preview-lab"
 WORK_IQ_A2A_TARGET = "https://workiq.svc.cloud.microsoft/a2a/"
@@ -53,7 +55,7 @@ WORK_IQ_SCOPES = "api://workiq.svc.cloud.microsoft/WorkIQAgent.Ask offline_acces
 
 
 def _work_iq_connection_id() -> str:
-    return os.environ.get("WORK_IQ_PROJECT_CONNECTION_ID", "").strip()
+    return env("WORK_IQ_PROJECT_CONNECTION_ID") or env("WORK_IQ_CONNECTION_ID")
 
 
 def _agent_name() -> str:

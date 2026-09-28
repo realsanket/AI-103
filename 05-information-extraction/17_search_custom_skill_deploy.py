@@ -12,7 +12,7 @@ auth (`authResourceId`), and return per-record errors — not crash the whole ba
 This lesson does NOT deploy an Azure Function or configure inbound authentication.
 
 Code path:
-  Validate SKILL_ENDPOINT_URL. Load skillset.json → clone → insert WebApiSkill →
+  Validate CUSTOM_SKILL_URL. Load skillset.json → clone → insert WebApiSkill →
   PUT derived skillset. Clone indexer.json → retarget skillset → PUT indexer.
   With --run: run_indexer(indexer_name).
 
@@ -21,7 +21,7 @@ With --run: indexer starts (check execution history in portal for custom-skill e
 
 Prerequisites / env vars:
   SEARCH_ENDPOINT       — https://<service>.search.windows.net
-  SKILL_ENDPOINT_URL    — HTTPS URL to your deployed WebApiSkill function
+  CUSTOM_SKILL_URL      — HTTPS URL to your deployed WebApiSkill function
   SEARCH_SKILLSET, SEARCH_INDEXER
   --apply               — create/replace skillset + indexer
   --run                 — start indexer after --apply

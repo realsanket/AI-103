@@ -17,7 +17,7 @@ Code path:
   checks browser_automation_preview, then deletes the probe agent.
 
 What to watch. "browser" in discovered tool list = connection valid and tool provisioned.
-Not found = BROWSER_CONNECTION_NAME wrong or browser tool not enabled for this project.
+Not found = BROWSER_PROJECT_CONNECTION_ID wrong or browser tool not enabled for this project.
 
 Prerequisites / env vars:
   PROJECT_ENDPOINT         — Foundry project HTTPS URL

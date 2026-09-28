@@ -1,127 +1,119 @@
-# Run: uv run python 03-computer-vision/07_video_generation.py
+# Run: uv run python 03-computer-vision/07_video_generation.py [--apply] [--seconds 4|8|12] [--delete-remote]
 # Practice-question coverage: Q173.
-"""Text-to-video via Sora 2 direct API — submit job, poll, download MP4.
+"""Text-to-video with Sora 2 on the v1 API — create, poll, download MP4.
 
 Beginner note:
-  This lesson submits a job, polls until it succeeds, then downloads the MP4.
-  It uses the raw REST API via httpx so all three steps are visible.
+  Video generation is asynchronous. `videos.create()` starts a job and returns
+  a `video_...` ID immediately; `videos.retrieve(id)` reports `queued`,
+  `in_progress`, `completed`, or `failed`; `videos.download_content(id,
+  variant="video")` returns the MP4 once the job completes.
 
-  Sora 2 direct API:
-    POST {endpoint}/openai/v1/video/generations/jobs?api-version=preview
-    GET  {endpoint}/openai/v1/video/generations/jobs/{job-id}?api-version=preview
-    GET  {endpoint}/openai/v1/video/generations/{generation-id}/content/video?api-version=preview
+  Sora 2 uses the Azure OpenAI v1 surface (`{AZURE_OPENAI_ENDPOINT}/openai/v1`,
+  `/videos` routes). The original `sora` model and its
+  `/video/generations/jobs` request shape (`width`, `height`, `n_seconds`) are
+  retired; Sora 2 takes `size` ("1280x720" or "720x1280") and `seconds`
+  ("4", "8", or "12").
+
+  Limits worth knowing: two concurrent jobs per resource; finished videos are
+  kept for about 24 hours; Sora 2 rejects photorealistic people and IP. Keep a
+  completed video ID if you want to remix it (lesson 09); pass
+  `--delete-remote` to delete the service copy after download.
 
 Prereqs:
-  - VIDEO_MODEL in .env — deployment name for your Sora model (e.g. `sora-2`).
-  - Sora 2 preview access in a supported Azure OpenAI region.
+  - VIDEO_MODEL in .env — deployment name of your Sora 2 model (for example `sora-2`).
+  - Sora 2 (preview) deployed in a supported region; Cognitive Services User role.
+  - Default run is a local preflight; `--apply` starts a billable job.
 """
+import argparse
 import time
-from pathlib import Path
-
-import httpx
-from azure.identity import DefaultAzureCredential
 
 from _shared.config import SAMPLE_DATA, settings
 
-# Sora 2's direct Azure OpenAI API uses this documented Entra ID token scope.
-_SCOPE = "https://ai.azure.com/.default"
-_API_VERSION = "preview"
-_POLL_INTERVAL_SECONDS = 5.0
-_POLL_TIMEOUT_SECONDS = 300.0
-_SUCCESS_STATUSES = {"succeeded", "completed"}
-_FAILURE_STATUSES = {"failed", "cancelled", "canceled"}
+_POLL_INTERVAL_SECONDS = 10.0
+_POLL_TIMEOUT_SECONDS = 600.0
+_SIZES = ("1280x720", "720x1280")
+_SECONDS = ("4", "8", "12")
+PROMPT = (
+    "A short cinematic shot of a modern data center — soft blue LEDs on server "
+    "racks, camera slowly dollying forward."
+)
+OUTPUT = SAMPLE_DATA / "generated" / "northwind_video.mp4"
 
 
-def _token() -> str:
-    return DefaultAzureCredential().get_token(_SCOPE).token
+def _failure_detail(video) -> str:
+    error = getattr(video, "error", None)
+    if error is None:
+        return "No failure reason returned."
+    return str(getattr(error, "message", None) or getattr(error, "code", None) or error)
 
 
-def _failure_detail(job: dict) -> str:
-    reason = job.get("failure_reason") or job.get("error")
-    if isinstance(reason, dict):
-        reason = reason.get("message") or reason.get("code") or reason
-    return str(reason or "No failure reason returned.")
-
-
-def _wait_for_job(
-    status_url: str,
-    headers: dict[str, str],
+def wait_for_video(
+    client,
+    video,
     *,
     timeout: float = _POLL_TIMEOUT_SECONDS,
     interval: float = _POLL_INTERVAL_SECONDS,
-) -> dict:
+    sleep=None,
+    clock=None,
+):
+    """Poll videos.retrieve until completed, failed, or the deadline passes."""
     if timeout <= 0 or interval <= 0:
         raise ValueError("timeout and interval must be greater than zero.")
-    deadline = time.monotonic() + timeout
-    last_status = "unknown"
+    sleep = sleep or time.sleep
+    clock = clock or time.monotonic
+    deadline = clock() + timeout
     while True:
-        poll = httpx.get(status_url, headers=headers, timeout=30.0)
-        poll.raise_for_status()
-        job = poll.json()
-        status = str(job.get("status", "")).lower()
-        last_status = status or last_status
-        print(f"  status: {last_status}")
-        if status in _SUCCESS_STATUSES:
-            return job
-        if status in _FAILURE_STATUSES:
-            raise RuntimeError(f"Sora job {status}: {_failure_detail(job)}")
-        remaining = deadline - time.monotonic()
+        print(f"  status: {video.status} ({getattr(video, 'progress', 0) or 0}%)")
+        if video.status == "completed":
+            return video
+        if video.status == "failed":
+            raise RuntimeError(f"Sora job failed: {_failure_detail(video)}")
+        remaining = deadline - clock()
         if remaining <= 0:
             raise TimeoutError(
-                f"Sora job did not finish within {timeout:g}s; last status: {last_status}. "
-                "The job remains active; no cancellation request was sent."
+                f"Sora job {video.id} did not finish within {timeout:g}s; last status: {video.status}. "
+                "The job remains active; retrieve it later or delete it."
             )
-        time.sleep(min(interval, remaining))
+        sleep(min(interval, remaining))
+        video = client.videos.retrieve(video.id)
 
 
-def main() -> None:
-    s = settings()
-    endpoint = s.require("AZURE_OPENAI_ENDPOINT")
-    submit_url = (
-        f"{endpoint}/openai/v1/video/generations/jobs"
-        f"?api-version={_API_VERSION}"
-    )
-    body = {
-        "model": s.video_model,
-        "prompt": (
-            "A short cinematic shot of a modern data center — soft blue LEDs on server "
-            "racks, camera slowly dollying forward."
-        ),
-        "width": 1280,
-        "height": 720,
-        "n_seconds": 5,
-    }
-    headers = {"Authorization": f"Bearer {_token()}", "Content-Type": "application/json"}
-    r = httpx.post(submit_url, headers=headers, json=body, timeout=60.0)
-    r.raise_for_status()
-    job = r.json()
-    job_id = job.get("id")
-    if not isinstance(job_id, str) or not job_id:
-        raise RuntimeError(f"Sora job submission did not return an id: {job}")
-    print(f"submitted job: {job_id}")
+def generate(client, *, model: str, size: str, seconds: str, delete_remote: bool = False):
+    if size not in _SIZES or seconds not in _SECONDS:
+        raise ValueError(f"size must be one of {_SIZES} and seconds one of {_SECONDS}.")
+    video = client.videos.create(model=model, prompt=PROMPT, size=size, seconds=seconds)
+    print(f"submitted video: {video.id}")
+    video = wait_for_video(client, video)
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    client.videos.download_content(video.id, variant="video").write_to_file(OUTPUT)
+    print(f"saved: {OUTPUT}")
+    if delete_remote:
+        client.videos.delete(video.id)
+        print(f"deleted service copy of {video.id}")
+    else:
+        print(f"keep {video.id} to remix it with lesson 09; it expires after about 24 hours.")
+    return video
 
-    status_url = (
-        f"{endpoint}/openai/v1/video/generations/jobs/{job_id}"
-        f"?api-version={_API_VERSION}"
-    )
-    job = _wait_for_job(status_url, headers)
-    generations = job.get("generations", [])
-    if (
-        not generations
-        or not isinstance(generations[0], dict)
-        or not isinstance(generations[0].get("id"), str)
-    ):
-        raise RuntimeError(f"Sora job succeeded but returned no generation id: {job}")
-    gen_id = generations[0]["id"]
-    content_url = (
-        f"{endpoint}/openai/v1/video/generations/{gen_id}/content/video"
-        f"?api-version={_API_VERSION}"
-    )
-    video = httpx.get(content_url, headers=headers, timeout=120.0)
-    video.raise_for_status()
-    out = SAMPLE_DATA / "generated" / "northwind_video.mp4"
-    Path(out).write_bytes(video.content)
-    print(f"saved: {out}")
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--apply", action="store_true", help="Start a billable Sora 2 job.")
+    parser.add_argument("--size", choices=_SIZES, default="1280x720")
+    parser.add_argument("--seconds", choices=_SECONDS, default="4")
+    parser.add_argument("--delete-remote", action="store_true", help="Delete the service copy after download.")
+    args = parser.parse_args(argv)
+
+    model = settings().video_model
+    if not args.apply:
+        print("Video preflight only. No cloud calls made.")
+        print(f"Would call videos.create(model={model!r}, size={args.size!r}, seconds={args.seconds!r}).")
+        print("Then poll videos.retrieve(id) and save videos.download_content(id, variant='video').")
+        print("Re-run with --apply after reviewing prompt, cost (per second), and retention.")
+        return
+
+    from _shared.openai_client import openai_client
+
+    generate(openai_client(), model=model, size=args.size, seconds=args.seconds, delete_remote=args.delete_remote)
 
 
 if __name__ == "__main__":

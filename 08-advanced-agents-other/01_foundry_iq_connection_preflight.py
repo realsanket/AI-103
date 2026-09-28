@@ -40,7 +40,7 @@ import os
 import subprocess
 from urllib.parse import quote, urlparse
 
-from dotenv import load_dotenv
+from _shared.config import load_env
 
 
 def _https_url(value: str, host_suffix: str) -> str:
@@ -135,7 +135,7 @@ def apply() -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    load_dotenv()
+    load_env()
     parser = argparse.ArgumentParser(description="Preflight or create a keyless Foundry IQ connection.")
     parser.add_argument("--apply", action="store_true", help="Create or update the project connection.")
     args = parser.parse_args(argv)

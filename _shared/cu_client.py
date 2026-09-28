@@ -137,3 +137,14 @@ def analyze(
         poll_timeout=poll_timeout,
         poll_interval=poll_interval,
     )
+
+
+def delete_analyzer(analyzer_id: str) -> bool:
+    """Delete a custom analyzer. Returns False when it was already gone."""
+    s = settings()
+    url = f"{_base()}/analyzers/{analyzer_id}?api-version={s.cu_api_version}"
+    r = httpx.delete(url, headers=_headers(), timeout=60.0)
+    if r.status_code == 404:
+        return False
+    r.raise_for_status()
+    return True

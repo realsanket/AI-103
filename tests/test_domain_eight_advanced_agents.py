@@ -22,6 +22,7 @@ routines = _lesson("04_routines_preflight.py")
 gateway = _lesson("05_gateway_publishing_preflight.py")
 optimizer = _lesson("06_agent_optimizer_preflight.py")
 browser = _lesson("14_browser_automation_preflight.py")
+mcp_start = _lesson("09_mcp_get_started.py")
 toolbox_lifecycle = _lesson("20_toolbox_lifecycle_governance.py")
 skills = _lesson("21_skills_private_catalog_preflight.py")
 bing = _lesson("22_bing_grounding_preflight.py")
@@ -35,6 +36,18 @@ observability = _lesson("28_cross_domain_observability.py")
 
 class DomainEightAdvancedAgentTests(TestCase):
     project = "https://contoso.services.ai.azure.com/api/projects/lab"
+
+    def test_mcp_agent_forces_the_mcp_tool(self) -> None:
+        body = mcp_start.mcp_definition("https://kb.example.test/mcp", "conn-id", "kbsearch").as_dict()
+        self.assertEqual(body["tool_choice"], {"type": "mcp", "server_label": "knowledge", "name": "kbsearch"})
+        self.assertEqual(body["tools"][0]["project_connection_id"], "conn-id")
+        self.assertEqual(body["tools"][0]["require_approval"], "always")
+        trusted = mcp_start.mcp_definition("https://kb.example.test/mcp", trust_server=True).as_dict()
+        self.assertEqual(trusted["tools"][0]["require_approval"], "never")
+        self.assertNotIn("project_connection_id", trusted["tools"][0])
+        for bad in ("http://kb.example.test/mcp", "https://localhost/mcp"):
+            with self.assertRaises(ValueError):
+                mcp_start.mcp_definition(bad)
 
     def test_default_preflights_make_no_cloud_calls(self) -> None:
         for lesson in (iq, toolbox, a2a, routines, gateway, optimizer):
@@ -157,7 +170,7 @@ class DomainEightAdvancedAgentTests(TestCase):
     def test_reminder_and_image_tools_use_current_types(self) -> None:
         self.assertEqual(reminder.reminder_tool().type, "reminder_preview")
         self.assertEqual(
-            image_tool.image_generation_tool("gpt-image-1").type,
+            image_tool.image_generation_tool("gpt-image-2").type,
             "image_generation",
         )
 

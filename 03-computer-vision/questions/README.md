@@ -21,12 +21,12 @@
 | Q124 | Adjacent only: [`09_video_remix.py`](../09_video_remix.py) | L09 video remix | Gap: video inpainting |
 | Q126 | [`01_multimodal_understanding.py`](../01_multimodal_understanding.py) | L01 multimodal content input | Existing |
 | Q135 | — | Custom Vision defect classifier | Compatibility: legacy Custom Vision |
-| Q136 | [`16_image_generation_dalle.py`](../16_image_generation_dalle.py) | L16 DALL-E generation | Existing; partial: consumes a DALL-E deployment, does not deploy one |
+| Q136 | [`16_image_model_deployment.py`](../16_image_model_deployment.py) | L16 deploys `gpt-image-2` with the Azure CLI (DALL-E 3 retired March 4, 2026) | Existing |
 | Q143 | — | Custom Vision precision/recall | Compatibility: legacy Custom Vision |
 | Q148 | — | Custom Vision classifier configuration | Compatibility: legacy Custom Vision |
 | Q159 | — | Custom Vision defect detector | Compatibility: legacy Custom Vision |
 | Q164 | — | Vision `imageType` API | Compatibility: legacy Vision API |
 | Q165 | — | Custom Vision metrics | Compatibility: legacy Custom Vision |
-| Q173 | [`07_video_generation.py`](../07_video_generation.py) | L07 async create and poll (REST equivalent of `videos.create`/`retrieve`) | Existing |
+| Q173 | [`07_video_generation.py`](../07_video_generation.py) | L07 `videos.create` → `videos.retrieve` → `download_content` | Existing |
 
 Legacy Vision and Custom Vision questions are retained as compatibility review, not new labs. See [`../../docs/question-coverage.md`](../../docs/question-coverage.md#03---computer-vision).

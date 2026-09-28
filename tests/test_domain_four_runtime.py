@@ -22,6 +22,7 @@ def _lesson(name: str):
 batch = _lesson("13_stt_batch")
 voice_live = _lesson("18_voice_live_prompt_agent")
 health = _lesson("10_health_text_analytics")
+ssml = _lesson("15_tts_ssml_hd")
 
 
 class DomainFourRuntimeTests(unittest.TestCase):
@@ -76,6 +77,17 @@ class DomainFourRuntimeTests(unittest.TestCase):
 
         mkdir.assert_called_once_with(parents=True, exist_ok=True)
         unlink.assert_called_once_with(missing_ok=True)
+
+    def test_ssml_uses_phoneme_and_keeps_hd_voice_to_supported_elements(self) -> None:
+        hd = ssml.build_ssml("hd")
+        self.assertIn('<phoneme alphabet="ipa"', hd)
+        self.assertIn("en-US-Ava:DragonHDLatestNeural", hd)
+        self.assertEqual(ssml.unsupported_hd_elements(hd), [])
+        self.assertEqual(ssml.unsupported_hd_elements(ssml.build_ssml("neural")), ["express-as", "prosody"])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            ssml.main(["--voice", "neural", "--print-ssml"])
+        self.assertIn("en-US-JennyNeural", output.getvalue())
 
     def test_batch_polling_uses_retry_after_then_bounded_backoff(self) -> None:
         pending = SimpleNamespace(
