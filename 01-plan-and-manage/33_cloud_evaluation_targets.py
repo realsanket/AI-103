@@ -77,6 +77,8 @@ import json
 import os
 from pathlib import Path
 
+from _shared.config import load_env
+
 _DEFAULT_NAME = "cloud-eval-target-lesson"
 _DEFAULT_TYPE = "model"
 _TARGET_TYPES = ("model", "agent", "hosted_invocations")
@@ -257,6 +259,7 @@ def apply(args: argparse.Namespace) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Configure a cloud evaluation target.")
     parser.add_argument(
         "--target-type",

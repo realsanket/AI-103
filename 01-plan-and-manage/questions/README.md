@@ -13,11 +13,11 @@ directly.
 | Q9 | [`30_evaluation_cicd_preflight.py`](../30_evaluation_cicd_preflight.py) | L30 evaluation CI/CD gate | Existing |
 | Q10 | [`25_foundry_tracing_setup.py`](../25_foundry_tracing_setup.py), [`26_agent_tracing.py`](../26_agent_tracing.py), [`23_langchain_tracing.py`](../../02-generative-ai-and-agents/23_langchain_tracing.py) | L25–26 tracing, D2 L23 telemetry | Existing |
 | Q17 | [`06_rate_limit_backoff.py`](../06_rate_limit_backoff.py) | L06 retry with exponential backoff and jitter | Existing |
-| Q19 | [`30_evaluation_cicd_preflight.py`](../30_evaluation_cicd_preflight.py), [`19_groundedness_detection.py`](../19_groundedness_detection.py) | L30 merge gate plus L19 groundedness detection | Existing; partial: L30 gates on coherence, not groundedness |
+| Q19 | [`35_rag_quality_gate.py`](../35_rag_quality_gate.py), [`30_evaluation_cicd_preflight.py`](../30_evaluation_cicd_preflight.py), [`19_groundedness_detection.py`](../19_groundedness_detection.py) | L35 groundedness evaluator gate exits 1 on failure; L30 required-check workflow; L19 groundedness detection | Existing |
 | Q23 | [`01_access_and_metrics_preflight.py`](01_access_and_metrics_preflight.py), [`05_diagnostics_preflight.py`](../../07-production-platform-other/05_diagnostics_preflight.py) | `questions/01_access_and_metrics_preflight.py` plus D7 L05 RequestResponse diagnostics | Existing |
 | Q24 | [`25_foundry_tracing_setup.py`](../25_foundry_tracing_setup.py), [`26_agent_tracing.py`](../26_agent_tracing.py), [`23_langchain_tracing.py`](../../02-generative-ai-and-agents/23_langchain_tracing.py) | L25–26 distributed tracing | Existing |
-| Q26 | [`19_groundedness_detection.py`](../19_groundedness_detection.py), [`21_foundry_evaluation.py`](../21_foundry_evaluation.py), [`22_continuous_evaluation.py`](../22_continuous_evaluation.py) | L19 groundedness, L21–22 risk and safety evaluation | Existing; partial: no built-in groundedness evaluator configured |
-| Q34 | [`19_groundedness_detection.py`](../19_groundedness_detection.py), [`21_foundry_evaluation.py`](../21_foundry_evaluation.py) | L19 groundedness detection, L21 evaluation run | Existing; partial: no built-in groundedness evaluator configured |
+| Q26 | [`35_rag_quality_gate.py`](../35_rag_quality_gate.py), [`19_groundedness_detection.py`](../19_groundedness_detection.py), [`21_foundry_evaluation.py`](../21_foundry_evaluation.py), [`22_continuous_evaluation.py`](../22_continuous_evaluation.py) | L35 groundedness pass rates, L19 groundedness detection, L21–22 risk and safety evaluation | Existing |
+| Q34 | [`35_rag_quality_gate.py`](../35_rag_quality_gate.py), [`19_groundedness_detection.py`](../19_groundedness_detection.py), [`21_foundry_evaluation.py`](../21_foundry_evaluation.py) | L35 `GroundednessEvaluator` pass rate on a RAG dataset, L19 detection, L21 evaluation run | Existing |
 | Q40 | [`11_prompt_shields_docs.py`](../11_prompt_shields_docs.py), [`18_protected_material.py`](../18_protected_material.py) | L11 and L18 injection versus protected material | Existing |
 | Q42 | [`11_prompt_shields_docs.py`](../11_prompt_shields_docs.py), [`12_spotlighting.py`](../12_spotlighting.py), [`22_bing_grounding_preflight.py`](../../08-advanced-agents-other/22_bing_grounding_preflight.py) | L11–12 plus D8 L22 web grounding | Existing |
 | Q47 | [`26_agent_tracing.py`](../26_agent_tracing.py) | L26 token diagnostics | Existing |
@@ -30,7 +30,7 @@ directly.
 | Q63 | [`09_content_safety_filters.py`](../09_content_safety_filters.py), [`28_guardrail_policy_preflight.py`](../28_guardrail_policy_preflight.py), [`48_hosted_agent_guardrails.py`](../../02-generative-ai-and-agents/48_hosted_agent_guardrails.py), [`20_provenance_detection.py`](../20_provenance_detection.py) | L09 guardrail block action, L28 block controls at all four intervention points, D2 L48 agent guardrail, L20 Blob Data Reader identity | Existing |
 | Q64 | [`17_evaluator_groundedness.py`](../17_evaluator_groundedness.py) | L17 critique and regeneration | Existing |
 | Q65 | [`10_prompt_shields_user.py`](../10_prompt_shields_user.py) | L10 User Prompt Shields | Existing |
-| Q66 | [`21_foundry_evaluation.py`](../21_foundry_evaluation.py), [`25_foundry_tracing_setup.py`](../25_foundry_tracing_setup.py), [`26_agent_tracing.py`](../26_agent_tracing.py) | L21 evaluation and L25–26 observability | Existing; partial: no relevance evaluator configured |
+| Q66 | [`35_rag_quality_gate.py`](../35_rag_quality_gate.py), [`25_foundry_tracing_setup.py`](../25_foundry_tracing_setup.py), [`26_agent_tracing.py`](../26_agent_tracing.py) | L35 `RelevanceEvaluator` plus completion-token analytics, L25–26 tracing | Existing |
 | Q68 | [`25_foundry_tracing_setup.py`](../25_foundry_tracing_setup.py), [`26_agent_tracing.py`](../26_agent_tracing.py) | L25–26 prompt/output token metrics | Existing |
 | Q69 | [`17_evaluator_groundedness.py`](../17_evaluator_groundedness.py), [`19_groundedness_detection.py`](../19_groundedness_detection.py), [`21_foundry_evaluation.py`](../21_foundry_evaluation.py) | L17, L19, L21 groundedness handling | Existing |
 | Q71 | [`07_managed_identity_agent.py`](../07_managed_identity_agent.py), [`08_rbac_role_policies.py`](../08_rbac_role_policies.py) | L08 direct Azure OpenAI RBAC | Existing |
@@ -38,27 +38,28 @@ directly.
 | Q78 | [`25_foundry_tracing_setup.py`](../25_foundry_tracing_setup.py), [`26_agent_tracing.py`](../26_agent_tracing.py) | L25–26 tool latency spans | Existing |
 | Q80 | [`21_foundry_evaluation.py`](../21_foundry_evaluation.py), [`22_continuous_evaluation.py`](../22_continuous_evaluation.py) | L21–22 quality regression | Existing |
 | Q81 | [`04_model_router.py`](../04_model_router.py) | L04 Model Router | Existing |
-| Q85 | [`04_model_router.py`](../04_model_router.py), [`03_reasoning.py`](../../02-generative-ai-and-agents/03_reasoning.py) | L04 small-versus-frontier routing, D2 L03 multi-step reasoning model | Existing; partial: no dedicated LLM-versus-SLM exercise |
+| Q85 | [`36_solution_planning_choices.py`](../36_solution_planning_choices.py), [`04_model_router.py`](../04_model_router.py), [`03_reasoning.py`](../../02-generative-ai-and-agents/03_reasoning.py) | L36 requirement-to-model-type rules pick an LLM for long grounded multi-step answers; L04 routing; D2 L03 reasoning | Existing |
 | Q96 | [`25_foundry_tracing_setup.py`](../25_foundry_tracing_setup.py), [`26_agent_tracing.py`](../26_agent_tracing.py) | L25–26 stage latency tracing | Existing |
 | Q98 | [`17_evaluator_groundedness.py`](../17_evaluator_groundedness.py) | L17 reflection/regeneration | Existing |
 | Q100 | [`17_evaluator_groundedness.py`](../17_evaluator_groundedness.py), [`21_foundry_evaluation.py`](../21_foundry_evaluation.py) | L17 corrective retry versus L21 evaluation | Existing |
 | Q101 | [`21_foundry_evaluation.py`](../21_foundry_evaluation.py), [`30_evaluation_cicd_preflight.py`](../30_evaluation_cicd_preflight.py) | L30 and L21 RAG CI/CD evaluation | Existing |
-| Q103 | [`18_protected_material.py`](../18_protected_material.py), [`19_groundedness_detection.py`](../19_groundedness_detection.py), [`21_foundry_evaluation.py`](../21_foundry_evaluation.py) | L18 protected material, L19 groundedness, L21 evaluation | Existing; partial: no relevance evaluator configured |
+| Q103 | [`35_rag_quality_gate.py`](../35_rag_quality_gate.py), [`18_protected_material.py`](../18_protected_material.py), [`19_groundedness_detection.py`](../19_groundedness_detection.py) | L35 groundedness and relevance evaluators, L18 protected material, L19 groundedness detection | Existing |
 | Q104 | [`21_foundry_evaluation.py`](../21_foundry_evaluation.py) | L21 evaluation categories | Existing |
 | Q111 | [`25_foundry_tracing_setup.py`](../25_foundry_tracing_setup.py), [`26_agent_tracing.py`](../26_agent_tracing.py) | L25–26 end-to-end traces | Existing |
 | Q112 | [`25_foundry_tracing_setup.py`](../25_foundry_tracing_setup.py) | L25 Application Insights setup | Existing |
-| Q113 | [`01_access_and_metrics_preflight.py`](01_access_and_metrics_preflight.py), [`08_rbac_role_policies.py`](../08_rbac_role_policies.py) | `questions/01_access_and_metrics_preflight.py` plus L08 role assignment | Existing; partial: Key Vault Secrets User role not named |
+| Q113 | [`01_access_and_metrics_preflight.py`](01_access_and_metrics_preflight.py), [`08_rbac_role_policies.py`](../08_rbac_role_policies.py) | `questions/01_access_and_metrics_preflight.py` plus L08 `Key Vault Secrets User` role for the project identity | Existing |
 | Q115 | [`25_foundry_tracing_setup.py`](../25_foundry_tracing_setup.py), [`26_agent_tracing.py`](../26_agent_tracing.py), [`23_langchain_tracing.py`](../../02-generative-ai-and-agents/23_langchain_tracing.py) | L25–26 hierarchical spans, D2 L23 tool-call spans | Existing |
 | Q125 | [`06_rate_limit_backoff.py`](../06_rate_limit_backoff.py), [`06_file_search_tool.py`](../../02-generative-ai-and-agents/06_file_search_tool.py) | L06 throttling, D2 L06 uploads | Existing |
-| Q130 | [`30_evaluation_cicd_preflight.py`](../30_evaluation_cicd_preflight.py) | L30 evaluation YAML CI/CD | Existing; partial: no evaluation-config workflow action |
+| Q130 | [`30_evaluation_cicd_preflight.py`](../30_evaluation_cicd_preflight.py) | L30 prints the `microsoft/ai-agent-evals@v3-beta` workflow | Existing; partial: the current action takes `data-path`; the exam's `evaluation-config` input is not in it |
 | Q133 | [`09_content_safety_filters.py`](../09_content_safety_filters.py) | L09 Content Safety severity | Existing |
 | Q134 | [`17_evaluator_groundedness.py`](../17_evaluator_groundedness.py) | L17 retry evaluation before return | Existing |
-| Q139 | — | Control-plane resource concepts | Gap: multi-service resource exercise |
-| Q140 | — | Responsible AI governance | Gap: transparency exercise |
+| Q139 | [`36_solution_planning_choices.py`](../36_solution_planning_choices.py) | L36 builds the ARM `PUT` that creates a Foundry resource | Existing; partial: uses the current `AIServices` kind; the exam's `CognitiveServices` kind is the legacy multi-service account |
+| Q140 | [`36_solution_planning_choices.py`](../36_solution_planning_choices.py) | L36 maps notifying users about data processing to transparency | Existing |
 | Q142 | Adjacent only: [`07_managed_identity_agent.py`](../07_managed_identity_agent.py), [`08_rbac_role_policies.py`](../08_rbac_role_policies.py) | L07–08 endpoint/auth boundary | Compatibility: source key flow conflicts with keyless baseline |
+| Q161 | [`36_solution_planning_choices.py`](../36_solution_planning_choices.py) | L36 one endpoint and credential for Speech and Language -> Microsoft Foundry resource | Existing |
 | Q166 | [`02_deployment_types.py`](../02_deployment_types.py), [`03_deploy_model.py`](../03_deploy_model.py) | L02 deployment types; L03 `--sku Standard --version-upgrade-option NoAutoUpgrade` | Existing |
 | Q167 | [`11_prompt_shields_docs.py`](../11_prompt_shields_docs.py), [`11_ocr_image_injection_safety.py`](../../03-computer-vision/11_ocr_image_injection_safety.py) | L11 plus D3 L11 indirect injection | Existing |
-| Q168 | [`21_foundry_evaluation.py`](../21_foundry_evaluation.py) | L21 evaluation run | Existing; partial: no RAG evaluators configured |
+| Q168 | [`35_rag_quality_gate.py`](../35_rag_quality_gate.py), [`21_foundry_evaluation.py`](../21_foundry_evaluation.py) | L35 RAG evaluators (groundedness, relevance, retrieval, response completeness), L21 evaluation run | Existing |
 | Q175 | [`01_access_and_metrics_preflight.py`](01_access_and_metrics_preflight.py), [`09_prompt_agent_invoke.py`](../../02-generative-ai-and-agents/09_prompt_agent_invoke.py) | `questions/01_access_and_metrics_preflight.py` plus D2 L09 `agents.get` | Existing |
 
 See the complete, one-row-per-question map in [`../../docs/question-coverage.md`](../../docs/question-coverage.md#01---plan-and-manage).

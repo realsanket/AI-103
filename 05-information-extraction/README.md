@@ -135,13 +135,12 @@ SEARCH_CONNECTION_NAME=<foundry-project-connection-name>
 SEARCH_INDEX=northwind-docs-vector
 
 # Agentic retrieval — knowledge sources + knowledge base (L21–L27)
-SEARCH_KNOWLEDGE_SOURCE=northwind-blob-ks    # per-lesson: KS name being created
 SEARCH_KNOWLEDGE_BASE=northwind-kb
 SEARCH_BLOB_CONNECTION=ResourceId=/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/<account>
 SEARCH_BLOB_CONTAINER=northwind-docs
-SEARCH_KS_BLOB=northwind-blob-ks              # names referenced by L24 knowledge base
+SEARCH_KS_BLOB=northwind-blob-ks              # L21-L23 create these names; L24 references them
 SEARCH_KS_INDEX=northwind-index-ks
-SEARCH_KS_WEB=northwind-web-ks                # leave empty to skip the web source
+SEARCH_KS_WEB=northwind-web-ks                # opt-in: unset means L24 has no web source
 SEARCH_WEB_ALLOWED_DOMAIN=learn.microsoft.com
 SEARCH_WEB_BLOCKED_DOMAIN=bing.com
 ```
@@ -157,6 +156,8 @@ Required roles:
 | Lab user/workload | Search service | Search Index Data Contributor + Search Service Contributor | Schema management + queries |
 | Lab user/workload | Foundry project | Foundry User | L07 agent creation + L08 call |
 | CU caller | CU resource | Cognitive Services Content Understanding Contributor | L12/L13 analyzer creation |
+| Search service MI | Storage account | Storage Blob Data Contributor; Reader and Data Access | L29/L30 knowledge-store object/file and table projections |
+| Search service MI | Foundry resource | Cognitive Services User | L29 OCR billing; L30 Content Understanding skill |
 
 ### Safe run order
 
@@ -170,9 +171,10 @@ Required roles:
 8. `uv run python 05-information-extraction/07_rag_prompt_agent.py` — create RAG agent
 9. `uv run python 05-information-extraction/08_rag_client_run.py` — run RAG
 10. Run L09–L16 independently (need `CU_ENDPOINT` and file URLs)
-11. Run L13 with `CU_API_VERSION=2025-05-01-preview`; restore after
+11. Run L12–L13 without flags first (local preflight); `--apply` creates analyzers and `--delete` removes them
 12. Run L17–L20 as needed (each has `--apply`/`--run` guards)
 13. Agentic retrieval: L21 → L22 → L23 (build knowledge sources) → L24 (compose KB) → L25 (retrieve) → L26 (answer synthesis); L27 is docs-only
+14. Enrichment: L28 is a local runbook; run L29–L30 without flags first, then `--apply` after the role and billing checks, and `--delete` when finished
 
 ### Costs and side effects
 
@@ -196,7 +198,9 @@ Required roles:
 | L24 `--apply` | Creates knowledge base (persistent) |
 | L25 `--apply` | Runs retrieve; LLM tokens billed by AOAI |
 | L26 `--apply` | Runs retrieve + answer synthesis; more LLM tokens billed |
-| L27 | Preflight-only; no cloud calls |
+| L27, L28 | Preflight-only; no cloud calls |
+| L29 `--apply` | Creates index, skillset, indexer (runs at once); image extraction + OCR billed; knowledge-store blobs/tables persist after `--delete` |
+| L30 `--apply` | Creates index, skillset, indexer (runs at once); Content Understanding billed per page; image blobs persist after `--delete` |
 
 ---
 
@@ -226,7 +230,8 @@ Required roles:
 | `prebuilt-layout` | 10 | Any doc | Markdown with tables, figures, sections |
 | `prebuilt-invoice` | 11 | Invoice PDF | Structured invoice fields |
 | Custom standard | 12 | Any doc | Your defined fields (extract/classify/generate) |
-| Custom pro (preview) | 13 | Multiple related docs | Generated cross-document summary |
+| Cross-document validation | 13 | One analyze per document + app comparison | Consistency findings (replaces retired Pro mode) |
+| Content Understanding skill in Search | 30 | Blob files through an indexer | Markdown chunks with page and polygon metadata |
 
 ---
 
@@ -267,6 +272,8 @@ After completing this domain, use the [Domain 5 question review](questions/READM
 | 26 | `26_agentic_answer_synthesis.py` | Retrieve with `answerSynthesis` → synthesized answer + citations | `--apply` invokes retrieve |
 | 27 | `27_agentic_reasoning_effort_preflight.py` | Reasoning-effort tiers (`minimal`/`low`/`medium`/`auto`) walkthrough | No `--apply`; docs-only |
 | 28 | `28_sharepoint_indexer_acls_preflight.py` | SharePoint indexer ACL ingestion (preview) — permissions/index/mappings/resync runbook | Local reference only |
+| 29 | `29_search_ocr_knowledge_store.py` | OCR images via `normalized_images`, merge text, project to a knowledge store | Local by default; `--apply` creates + runs; `--delete` |
+| 30 | `30_search_cu_skill_citations.py` | Content Understanding skill: chunks with page/polygon citations, cross-page tables | Local by default; `--apply` creates + runs; `--delete` |
 
 ---
 
@@ -804,7 +811,7 @@ uv run python 05-information-extraction/21_knowledge_source_blob.py --apply
 ```
 
 **Code path.**
-1. `configuration()` reads `SEARCH_KNOWLEDGE_SOURCE`, `SEARCH_BLOB_CONNECTION`, `SEARCH_BLOB_CONTAINER`, plus `AZURE_OPENAI_ENDPOINT`, `EMBEDDING_MODEL`, `DEFAULT_MODEL`
+1. `configuration()` reads `SEARCH_KS_BLOB`, `SEARCH_BLOB_CONNECTION`, `SEARCH_BLOB_CONTAINER`, plus `AZURE_OPENAI_ENDPOINT`, `EMBEDDING_MODEL`, `DEFAULT_MODEL`
 2. `build_body()` mirrors the doc's preview PUT body exactly
 3. With `--apply`: PUT `/knowledgesources/<name>?api-version=2026-08-01-preview`
 
@@ -827,7 +834,7 @@ uv run python 05-information-extraction/22_knowledge_source_search_index.py --ap
 ```
 
 **Code path.**
-1. `configuration()` reads `SEARCH_KNOWLEDGE_SOURCE` + `SEARCH_INDEX_VECTOR`
+1. `configuration()` reads `SEARCH_KS_INDEX` + `SEARCH_INDEX_VECTOR`
 2. `build_body()` produces the wrapper JSON
 3. With `--apply`: PUT `/knowledgesources/<name>?api-version=2026-08-01-preview`
 
@@ -851,7 +858,7 @@ uv run python 05-information-extraction/23_knowledge_source_web.py --apply
 ```
 
 **Code path.**
-1. `configuration()` reads `SEARCH_KNOWLEDGE_SOURCE` + optional `SEARCH_WEB_ALLOWED_DOMAIN` / `SEARCH_WEB_BLOCKED_DOMAIN`
+1. `configuration()` reads `SEARCH_KS_WEB` + optional `SEARCH_WEB_ALLOWED_DOMAIN` / `SEARCH_WEB_BLOCKED_DOMAIN`
 2. `build_body()` sets `allowedDomains` and `blockedDomains`
 3. With `--apply`: PUT `/knowledgesources/<name>?api-version=2026-08-01-preview`
 
@@ -867,7 +874,7 @@ uv run python 05-information-extraction/23_knowledge_source_web.py --apply
 
 **Question answered:** How do you compose multiple knowledge sources into one queryable retrieval endpoint?
 
-**Background.** A knowledge base is a top-level object with one URL per KB (`/knowledgebases/<name>/retrieve`). It lists knowledge sources by name, optionally supplies an LLM for query planning / answer synthesis / web summarization, and stores defaults: `retrievalInstructions` (routing hints), `answerInstructions` (output shape), `outputMode`, `retrievalReasoningEffort`, and `retrieveDefaults` (runtime/token budgets). L24 wires L21+L22+L23 into one KB with `outputMode=answerSynthesis` and `retrievalReasoningEffort.kind=auto`.
+**Background.** A knowledge base is a top-level object with one URL per KB (`/knowledgebases/<name>/retrieve`). It lists knowledge sources by name, optionally supplies an LLM for query planning / answer synthesis / web summarization, and stores defaults: `retrievalInstructions` (routing hints), `answerInstructions` (output shape), `outputMode`, `retrievalReasoningEffort`, and `retrieveDefaults` (runtime/token budgets). L24 wires L21 and L22 (plus L23 when `SEARCH_KS_WEB` is set) into one KB with `outputMode=answerSynthesis` and `retrievalReasoningEffort.kind=auto`.
 
 ```bash
 uv run python 05-information-extraction/24_agentic_knowledge_base.py --apply
@@ -955,6 +962,82 @@ uv run python 05-information-extraction/27_agentic_reasoning_effort_preflight.py
 
 ---
 
+## Stage 8 — Permission-aware, image, and layout enrichment (lessons 28–30)
+
+Lessons 28–30 extend the L04–L05 indexer pipeline: SharePoint ACLs travel with the content (28), text inside images becomes searchable and is kept in a knowledge store (29), and one Content Understanding skill replaces extraction, chunking, and layout parsing with page-level citations (30). All three are local by default.
+
+### 28 — SharePoint indexer with ACL ingestion (preview runbook)
+
+**Question answered:** How do SharePoint permissions follow content into a search index so retrieval is security-trimmed?
+
+**Background.** The SharePoint indexer can store per-item user and group IDs (`indexerPermissionOptions`) in permission-filter fields and enforce them at query time. The portal doesn't support it; configure it with REST (`2026-05-01-preview` or later). The ingestion app needs **application** permissions; any scenario with SharePoint API permissions needs a **federated credential**, not a client secret. With chunking (`skipIndexingParentDocuments`), ACL fields must be mapped through `indexProjections.mappings`, not indexer field mappings. Parent-scope permission changes need `/resync` with `options: ["permissions"]`. Knowledge store, enrichment cache, custom Web API skills, and debug sessions don't preserve document permissions.
+
+```bash
+uv run python 05-information-extraction/28_sharepoint_indexer_acls_preflight.py
+```
+
+**What to watch.** A printed runbook: permission table per scenario, data source, index fields (`UserIds`, `GroupIds`, `SharePointSiteUrl`), mappings, and resync calls. `No cloud calls made.`
+
+**References:** [SharePoint indexer ACLs](https://learn.microsoft.com/azure/search/search-indexer-sharepoint-access-control-lists)
+
+---
+
+### 29 — OCR scanned files and embedded images; keep enrichments in a knowledge store
+
+**Question answered:** How do I make text inside scanned invoices and PDF images searchable with a citation to the source file, and keep the enriched output for analytics?
+
+**Background.**
+1. **Indexer `imageAction: "generateNormalizedImages"`** extracts every image (image files and images embedded in PDFs or Office files) into `/document/normalized_images` while cracking the blob. That collection is the only input the built-in OCR skill accepts; a Shaper skill, `outputFieldMappings`, or pointing OCR at `/document/content` cannot create it.
+2. **OCR skill** (`#Microsoft.Skills.Vision.OcrSkill`, context `/document/normalized_images/*`) reads printed and handwritten text from each image. Image Analysis returns tags and captions, not the text; Text Split and Translation need text that already exists.
+3. **Text Merge skill** inserts each image's OCR text into `/document/content` at the image's `contentOffset`, producing `merged_text`, which is indexed next to `source_url` for citations.
+4. **Knowledge store** projections write enrichments to Azure Storage for Power BI, data science, or audit:
+
+| Projection | Storage | Use for |
+|---|---|---|
+| `objects` | Blob container, one JSON per source file | JSON and other hierarchical data |
+| `tables` | Table storage rows and columns | Extracted text you query or analyze as records |
+| `files` | Blob container of binary images | Normalized images |
+
+Projections in one group are related through generated keys. A table property holds at most 64 KB, so long merged text goes to the object projection; the tables hold metadata and per-image OCR text.
+
+```bash
+uv run python 05-information-extraction/29_search_ocr_knowledge_store.py            # validate + print REST bodies
+uv run python 05-information-extraction/29_search_ocr_knowledge_store.py --apply    # PUT index, skillset, indexer
+uv run python 05-information-extraction/29_search_ocr_knowledge_store.py --delete   # remove them
+```
+
+**Code path.** `validate_pipeline()` checks that skills reading `normalized_images` have an indexer `imageAction`, that OCR reads only `/document/normalized_images/*`, that every mapping targets an index field, and that the knowledge store uses an identity-based `ResourceId=` connection (never an account key). `merge_text()` simulates Text Merge locally. `--apply` resolves `${...}` placeholders and PUTs index → skillset → indexer with `2026-04-01`.
+
+**Prerequisites.** Lesson 04's data source; `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `STORAGE_ACCOUNT`; `FOUNDRY_ENDPOINT` for keyless billing (`AIServicesByIdentity`) beyond 20 free documents per indexer per day. Search identity roles: Storage Blob Data Reader (source), Storage Blob Data Contributor (object projections), Reader and Data Access (table projections), Cognitive Services User (Foundry resource).
+
+**Cost and cleanup.** A new indexer runs immediately; image extraction and OCR are billable. `--delete` removes Search objects only; knowledge-store tables and containers stay in Storage until you delete them.
+
+**Exam cues.** Images → `normalized_images` → OCR. JSON → object projection; extracted text → table projection; images → file projection.
+
+**References:** [OCR skill](https://learn.microsoft.com/azure/search/cognitive-search-skill-ocr) · [Projections](https://learn.microsoft.com/azure/search/knowledge-store-projection-overview) · [Attach a billing resource](https://learn.microsoft.com/azure/search/cognitive-search-attach-cognitive-services)
+
+---
+
+### 30 — Content Understanding skill: page-level citations with polygons and cross-page tables
+
+**Question answered:** Which single built-in skill gives page-level citations with bounding polygons for text and images, and keeps tables that span pages whole?
+
+**Background.** `#Microsoft.Skills.Util.ContentUnderstandingSkill` (GA in `2026-04-01`) extracts and chunks in one step. `extractionOptions: ["images", "locationMetadata"]` returns every chunk and image with `pageNumberFrom`, `pageNumberTo`, `ordinalPosition`, and `source` polygons such as `D(2,0.64,9.26,...)`. Tables come back as Markdown and a table that spans pages is one unit. Document Extraction has no layout or polygons; Document Layout returns tables as plain text and cannot join cross-page tables; GenAI Prompt transforms text rather than extracting layout.
+
+```bash
+uv run python 05-information-extraction/30_search_cu_skill_citations.py            # validate + sample citation
+uv run python 05-information-extraction/30_search_cu_skill_citations.py --apply    # PUT index, skillset, indexer
+uv run python 05-information-extraction/30_search_cu_skill_citations.py --delete
+```
+
+**Code path.** The indexer sets `allowSkillsetToReadFileData: true` (creates `/document/file_data`, the skill's only input) and `batchSize: 1`. The skillset attaches the Foundry resource with `AIServicesByIdentity`, maps each `text_sections` item to a chunk document with `indexProjections`, and projects `normalized_images` as files so each chunk's `imagePath` resolves to a blob. `citation()` turns a chunk into `file.pdf, pages 2-3` plus parsed polygons.
+
+**Prerequisites and limits.** A Foundry resource in a Content Understanding region; Search identity with Cognitive Services User on it, Storage Blob Data Reader on the source, and Storage Blob Data Contributor for images. No free documents; files needing more than five minutes of analysis time out but are still charged. Semantic chunking and AI image descriptions are preview (`2026-05-01-preview`+) and are not used here.
+
+**References:** [Content Understanding skill](https://learn.microsoft.com/azure/search/cognitive-search-skill-content-understanding) · [Chunk and vectorize with Content Understanding](https://learn.microsoft.com/azure/search/search-how-to-semantic-chunking-content-understanding)
+
+---
+
 ## Feature status and hard limits
 
 | Feature | Status | Practical boundary |
@@ -965,6 +1048,9 @@ uv run python 05-information-extraction/27_agentic_reasoning_effort_preflight.py
 | Semantic ranker (L03) | GA | Region/SKU dependent; separate billing |
 | `AzureAISearchTool` (L20) | GA | Requires Foundry project connection + matching roles |
 | Integrated vectorization (L04–L05) | GA | Embedding model/dimension must match index schema |
+| SharePoint indexer ACL ingestion (L28) | Preview (`2026-05-01-preview`+) | REST only; application permissions; federated credential for SharePoint API scenarios |
+| OCR skill + knowledge store (L29) | GA | Needs indexer `imageAction`; billable beyond 20 free documents per indexer per day; table property limit 64 KB |
+| Content Understanding skill (L30) | GA (`2026-04-01`) | No free documents; five-minute analysis limit per file; semantic chunking and image descriptions are preview |
 
 ---
 

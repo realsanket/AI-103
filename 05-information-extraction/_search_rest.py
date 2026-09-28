@@ -47,12 +47,31 @@ def post(path: str, body: dict, api_version: str = _PREVIEW_API_VERSION) -> dict
     return response.json() if response.content else {}
 
 
+def delete_named(resource: str, name: str, api_version: str = _API_VERSION) -> bool:
+    """DELETE /<resource>/<name>. Returns False when it was already gone (404)."""
+    response = httpx.delete(
+        f"{_endpoint()}/{resource}/{name}?api-version={api_version}",
+        headers={"Authorization": f"Bearer {_token()}"},
+        timeout=120.0,
+    )
+    if response.status_code == 404:
+        return False
+    response.raise_for_status()
+    return True
+
+
 def load_definition(path: Path) -> dict:
     """Load a JSON resource and resolve its documented configuration placeholders."""
+    return resolve_placeholders(path.read_text(), path.name)
+
+
+def resolve_placeholders(definition: dict | str, source: str = "definition") -> dict:
+    """Replace ${NAME} markers with configured values; fail on a missing value."""
     s = settings()
     values = {
         "AZURE_OPENAI_ENDPOINT": s.azure_openai_endpoint,
         "EMBEDDING_MODEL": s.embedding_model,
+        "FOUNDRY_ENDPOINT": s.foundry_endpoint,
         "AZURE_RESOURCE_GROUP": s.azure_resource_group,
         "AZURE_SUBSCRIPTION_ID": s.azure_subscription_id,
         "SEARCH_INDEXER": s.search_indexer,
@@ -61,12 +80,12 @@ def load_definition(path: Path) -> dict:
         "STORAGE_ACCOUNT": s.storage_account,
         "STORAGE_CONTAINER": s.storage_container,
     }
-    text = path.read_text()
+    text = definition if isinstance(definition, str) else json.dumps(definition)
     for name, value in values.items():
         marker = f"${{{name}}}"
         if marker in text:
             if not value:
-                raise RuntimeError(f"Missing env var {name} required by {path.name}.")
+                raise RuntimeError(f"Missing env var {name} required by {source}.")
             text = text.replace(marker, value)
     return json.loads(text)
 

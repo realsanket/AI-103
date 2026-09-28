@@ -25,22 +25,23 @@ private/sovereign cloud region means web is public-cloud only.
 
 Prerequisites / env vars:
   SEARCH_ENDPOINT           — https://<service>.search.windows.net
-  SEARCH_KNOWLEDGE_SOURCE   — knowledge source name (default northwind-web-ks)
+  SEARCH_KS_WEB             — knowledge source name (default northwind-web-ks); set the same
+                              value for L24 to include this source in the knowledge base
   SEARCH_WEB_ALLOWED_DOMAIN — allowed domain (default learn.microsoft.com)
   SEARCH_WEB_BLOCKED_DOMAIN — blocked domain (default bing.com)
 """
 import argparse
 import json
-import os
 
 from _search_rest import _PREVIEW_API_VERSION, put_named
+from _shared.config import env
 
 
 def configuration() -> dict[str, str]:
     return {
-        "name": os.environ.get("SEARCH_KNOWLEDGE_SOURCE", "northwind-web-ks"),
-        "allowed": os.environ.get("SEARCH_WEB_ALLOWED_DOMAIN", "learn.microsoft.com"),
-        "blocked": os.environ.get("SEARCH_WEB_BLOCKED_DOMAIN", "bing.com"),
+        "name": env("SEARCH_KS_WEB", "northwind-web-ks"),
+        "allowed": env("SEARCH_WEB_ALLOWED_DOMAIN", "learn.microsoft.com"),
+        "blocked": env("SEARCH_WEB_BLOCKED_DOMAIN", "bing.com"),
     }
 
 

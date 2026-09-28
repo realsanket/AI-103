@@ -26,21 +26,20 @@ API version — either upgrade or set the field.
 
 Prerequisites / env vars:
   SEARCH_ENDPOINT           — https://<service>.search.windows.net
-  SEARCH_KNOWLEDGE_SOURCE   — knowledge source name (default northwind-index-ks)
+  SEARCH_KS_INDEX           — knowledge source name (default northwind-index-ks; L24 references it)
   SEARCH_INDEX_VECTOR       — existing index to wrap (from L00)
 """
 import argparse
 import json
 
 from _search_rest import _PREVIEW_API_VERSION, put_named
-from _shared.config import settings
+from _shared.config import env, settings
 
 
 def configuration() -> dict[str, str]:
-    import os
     s = settings()
     return {
-        "name": os.environ.get("SEARCH_KNOWLEDGE_SOURCE", "northwind-index-ks"),
+        "name": env("SEARCH_KS_INDEX", "northwind-index-ks"),
         "index": s.search_index_vector,
     }
 

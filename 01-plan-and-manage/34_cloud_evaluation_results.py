@@ -67,6 +67,8 @@ import os
 import time
 from typing import Any
 
+from _shared.config import load_env
+
 
 def _dump(obj: Any) -> Any:
     """Best-effort conversion of SDK models to plain dicts for printing."""
@@ -207,6 +209,7 @@ def preflight(args: argparse.Namespace) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Summarize a cloud evaluation run.")
     parser.add_argument("--eval-id", default=os.environ.get("EVAL_ID"), help="Evaluation ID.")
     parser.add_argument("--run-id", default=os.environ.get("EVAL_RUN_ID"), help="Evaluation run ID.")

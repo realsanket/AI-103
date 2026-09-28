@@ -8,8 +8,8 @@ full workflow state at the end of each superstep: executor state, pending
 messages, pending requests/responses, and shared state.
 
 Storage providers (all implement the same `CheckpointStorage` protocol):
-  InMemoryCheckpointStorage — tests, demos (this lesson defaults to it).
-  FileCheckpointStorage    — local disk; survives process restarts. Requires an
+  InMemoryCheckpointStorage — tests and demos.
+  FileCheckpointStorage    — local disk; survives process restarts (this lesson). Requires an
                              explicit `storage_path` — no default directory.
   CosmosCheckpointStorage  — production, distributed. Needs
                              `agent-framework-azure-cosmos --pre`.
@@ -105,8 +105,8 @@ def _build_workflow(checkpoint_storage: FileCheckpointStorage | None):
 def _preflight() -> None:
     print("Checkpoint storage plan:")
     print(f"  path       : {CHECKPOINT_DIR}")
-    print(f"  provider   : FileCheckpointStorage (restricted unpickler)")
-    print(f"  workflow   : Uppercaser → Reverser (2 supersteps)")
+    print("  provider   : FileCheckpointStorage (restricted unpickler)")
+    print("  workflow   : Uppercaser → Reverser (2 supersteps)")
     print("Re-run with --apply to execute the two-phase run-then-resume demo.")
 
 

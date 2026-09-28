@@ -155,6 +155,8 @@ def build_body(
 
     Mirrors the JSON in how-to/tools/agent-to-agent.md verbatim.
     """
+    if mode not in AUTH_MODES:
+        raise ValueError(f"Unknown mode: {mode}")
     cfg = AUTH_MODES[mode]
     props: dict = {
         "authType": cfg["authType"],
@@ -191,10 +193,6 @@ def build_body(
         if oauth.get("client_secret"):
             creds["ClientSecret"] = oauth["client_secret"]
         props["Credentials"] = creds
-    elif mode == "none":
-        pass
-    else:
-        raise ValueError(f"Unknown mode: {mode}")
     return {"properties": props}
 
 

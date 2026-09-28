@@ -16,7 +16,7 @@
 | Q60 | [`01_image_edit_fidelity_preflight.py`](01_image_edit_fidelity_preflight.py), [`05_image_prompt_edit.py`](../05_image_prompt_edit.py) | `questions/01_image_edit_fidelity_preflight.py` plus L05 source-image edit | Existing |
 | Q72 | [`11_prompt_shields_docs.py`](../../01-plan-and-manage/11_prompt_shields_docs.py), [`11_ocr_image_injection_safety.py`](../11_ocr_image_injection_safety.py) | L11 OCR content is indirect injection | Existing |
 | Q95 | [`06_image_masked_edit.py`](../06_image_masked_edit.py) | L06 selective object removal | Existing |
-| Q105 | [`14_video_analysis.py`](../14_video_analysis.py), [`12_cu_custom_analyzer.py`](../../05-information-extraction/12_cu_custom_analyzer.py) | L14 video segments, D5 L12 `generate` field method | Existing; partial: no video field schema |
+| Q105 | [`17_cu_custom_video_analyzer.py`](../17_cu_custom_video_analyzer.py), [`14_video_analysis.py`](../14_video_analysis.py) | L17 video field `colorScheme`: `string` + `generate` per segment; L14 prebuilt video segments | Existing |
 | Q117 | Adjacent only: [`01_multimodal_understanding.py`](../01_multimodal_understanding.py) | L01 visual understanding | Compatibility: legacy Vision Brands result shape |
 | Q124 | Adjacent only: [`09_video_remix.py`](../09_video_remix.py) | L09 video remix | Gap: video inpainting |
 | Q126 | [`01_multimodal_understanding.py`](../01_multimodal_understanding.py) | L01 multimodal content input | Existing |

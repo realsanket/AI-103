@@ -27,6 +27,8 @@ from __future__ import annotations
 import argparse
 import os
 
+from _shared.config import load_env
+
 RULE_ID = "northwind-continuous-violence"
 MAX_HOURLY_RUNS = 10
 
@@ -91,6 +93,7 @@ def create_rule(rule_id: str, max_hourly_runs: int) -> None:
 
 
 def main() -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Create sampled continuous evaluation.")
     parser.add_argument("--rule-id", default=RULE_ID)
     parser.add_argument("--max-hourly-runs", type=int, default=MAX_HOURLY_RUNS)

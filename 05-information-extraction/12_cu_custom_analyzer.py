@@ -1,5 +1,5 @@
 # Run: uv run python 05-information-extraction/12_cu_custom_analyzer.py [--propose-schema] [--apply] [--delete]
-# Practice-question coverage: Q15, Q41, Q87, Q92, Q105.
+# Practice-question coverage: Q15, Q41, Q87, Q92.
 """Custom Content Understanding analyzer with confidence, grounding, and review routing.
 
 A custom analyzer combines a `baseAnalyzerId` (prebuilt-document) with a

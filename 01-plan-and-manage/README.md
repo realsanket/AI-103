@@ -20,7 +20,7 @@ Apply guardrails at input, tool, and output boundaries
 Evaluate changes, trace runtime behavior, and release through CI/CD
 ```
 
-The lessons follow that lifecycle in six stages, each building on the previous. They do not create a complete production application or prove every Foundry feature. They teach decisions, boundaries, and the smallest runnable evidence for each subject.
+The lessons follow that lifecycle in nine stages, each building on the previous. They do not create a complete production application or prove every Foundry feature. They teach decisions, boundaries, and the smallest runnable evidence for each subject.
 
 ## Foundry mental model
 
@@ -151,6 +151,7 @@ For a managed identity, enable or attach the identity, then assign roles to its 
 10. Run **25** first when adopting Foundry-native tracing; it is local preflight only and explains the portal-side setup that remains necessary.
 11. Run **26** only after reviewing telemetry destination and data handling; run **25** first so you understand the server-side tracing architecture.
 12. Complete **24** before **31**. Lesson 24 keeps generated probes behind a fixed callback; lesson 31 is a billable real-deployment probe and needs an approved purple-environment plan.
+13. Run **35** without flags first; its `--apply` calls the judge model once per row per evaluator. Run **36** any time: it is local only.
 
 ### Costs and side effects
 
@@ -176,6 +177,8 @@ For a managed identity, enable or attach the identity, then assign roles to its 
 | 32 | Preview; `--apply` submits a synthetic data generation job and writes rows locally. |
 | 33 | `--apply` creates a persistent evaluation and run against the chosen target type. |
 | 34 | Read-only; polls a completed run and prints scored summary. |
+| 35 | Local dataset and token checks by default; `--apply` calls four judge evaluators per row and can log a run to the project. |
+| 36 | Local only. |
 
 Provisioned deployments reserve PTU capacity and incur hourly capacity cost while present, including idle time. A PTU is reserved throughput capacity, **not a prepaid token bucket** and not per-token billing. PTU quota approval does not guarantee capacity in every requested region.
 
@@ -274,11 +277,13 @@ After completing this domain, use the [Domain 1 question review](questions/READM
 | 27 | [Control Plane fleet inventory](27_control_plane_fleet_inventory.py) | Read Foundry accounts + deployments subscription-wide. | Live read; `--apply` needed. |
 | 28 | [Guardrail policy preflight](28_guardrail_policy_preflight.py) | Build a guardrail with controls at all four intervention points; validate a Control Plane compliance policy JSON. | Local by default; `--apply` writes the guardrail; tool intervention points are preview. |
 | 29 | [Cluster analysis reader](29_observability_cluster_analysis.py) | KQL summary of GenAI dependencies from Log Analytics. | Live read; `--apply --workspace-id`. |
-| 30 | [Evaluation CI/CD preflight](30_evaluation_cicd_preflight.py) | Validate env + run one-sample coherence eval; print CI pipeline patterns. | `--apply` submits cloud eval job. |
+| 30 | [Evaluation CI/CD preflight](30_evaluation_cicd_preflight.py) | Validate env, print the agent-evaluation GitHub Action and gate patterns, run a one-sample coherence eval. | `--apply` makes one judge call; logs to the project when `PROJECT_ENDPOINT` is set. |
 | 31 | [AI red teaming preflight](31_ai_red_teaming_preflight.py) | Probe a real deployment and interpret ASR with its denominator. | `--apply` billable; purple environment; two Violence pairs. |
 | 32 | [Synthetic eval dataset](32_synthetic_eval_dataset.py) | Generate a Simple QnA or Simulation seed dataset from an agent, prompt, or reference file. | Preview; `--apply` submits data generation job under `project.beta.datasets`. |
 | 33 | [Cloud evaluation targets](33_cloud_evaluation_targets.py) | Configure `azure_ai_model` / `azure_ai_agent` (responses or invocations) target JSON for a cloud eval run. | `--apply` creates persistent evaluation + run. |
 | 34 | [Cloud evaluation results](34_cloud_evaluation_results.py) | Poll a run and summarize `result_counts`, per-evaluator pass rate, target latency, and estimated cost. | Read-only; needs completed run's eval ID + run ID. |
+| 35 | [RAG quality gate](35_rag_quality_gate.py) | Score groundedness, relevance, retrieval, and completeness; fail the job when pass rates or token budget miss. | Local by default; `--apply` billable judge calls; exit code 1 on failure. |
+| 36 | [Solution planning choices](36_solution_planning_choices.py) | Pick a model type, a Foundry resource versus single-service resource, and a responsible AI principle. | Local decision logic only. |
 
 ---
 
@@ -425,6 +430,23 @@ uv run python 01-plan-and-manage/04_model_router.py
 **When not to use it.** Do not use a router when one approved/pinned model is required for validation, jurisdiction, deterministic behavior, or a narrow latency/cost SLO. The smallest model in the allowed set can limit usable context; exclude unsuitable models rather than discovering that limit in production.
 
 **References:** [Model Router concepts](https://learn.microsoft.com/azure/foundry/openai/concepts/model-router) · [How Model Router works](https://learn.microsoft.com/azure/foundry/openai/concepts/model-router-how-it-works) · [Model Router how-to](https://learn.microsoft.com/azure/foundry/openai/how-to/model-router)
+
+### 04b — Same Responses call for Model Router or a named deployment
+
+**Question answered:** When should the `model` value be the router, and when a named deployment?
+
+**Background.** The Responses API is one interface for both. Only the `model` string changes: `model-router` picks a model per request for cost and quality; a named deployment gives deterministic behavior for compliance, reproducible benchmarks, or a strict latency or cost SLO. Failover, prompt caching, content filtering, RBAC, and per-deployment quotas apply the same way to both, and `response.model` reports which model actually answered, so log it for cost attribution.
+
+```bash
+uv run python 01-plan-and-manage/04b_responses_model_routing.py            # decision table, no cloud call
+uv run python 01-plan-and-manage/04b_responses_model_routing.py --apply    # 1 router + 1 named request
+```
+
+**Code path.** `project_client().get_openai_client()` → `responses.create(model=<router>, input=prompt)` and the same call with `model=<DEFAULT_MODEL>`; print the requested deployment, `response.model`, latency, and a snippet.
+
+**What to watch.** The router row's `responded` value is one of the pool's models; the named row matches the deployment. Start with the router for mixed traffic (at least two models in the subset for failover) and evaluate it against your current named deployment as the baseline before adopting it broadly.
+
+**References:** [Model router](https://learn.microsoft.com/azure/foundry/openai/how-to/model-router)
 
 ### 05 — Read quota before scaling demand
 
@@ -1693,26 +1715,28 @@ Evaluation belongs in every release pipeline. Lessons 30 and 31 add the release 
 
 ### 30 — Evaluation CI/CD preflight
 
-**Question answered:** Does my CI environment have everything needed to run Foundry evaluations, and can I submit one now?
+**Question answered:** How do Foundry evaluations run in a pull-request workflow, and does my environment have what they need?
 
-**Background.** Foundry evaluations (`azure-ai-evaluation` SDK, `evaluate()` function) run as cloud jobs that judge model outputs against a labeled dataset. Wiring them into GitHub Actions or Azure DevOps catches coherence/relevance/safety regression before a new model version reaches production. This lesson validates env vars, prints the pipeline step patterns, and optionally submits a one-sample coherence evaluation.
+**Background.** Two CI patterns exist. (1) Microsoft's `microsoft/ai-agent-evals` GitHub Action (preview) invokes Foundry agents with test queries and runs catalog evaluators; its inputs are `azure-ai-project-endpoint`, `deployment-name`, `agent-ids` (`name:version`), and `data-path`, a JSON file listing `evaluators` and `data` rows. It authenticates through `azure/login` with OpenID Connect (`permissions: id-token: write`). (2) A self-owned gate script with the `azure-ai-evaluation` SDK (lesson 35) that exits non-zero on failure. Either way, make the job a **required status check** in branch protection so a failing evaluation blocks the merge. This lesson validates configuration, prints both patterns, and optionally runs a one-sample coherence evaluation.
 
 ```bash
-# Preflight + pipeline snippet
+# Preflight + pipeline snippets
 uv run python 01-plan-and-manage/30_evaluation_cicd_preflight.py
 
-# Submit one-sample evaluation
+# One-sample evaluation with the DEFAULT_MODEL judge (logs to the project when PROJECT_ENDPOINT is set)
 uv run python 01-plan-and-manage/30_evaluation_cicd_preflight.py --apply
 ```
 
 **Code path.**
-1. `CoherenceEvaluator(model_config={azure_endpoint, azure_deployment})`.
-2. `evaluate(data=[one sample], evaluators={"coherence": evaluator}, azure_ai_project=...)`.
-3. Print per-sample score + aggregate metric.
+1. `CoherenceEvaluator(model_config={azure_endpoint: AZURE_OPENAI_ENDPOINT, azure_deployment: DEFAULT_MODEL}, credential=DefaultAzureCredential())`.
+2. Write the sample row to a temporary JSONL — `evaluate()` takes a file path, not a Python list.
+3. `evaluate(data=<path>, evaluators={"coherence": evaluator}, azure_ai_project=PROJECT_ENDPOINT or None)` → print per-row score, aggregate metrics, and the Foundry run URL.
 
-**What to watch.** Coherence score 1–5. `AuthenticationError` = missing `AZURE_CLIENT_ID` or no logged-in CLI session in CI.
+**What to watch.** Coherence score 1–5. 401/403 = the CI identity lacks Cognitive Services OpenAI User on the judge resource. The judge endpoint is the Azure OpenAI endpoint, not the project endpoint.
 
-**References:** [Evaluate generative AI app](https://learn.microsoft.com/azure/foundry/how-to/evaluate-generative-ai-app) · [Evaluation GitHub Actions](https://learn.microsoft.com/azure/foundry/how-to/evaluation-github-action) · [Evaluation Azure DevOps](https://learn.microsoft.com/azure/foundry/how-to/evaluation-azure-devops) · [Built-in evaluators](https://learn.microsoft.com/azure/foundry/concepts/built-in-evaluators) · [Custom evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/custom-evaluators) · [azd evaluation](https://learn.microsoft.com/azure/foundry/observability/how-to/azure-developer-cli-evaluation)
+**Exam cues.** "Block the merge unless evaluation passes" → required status check on the evaluation workflow. Some practice material names an `evaluation-config` input; the current action's equivalent is `data-path`. Run evaluations on pull requests or releases, not every commit, to control cost.
+
+**References:** [Evaluation GitHub Action](https://learn.microsoft.com/azure/foundry/how-to/evaluation-github-action) · [Evaluation Azure DevOps](https://learn.microsoft.com/azure/foundry/how-to/evaluation-azure-devops) · [Evaluate generative AI app](https://learn.microsoft.com/azure/foundry/how-to/evaluate-generative-ai-app) · [Built-in evaluators](https://learn.microsoft.com/azure/foundry/concepts/built-in-evaluators)
 
 ---
 
@@ -1902,6 +1926,91 @@ uv run python 01-plan-and-manage/34_cloud_evaluation_results.py \
 
 ---
 
+## Stage 9 — RAG quality gate and planning choices (lessons 35–36)
+
+Lesson 35 turns evaluation into a merge gate for a retrieval-augmented app: four RAG evaluators score a dataset, pass rates are compared with a threshold, and a failing gate exits with code 1 so the CI job fails. Lesson 36 is a local decision lab for the planning questions that come before any code: which model type, which resource type, and which responsible AI principle.
+
+### 35 — Gate a RAG app on groundedness, relevance, retrieval, and completeness
+
+**Question answered:** How do I measure whether RAG answers are grounded and relevant, and stop a release when they are not?
+
+**Background.** A RAG answer can fail in four separate places, so one score is not enough:
+
+| Evaluator (`azure-ai-evaluation`) | Inputs | Catches |
+|---|---|---|
+| `GroundednessEvaluator` | `query`, `context`, `response` | Claims the retrieved context does not support (fabrication) |
+| `RelevanceEvaluator` | `query`, `response` | Answers that miss or dodge the question |
+| `RetrievalEvaluator` | `query`, `context` | Retrieval that returns unrelated chunks |
+| `ResponseCompletenessEvaluator` | `response`, `ground_truth` | Answers that leave out required facts |
+
+Each evaluator asks a judge model for a 1–5 score and marks the row `pass` when the score meets `threshold` (the result appears as `outputs.<name>.<name>_result`). The lesson also reports **completion-token analytics** from recorded usage (for example exported traces): mean completion tokens and which rows exceed a budget, because an answer that is grounded but twice the budget is still a regression. Protected material and other risk and safety evaluators are separate (lessons 18 and 21–24).
+
+**When to use it.** Use it as a required status check on pull requests that change prompts, retrieval settings, or model deployments. Do not use it on every commit (each row costs judge tokens) or as proof of production quality (the dataset must represent real traffic).
+
+```bash
+# Local: validate the dataset and report token analytics (no judge calls)
+uv run python 01-plan-and-manage/35_rag_quality_gate.py
+
+# Run the four evaluators with the DEFAULT_MODEL judge; exit code 1 when the gate fails
+uv run python 01-plan-and-manage/35_rag_quality_gate.py --apply --min-pass-rate 0.8
+
+# Also log the run to the Foundry project (needs PROJECT_ENDPOINT)
+uv run python 01-plan-and-manage/35_rag_quality_gate.py --apply --log-to-project
+```
+
+**Code path.**
+1. `load_rows()` rejects rows missing `query`, `context`, `response`, or `ground_truth` and names the line.
+2. `token_report()` computes mean completion tokens and the rows over `--token-budget`.
+3. With `--apply`, `run_evaluation()` builds the four evaluators with `model_config={"azure_endpoint": AZURE_OPENAI_ENDPOINT, "azure_deployment": <judge>}` and `DefaultAzureCredential()`, then calls `evaluate(data=<jsonl path>, evaluators=..., azure_ai_project=PROJECT_ENDPOINT or None)`.
+4. `quality_gate()` computes the pass rate per evaluator; `main()` returns 1 when any evaluator or the token budget fails.
+
+**Expected output.** Preflight prints the row count and token analytics; the sample file has one intentionally ungrounded, over-budget row (`ungrounded-and-long`). With `--apply`, one `PASS`/`FAIL` line per evaluator, then `Quality gate: PASSED` or `FAILED`.
+
+**Prerequisites.** `AZURE_OPENAI_ENDPOINT` and a judge deployment (`DEFAULT_MODEL` or `--judge-model`); the caller needs `Cognitive Services OpenAI User` on that resource. `--log-to-project` also needs `PROJECT_ENDPOINT` and `Foundry User`. Data is synthetic; do not put customer prompts or answers in a CI dataset without a retention decision.
+
+**Pitfalls.** A judge that is also the generator grades itself generously; prefer a different, stronger judge. Small datasets make pass rates noisy; record the denominator. `evaluate()` takes a file path, not a list.
+
+**Exam cues.** Fabrication against retrieved sources → groundedness. Answer addresses the question → relevance. Retrieved chunks match the query → retrieval. Answer covers the expected facts → response completeness. "Block the merge" → required status check on a job that exits non-zero.
+
+**References:** [RAG evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/rag-evaluators) · [`GroundednessEvaluator` API](https://learn.microsoft.com/python/api/azure-ai-evaluation/azure.ai.evaluation.groundednessevaluator) · [Evaluation GitHub Action](https://learn.microsoft.com/azure/foundry/how-to/evaluation-github-action)
+
+---
+
+### 36 — Choose a model type, a resource type, and a responsible AI principle
+
+**Question answered:** Before writing code, which model type fits the requirement, which Azure resource hosts it, and which responsible AI principle does a practice serve?
+
+**Background.**
+
+| Requirement | Model type |
+|---|---|
+| Long grounded context, multi-step reasoning, detailed answers (RAG agents) | Large language model (LLM) |
+| Narrow task where latency, cost, or on-device hosting matter | Small language model (SLM), for example Phi-4-mini |
+| Math, planning, or multi-step problems where a longer think time is fine | Reasoning model |
+| Images or audio in the same prompt as text | Multimodal model |
+| Vectors for documents and queries | Embedding model |
+| Pixels from text | Image generation model |
+| Deterministic key phrases, PII, language detection, speech, translation | A Foundry Tool (Azure Language, Speech, Translator), not a model |
+
+One **Microsoft Foundry resource** (ARM `Microsoft.CognitiveServices/accounts`, `kind: "AIServices"`) gives one endpoint and one credential for Speech, Language, Vision, Content Safety, and model deployments. A single-service resource (for example Language only) does not. Create it with an idempotent ARM **PUT** to the account URI. Older material names the legacy multi-service kind `CognitiveServices`; new resources use `AIServices`.
+
+Microsoft's six responsible AI principles are fairness, reliability and safety, privacy and security, inclusiveness, transparency, and accountability. Telling people that an AI system processes their data, and how, is **transparency**; a named owner for escalations is **accountability**.
+
+```bash
+uv run python 01-plan-and-manage/36_solution_planning_choices.py
+uv run python 01-plan-and-manage/36_solution_planning_choices.py --needs narrow_task on_device_or_low_cost
+```
+
+**Code path.** `recommend_model_type()` applies ordered requirement rules; `resource_for()` returns a Foundry resource when one endpoint or several services are needed; `foundry_resource_request()` builds the ARM `PUT` body (`kind: AIServices`, `sku: S0`, system-assigned identity, `customSubDomainName`, `allowProjectManagement`, `disableLocalAuth: true`); `principle_for()` maps a practice to a principle.
+
+**Expected output.** Five sample scenarios with their model type, the resource choice with the `PUT` URL and body, and three practices with their principle. `No cloud calls made.`
+
+**Limits.** The rules are study aids, not a benchmark: validate the chosen model on representative prompts, region availability, and cost (lessons 01–04).
+
+**References:** [Choose a model](https://learn.microsoft.com/azure/foundry/concepts/foundry-models-overview) · [Create a Foundry resource](https://learn.microsoft.com/azure/ai-services/multi-service-resource) · [Responsible AI principles](https://www.microsoft.com/ai/principles-and-approach)
+
+---
+
 ## Feature status and hard limits
 
 | Feature | Status | Practical boundary |
@@ -1912,7 +2021,8 @@ uv run python 01-plan-and-manage/34_cloud_evaluation_results.py \
 | PII filter | **Preview** | Output/completion intervention; matching configured deployment guardrail required. |
 | Task Adherence | **Preview** | Explicit API returns signal; app must block/escalate; test actual workflow. |
 | Response Completeness | **Preview** built-in evaluator | Requires supported evaluation run/input contract; lesson 17 does not implement it. |
-| Groundedness | Built-in evaluator | Requires documented evaluation contract; lesson 17 does not implement it. |
+| Groundedness | Built-in evaluator | Requires documented evaluation contract; lesson 17 does not implement it; lesson 35 runs it with `--apply`. |
+| RAG evaluators (groundedness, relevance, retrieval, response completeness) | Built-in evaluators (`azure-ai-evaluation`) | Lesson 35 runs them locally against a judge deployment; results depend on the judge model and dataset. |
 | Protected Material text | GA Content Safety API | Lesson 18 checks synthetic English completion only. |
 | Groundedness detection | **Preview** Content Safety API | Lesson 19 is a source-support signal, not a Foundry evaluator run. |
 | Provenance detection | **Preview** async Content Safety API | Lesson 20 requires Blob read access and detects markers, not authenticity. |

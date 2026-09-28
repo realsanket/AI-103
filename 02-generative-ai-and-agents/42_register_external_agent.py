@@ -220,7 +220,7 @@ def main(argv: list[str] | None = None) -> None:
     app_insights = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
 
     print("External agent registration - preview surface")
-    print(f"  Foundry-Features header: ExternalAgents=V1Preview (SDK: allow_preview=True)")
+    print("  Foundry-Features header: ExternalAgents=V1Preview (SDK: allow_preview=True)")
     print(f"  Foundry agent name:      {args.name}")
     print(f"  otel_agent_id:           {otel_id}")
     print(f"  Description:             {args.description}")

@@ -2,7 +2,7 @@
 
 > IaC-first labs for provisioning a private, keyless Foundry cell (Bicep OR Terraform), governance policy, CI/CD, diagnostics, and HA/DR. Run commands from repository root: `uv run python 07-production-platform-other/<lesson>.py`.
 >
-> Every lab defaults to a local read-only preflight and ends with `No cloud calls made.` Only lessons 01, 02, and 03 accept `--apply`; those explicitly mutate Azure. CI/CD, diagnostics, and HA/DR are reviewed-only guidance validators — they never touch Azure.
+> Every lab defaults to a local read-only preflight and ends with `No cloud calls made.` Lessons 01, 02, 03, and 11 accept an `--apply` that mutates Azure; lessons 07–10 use `--apply` or `--run` only for read-only checks. CI/CD, diagnostics, and HA/DR are reviewed-only guidance validators — they never touch Azure.
 
 ## What this domain teaches
 
@@ -24,7 +24,7 @@ CI/CD reference workflow: OIDC + self-hosted runner in VNet + manual dispatch
 HA/DR: two independent regional cells + tested traffic switch (no auto-failover)
 ```
 
-Lessons follow this chain in five stages. They do NOT provision model deployments, agents, Agent Service capability hosts, data schemas, or workload-specific RBAC. Those come after this baseline passes review.
+Lessons follow this chain in eight stages. They do NOT provision model deployments, agents, Agent Service capability hosts, data schemas, or workload-specific RBAC. Those come after this baseline passes review.
 
 ## Foundry platform mental model
 
@@ -135,6 +135,7 @@ PLATFORM_PREFIX          — unique naming prefix
 6. **03 --apply** with a tested `--allowed-category` list in nonproduction FIRST.
 7. Copy `github/workflows/production-platform.yml` to `.github/workflows/` only after OIDC + self-hosted runner in VNet path are in place.
 8. **06 --apply** conceptually: deploy second cell (repeat 01/02 in a different region with a different prefix).
+9. **11** offline first; then `--what-if` for one template, and `--apply` only in nonproduction after the connection-order and role review.
 
 ### Costs and side effects
 
@@ -146,6 +147,8 @@ PLATFORM_PREFIX          — unique naming prefix
 | 01 --apply | Deploys full cell: Foundry account + project + KV + Storage GZRS + VNet + 3+ PEs + private DNS + Log Analytics diag + delete lock. Hourly costs begin immediately. |
 | 02 --apply | Same cell via Terraform. Do NOT combine with Bicep in same RG. |
 | 03 --apply | Creates subscription-scoped Deny policy + RG-scoped assignment. REJECTS unapproved-category connections at deploy time — test first. |
+| 11 preflight / --what-if | Local read-only / Azure read-only preview. |
+| 11 --apply | `connections`: Key Vault connection, Key Vault Secrets Officer assignment, project model connection. `selected-networks`: VNet + `AIServices` account (billable when used). |
 
 Foundry cell hourly cost includes: Log Analytics ingestion + retention, Storage GZRS, KV standard tier, private endpoints (per hour + per GB processed), private DNS zones, VNet base. Add model deployments separately.
 
@@ -204,6 +207,7 @@ After completing this domain, use the [Domain 7 question review](questions/READM
 | 08 | [BYO Storage preflight](08_byo_storage_preflight.py) | Validate BYO storage binding prerequisites | `--run` proves project credential |
 | 09 | [DR verify preflight](09_dr_verify_preflight.py) | Confirm standby Foundry account in secondary region | `--run --region` reads subscription |
 | 10 | [PTU spillover preflight](10_ptu_spillover_preflight.py) | Read PTU deployment + verify spillover target configured | `--apply --deployment` read-only |
+| 11 | [Connections and network rules](11_connections_network_rules_preflight.py) | Validate Key Vault + model connections and selected-network templates; print VNet-rule and CMK CLI | `--what-if` previews; `--apply` deploys one template |
 
 ---
 
@@ -276,6 +280,7 @@ uv run python 07-production-platform-other/02_terraform_preflight.py --apply
 - `assign_connection_policy` defaults to `false`. Only set `true` after testing explicit `allowed_connection_categories` list in nonproduction.
 - Never use empty allow-list in production assignment unless blocking every new connection is intentional.
 - Do NOT apply Terraform + Bicep to same RG — they will fight over resource IDs.
+- The CMK key is created through ARM (`azapi_resource`), as in Bicep, because the vault has no public data plane for a runner outside the VNet. ARM cannot delete Key Vault keys: tear a cell down by removing the locks and deleting the resource group, or run `terraform state rm azapi_resource.foundry_cmk` before `terraform destroy`.
 
 **References:** [Create resource template (Terraform)](https://learn.microsoft.com/azure/foundry/how-to/create-resource-terraform) · [Configure Private Link](https://learn.microsoft.com/azure/foundry/how-to/configure-private-link)
 
@@ -500,6 +505,42 @@ uv run python 07-production-platform-other/10_ptu_spillover_preflight.py --apply
 
 ---
 
+## Stage 8 — Connections, selected networks, and CMK by CLI (lesson 11)
+
+Three account-level controls that the private cell (lessons 01–02) does not cover: project connections, public-endpoint restriction to selected subnets, and customer-managed keys set from the Azure CLI.
+
+### 11 — Connections and network rules preflight
+
+**Question answered:** How do I (a) let every app in a project reuse one model endpoint and keep connection secrets in my own Key Vault, (b) allow only specific subnets to reach a Foundry or Language resource, and (c) turn on a customer-managed key from the CLI?
+
+**Background.**
+
+- **Connections** (`bicep/connections.bicep`). A connection stores a target, an auth type, and metadata once; apps and agents reference it by name instead of copying endpoints and credentials. The **Key Vault connection** (`category: 'AzureKeyVault'`, `authType: 'AccountManagedIdentity'`) is account-level, one per Foundry resource, and must be created first, with **Key Vault Secrets Officer** for the resource's system-assigned identity; every other connection depends on both, because Foundry does not migrate secrets between vaults. The **model-resource connection** (`category: 'AIServices'`, `authType: 'AAD'`, target = the other resource's endpoint, same subscription) is keyless and shared to the project. A private endpoint, RBAC on the deployment, or diagnostic settings do not let apps share model configuration; a connection does.
+- **Selected networks** (`bicep/selected-networks.bicep`). Virtual network rules on the resource (`networkAcls.virtualNetworkRules` with `defaultAction: 'Deny'`) plus a `Microsoft.CognitiveServices` service endpoint on each allowed subnet let only those subnets reach the public endpoint. Both halves are required, `ignoreMissingVnetServiceEndpoint: false` makes a missing service endpoint fail, and clients must call the custom subdomain. Application Gateway, a VNet gateway, and IPsec policies do not restrict who can call the resource. Private endpoints (lesson 01) remove the public endpoint instead.
+- **CMK by CLI.** With a system-assigned identity: `az cognitiveservices account create ... --assign-identity`, grant **Key Vault Crypto User** to the new principal, then `az cognitiveservices account update --encryption '{"keySource":"Microsoft.KeyVault",...}'`. Omit `keyVersion` to follow key rotation automatically.
+
+```bash
+# Offline: check both templates, print the network decision table and CLI sequences
+uv run python 07-production-platform-other/11_connections_network_rules_preflight.py
+
+# Preview one template (Azure read-only), then deploy it
+uv run python 07-production-platform-other/11_connections_network_rules_preflight.py --what-if \
+  --template connections --resource-group <rg> \
+  --parameters foundryName=<foundry> projectName=<project> keyVaultName=<kv> modelAccountName=<model-foundry>
+uv run python 07-production-platform-other/11_connections_network_rules_preflight.py --apply \
+  --template selected-networks --resource-group <rg> --parameters prefix=<prefix>
+```
+
+**Code path.** `check_template()` requires the security markers above and rejects `listKeys(`, `ApiKey`, stored `credentials`, or `defaultAction: 'Allow'`; for connections it also checks that the model connection follows and depends on the Key Vault connection and its role assignment. `vnet_rule_commands()` orders the CLI so allowed callers are never locked out (service endpoint, rule, then Deny). `--what-if` and `--apply` run `az deployment group what-if|create`.
+
+**Prerequisites and cleanup.** Contributor on the resource group, plus Owner or User Access Administrator for the Key Vault role assignment. `connections.bicep` expects an existing Foundry resource **with a system-assigned identity** (the lesson-01 cell uses a user-assigned identity only, so add a system-assigned one first), its project, a Key Vault, and a model resource in the same subscription. Callers still need a data-plane role such as Foundry User on the model resource. Delete connections in reverse order: other connections first, then the Key Vault connection. `selected-networks.bicep` creates a VNet and an `AIServices` account; delete the resource group when finished.
+
+**Exam cues.** Share one model configuration across apps → create a connection to the model resource. Key Vault connection → `AzureKeyVault` + `AccountManagedIdentity`. Only specific Azure subnets may call the resource → virtual network rules on the resource + a service endpoint on the subnet. CMK in a script → `--encryption`.
+
+**References:** [Set up a Key Vault connection](https://learn.microsoft.com/azure/foundry/how-to/set-up-key-vault-connection) · [Add a connection](https://learn.microsoft.com/azure/foundry/how-to/connections-add) · [Configure virtual networks for Foundry Tools](https://learn.microsoft.com/azure/ai-services/cognitive-services-virtual-networks) · [Customer-managed keys](https://learn.microsoft.com/azure/foundry/concepts/encryption-keys-portal)
+
+---
+
 ## Feature status and hard limits
 
 | Feature | Status | Practical boundary |
@@ -507,7 +548,9 @@ uv run python 07-production-platform-other/10_ptu_spillover_preflight.py --apply
 | Foundry account `AIServices` | GA | Modern account type; not `OpenAI` classic; not ML workspace |
 | Private endpoint with `publicNetworkAccess: Disabled` | GA | Requires 3 private DNS zones + VNet linkage |
 | Network injection (agent subnet delegation) | GA | Immutable after account creation; delegate to `Microsoft.App/environments` |
-| CMK for Foundry project | GA | One-way; requires KV in same region; limited by Search regional CMK support |
+| CMK for Foundry project | GA | One-way; requires KV in same region; limited by Search regional CMK support; with a user-assigned identity set `identityClientId`; omit `keyVersion` to follow rotation |
+| Key Vault connection | GA | One per Foundry resource; create before other connections; delete it last |
+| Virtual network rules + service endpoints | GA | Need `defaultAction: Deny`, a custom subdomain, and the `Microsoft.CognitiveServices` service endpoint |
 | `disableLocalAuth: true` (Entra-only) | GA | Requires custom subdomain on the Foundry resource |
 | Azure Policy Deny for connection categories | GA | Rejects at deploy time; doesn't enforce PE/CMK aliases |
 | Standard Agent Service capability hosts | **Preview** in some regions | Bring your own Cosmos DB + AI Search + Storage |
@@ -577,7 +620,7 @@ Pull request modifies template or policy
 | Storage | GZRS + private Blob endpoint | Do not treat GZRS as Foundry project DR |
 | Delete lock | `CanNotDelete` on RG | Locks don't prevent data-plane deletes (agents, threads, models) |
 | Private DNS | Link all three zones to VNet | Missing `services.ai.azure.com` zone → project API resolves publicly |
-| CMK | RSA key in same region KV; grant Foundry UAMI Crypto User | One-way — cannot revert to Microsoft-managed |
+| CMK | RSA key in same region KV; grant Foundry UAMI Crypto User; set `identityClientId`; omit `keyVersion` | One-way — cannot revert to Microsoft-managed; a pinned version needs a manual update on every rotation |
 | Terraform state | Encrypted remote backend with least-privilege access | Local state file in team setting = credential exposure |
 | Policy allow-list | Test in nonprod first; explicit categories only | Empty allow-list in prod blocks every new connection |
 | Self-hosted runner | Inside VNet path, labelled `foundry-vnet` | Public GitHub runner cannot reach private endpoints |
@@ -617,6 +660,8 @@ It does **not** provision model deployments, agents, capability hosts, workload 
 ### Governance + encryption
 
 - [Encryption keys (CMK)](https://learn.microsoft.com/azure/foundry/concepts/encryption-keys-portal)
+- [Set up a Key Vault connection](https://learn.microsoft.com/azure/foundry/how-to/set-up-key-vault-connection)
+- [Configure virtual networks for Foundry Tools](https://learn.microsoft.com/azure/ai-services/cognitive-services-virtual-networks)
 
 ### Diagnostics + CI/CD
 

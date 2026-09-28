@@ -70,3 +70,55 @@ class DomainThreeContentUnderstandingTests(TestCase):
             response = handoff.production_handoff(source)
         analyze.assert_called_once_with("prebuilt-imageSearch", source)
         self.assertEqual(response["analyzer"], "prebuilt-imageSearch")
+
+
+video_analyzer = _lesson("17_cu_custom_video_analyzer.py")
+
+
+class CustomVideoAnalyzerTests(TestCase):
+    def test_definition_rules_for_video_fields_and_segments(self) -> None:
+        video_analyzer.validate_definition(video_analyzer._DEFINITION)
+        broken = {
+            "config": {"enableSegment": True, "contentCategories": {"a": {}, "b": {}}},
+            "fieldSchema": {"fields": {}},
+        }
+        with self.assertRaisesRegex(ValueError, "exactly one contentCategories"):
+            video_analyzer.validate_definition(broken)
+        extract = {"config": {}, "fieldSchema": {"fields": {"logo": {"type": "string", "method": "extract"}}}}
+        with self.assertRaisesRegex(ValueError, "generate or classify"):
+            video_analyzer.validate_definition(extract)
+        classify = {"config": {}, "fieldSchema": {"fields": {"scene": {"type": "string", "method": "classify"}}}}
+        with self.assertRaisesRegex(ValueError, "needs an enum"):
+            video_analyzer.validate_definition(classify)
+
+    def test_segment_rows_flatten_time_ranges_and_fields(self) -> None:
+        result = {
+            "result": {
+                "contents": [
+                    {"startTimeMs": 0, "endTimeMs": 900, "fields": {}},
+                    {
+                        "startTimeMs": 1000,
+                        "endTimeMs": 4000,
+                        "fields": {
+                            "colorScheme": {"valueString": "Warm orange tones"},
+                            "sceneType": {"valueString": "product close-up"},
+                        },
+                    },
+                ]
+            }
+        }
+        self.assertEqual(
+            video_analyzer.segment_rows(result),
+            [{"start_ms": 1000, "end_ms": 4000, "colorScheme": "Warm orange tones", "sceneType": "product close-up"}],
+        )
+
+    def test_default_is_local_and_apply_needs_a_video(self) -> None:
+        output = io.StringIO()
+        with redirect_stdout(output):
+            video_analyzer.main([])
+        self.assertIn("no Azure call", output.getvalue())
+        with patch.dict("os.environ", {"SAMPLE_VIDEO_URL": ""}), self.assertRaises(SystemExit):
+            video_analyzer.main(["--apply"])
+        with patch("_shared.cu_client.delete_analyzer", return_value=False) as delete, redirect_stdout(io.StringIO()):
+            video_analyzer.main(["--delete"])
+        delete.assert_called_once_with(video_analyzer.ANALYZER_ID)

@@ -107,12 +107,25 @@ resource "azurerm_key_vault" "platform" {
   }
 }
 
-resource "azurerm_key_vault_key" "foundry_cmk" {
-  name         = "foundry-cmk"
-  key_vault_id = azurerm_key_vault.platform.id
-  key_type     = "RSA"
-  key_size     = 2048
-  key_opts     = ["wrapKey", "unwrapKey"]
+# Created through ARM (control plane), like the Bicep baseline. The vault has no
+# public data-plane access, so a data-plane key resource would fail from a runner
+# outside the VNet. ARM cannot delete Key Vault keys: tear down by deleting the
+# resource group after removing the locks.
+resource "azapi_resource" "foundry_cmk" {
+  type      = "Microsoft.KeyVault/vaults/keys@2023-07-01"
+  name      = "foundry-cmk"
+  parent_id = azurerm_key_vault.platform.id
+
+  body = {
+    properties = {
+      kty     = "RSA"
+      keySize = 2048
+      keyOps  = ["wrapKey", "unwrapKey"]
+      attributes = {
+        enabled = true
+      }
+    }
+  }
 }
 
 resource "azurerm_role_assignment" "foundry_cmk" {
@@ -178,10 +191,12 @@ resource "azapi_resource" "foundry" {
       ]
       encryption = {
         keySource = "Microsoft.KeyVault"
+        # keyVersion is omitted so the account follows key rotation automatically.
+        # identityClientId selects the user-assigned identity that unwraps the key.
         keyVaultProperties = {
-          keyName     = azurerm_key_vault_key.foundry_cmk.name
-          keyVersion  = azurerm_key_vault_key.foundry_cmk.version
-          keyVaultUri = azurerm_key_vault.platform.vault_uri
+          keyName          = azapi_resource.foundry_cmk.name
+          keyVaultUri      = azurerm_key_vault.platform.vault_uri
+          identityClientId = azurerm_user_assigned_identity.foundry.client_id
         }
       }
     }

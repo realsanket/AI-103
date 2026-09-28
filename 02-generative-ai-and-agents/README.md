@@ -287,6 +287,8 @@ After completing this domain, use the [Domain 2 question review](questions/READM
 | 47 | [Foundry MCP available tools](47_mcp_available_tools_preflight.py) | Reference card of the 79 Foundry-hosted MCP tools with access + auth model | Local catalog only |
 | 48 | [Hosted-agent guardrails](48_hosted_agent_guardrails.py) | Attach `rai_config` (content filter + egress policy) to a hosted-agent version | `--apply` creates a new hosted-agent version |
 | 49 | [Manage hosted sessions](49_manage_hosted_sessions.py) | List/inspect/delete hosted-agent sessions | Preflight lists; `--apply --delete` deletes `HOSTED_SESSION_ID` |
+| 50 | [Approval workflow](50_af_approval_workflow.py) | Sequential YAML workflow that pauses at a `Question` step for human approval, then resumes | Local only (no model or Azure call); PowerFx needs .NET 8+ |
+| 51 | [Parallel tool calls](51_parallel_tool_calls.py) | Validate and run independent tool calls concurrently; compare latency | Local demo; `--apply` makes 2 billable Responses calls |
 
 ---
 
@@ -667,6 +669,7 @@ uv run python 02-generative-ai-and-agents/14_foundry_memory.py --apply --skip-wa
 *Cleanup:*
 13. `project.beta.memory_stores.delete_scope(name, scope)` — removes test user's data; store persists.
 14. `project.agents.delete_version(agent_name, agent_version)` — removes ephemeral agent.
+15. `--keep` skips both deletes so you can inspect the portal; the run then prints the exact delete calls to finish cleanup.
 
 **What to watch in the output.**
 - Conv 2 answer: model may or may not echo the stored preference — async extraction is non-deterministic. Never invent a fact not retrieved from memory.
@@ -1531,6 +1534,239 @@ uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py --appl
 
 ---
 
+## Stage 11 — A2A and external agents (lessons 40–42)
+
+Agent-to-Agent (A2A) is a protocol between agents that may live in different systems. Outbound A2A (lesson 40) is your Foundry agent calling a remote agent through a project connection; incoming A2A (lesson 41) publishes your Foundry agent so others can call it. An external agent registration (lesson 42) is different again: Foundry only records traces for an agent it never calls.
+
+### 40 — Choose the authentication for an outbound A2A connection
+
+**Question answered:** Which identity should a Foundry agent present when it calls a remote A2A agent?
+
+**Background.** The A2A tool reaches the remote agent through a project connection (`category: RemoteA2A`), and the connection's `authType` decides the identity:
+
+| Mode | `authType` | User context reaches the remote agent? | Use when |
+|---|---|---|---|
+| key | `CustomKeys` | No | The remote agent only accepts a shared key |
+| entra (agent identity) | `AgenticIdentityToken` | No | Remote agent trusts Microsoft Entra ID; each agent has its own identity |
+| project-mi | `ProjectManagedIdentity` | No | One project identity is acceptable for every agent |
+| oauth | `OAuth2` | Yes | The remote agent must act with each user's own permissions |
+| none | `None` | No | Public or network-protected endpoints only |
+
+The mode is chosen at creation; OAuth connections cannot be switched later, so compare bodies before you commit.
+
+```bash
+uv run python 02-generative-ai-and-agents/40_a2a_authentication.py --mode entra
+uv run python 02-generative-ai-and-agents/40_a2a_authentication.py --mode key --apply   # ARM PUT via az rest
+```
+
+**Code path.** `build_body()` returns the ARM connection body with `RemoteA2A`, the mode's `authType`, and only that mode's properties (`Credentials.Keys`, `audience`, or OAuth URLs and scopes); unknown modes and missing values raise before any request. `a2a_tool_body()` shows the tool definition that references the connection by `project_connection_id`, with `send_credentials_for_agent_card: false`. `--apply` PUTs the connection with `az rest`.
+
+**What to watch.** The body never mixes a shared key with an OAuth block. Keep key values in a secret store, never in `.env.example`.
+
+**References:** [A2A authentication](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-to-agent-authentication) · [A2A tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/agent-to-agent)
+
+---
+
+### 41 — Publish a Foundry agent as an incoming A2A endpoint
+
+**Question answered:** How do other agents discover and call my Foundry agent over A2A?
+
+**Background.** One PATCH sets an `agent_card` (description, version, skills) and `agent_endpoint.protocol_configuration` with both `responses: {}` and `a2a: {}`, because incoming A2A requires the Responses protocol. Foundry then serves the card at `.../protocols/a2a/agentCard/v1.0` (GA) and `.../agentCard/v0.3` (preview). With no version selector, callers get v0.3, so production callers must pin v1.0. Enabling the protocol does not grant access: callers need `Foundry Agent Consumer` on the project or agent.
+
+```bash
+uv run python 02-generative-ai-and-agents/41_enable_incoming_a2a.py
+uv run python 02-generative-ai-and-agents/41_enable_incoming_a2a.py --apply --verify
+```
+
+**Code path.** `a2a_urls()` builds the base and card URLs (agent name URL-encoded, one path segment); `patch_body()` builds the card and protocol JSON; `--apply` calls `project.agents.update_details(...)`; `--verify` fetches the v1.0 card.
+
+**Limits.** Text only, no streaming, JSON-RPC only for v1.0; tasks and contexts are kept 60 days.
+
+**References:** [Enable the A2A endpoint](https://learn.microsoft.com/azure/foundry/agents/how-to/enable-agent-to-agent-endpoint)
+
+---
+
+### 42 — Register an external agent for tracing and evaluation (preview)
+
+**Question answered:** How do I see traces from an agent that runs outside Foundry?
+
+**Background.** An external agent registration stores metadata only; Foundry never hosts, proxies, or invokes the agent. The running agent sends OpenTelemetry spans stamped with `gen_ai.agent.id` to the Application Insights resource connected to the project, and Foundry matches them to the registration. This differs from Control Plane custom agents, which route traffic through an AI gateway.
+
+```bash
+uv run python 02-generative-ai-and-agents/42_register_external_agent.py            # OTel snippet + payload
+uv run python 02-generative-ai-and-agents/42_register_external_agent.py --apply    # register
+uv run python 02-generative-ai-and-agents/42_register_external_agent.py --delete --apply
+```
+
+**Code path.** `registration_payload()` shows `definition: {kind: external, otel_agent_id}`; `--apply` calls `project.agents.create_version(..., definition=ExternalAgentDefinition(...))` with `allow_preview=True` (header `Foundry-Features: ExternalAgents=V1Preview`); `--list` and `--delete` manage registrations without touching the running agent.
+
+**What to watch.** Traces appear minutes after spans arrive, and only when the connection string matches the project's Application Insights and every span carries the exact `otel_agent_id`. Human evaluation, trace-to-dataset, and red teaming are not supported for external agents.
+
+**References:** [Register an external agent](https://learn.microsoft.com/azure/foundry/agents/how-to/register-external-agent)
+
+---
+
+## Stage 12 — Agent Framework workflows and human approval (lessons 43–45 and 50)
+
+Foundry preview workflows (lessons 15–16) retire on December 1, 2026. Microsoft Agent Framework workflows run in your own process: declarative YAML (43, 50), checkpoints for pause and resume (44), and an upgrade checklist for the 2026 Python surface (45). PowerFx expressions (`=...`) need a .NET 8 or later runtime (`dotnet --list-runtimes`).
+
+### 43 — Run a declarative YAML workflow
+
+**Question answered:** How do I change orchestration without changing Python?
+
+**Background.** `workflows/declarative_intake.yaml` routes a support message with `ConditionGroup` and `If` actions. `WorkflowFactory().create_workflow_from_yaml_path()` parses it, resolves `Workflow.Inputs`, `Local`, and `System` variables, and evaluates PowerFx. `InvokeAzureAgent` actions would call agents you register with `factory.register_agent()`; this baseline is model-free.
+
+```bash
+uv run python 02-generative-ai-and-agents/43_af_declarative_workflow.py            # load and validate
+uv run python 02-generative-ai-and-agents/43_af_declarative_workflow.py --apply    # run locally
+```
+
+**What to watch.** `Loaded workflow: northwind-intake-triage`, then an `Output:` routing dict. Edit the YAML thresholds and rerun to see a different branch.
+
+**References:** [Declarative workflows](https://learn.microsoft.com/agent-framework/workflows/declarative)
+
+---
+
+### 44 — Checkpoint a workflow and resume it
+
+**Question answered:** How does a long workflow survive a restart or a human pause?
+
+**Background.** At the end of each superstep the framework can save executor state, pending messages, and requests to a `CheckpointStorage` (in-memory, file, or Cosmos DB). A new workflow instance resumes from a `checkpoint_id` without redoing finished steps. File checkpoints use a restricted unpickler; treat checkpoint storage as a trust boundary.
+
+```bash
+uv run python 02-generative-ai-and-agents/44_af_checkpoints.py --apply   # writes .checkpoints/
+```
+
+**What to watch.** Checkpoint IDs listed after phase A, then `Resumed from checkpoint successfully.` Delete `.checkpoints/` to reset.
+
+**References:** [Checkpoints](https://learn.microsoft.com/agent-framework/workflows/checkpoints)
+
+---
+
+### 45 — Check an Agent Framework upgrade against the 2026 Python changes
+
+**Question answered:** Which breaking changes in the 2026 Python release affect my code?
+
+**Background.** A read-only checklist: each entry names what changed, the question to ask about your code, and the lesson in this repository that shows the new shape. It imports nothing optional and calls nothing.
+
+```bash
+uv run python 02-generative-ai-and-agents/45_af_python_2026_upgrade_preflight.py
+```
+
+**References:** [Python 2026 significant changes](https://learn.microsoft.com/agent-framework/support/upgrade/python-2026-significant-changes)
+
+---
+
+### 50 — Pause a workflow for human approval
+
+**Question answered:** How does a workflow wait for a person before a consequential step, then continue with their answer?
+
+**Background.** `workflows/policy_approval.yaml` is a **sequential** workflow: PolicyWriter drafts, RiskReviewer rates the change (a coverage change of 10,000 or more is high risk), and a `Question` action asks an approver only for high-risk changes. That action is the YAML form of the visual builder's "Ask a question" node. The next step's condition, `Local.approval = "approved"`, finalizes the change; any other answer returns it to the writer. Low-risk changes auto-approve.
+
+**How the pause works.** `workflow.run(inputs)` stops at the `Question` action and returns a request-info event whose data is an `ExternalInputRequest` (the question and the variable it fills). The app shows the question, then resumes the same run with `workflow.run(responses={request_id: ExternalInputResponse(user_input=answer)})`.
+
+```bash
+uv run python 02-generative-ai-and-agents/50_af_approval_workflow.py                                   # validate YAML
+uv run python 02-generative-ai-and-agents/50_af_approval_workflow.py --apply --answer approved          # high risk, approved
+uv run python 02-generative-ai-and-agents/50_af_approval_workflow.py --apply --answer rejected          # returned to writer
+uv run python 02-generative-ai-and-agents/50_af_approval_workflow.py --apply --coverage-delta 500        # auto-approved
+```
+
+**Expected output.** `Paused for approval: Approve this high-risk update? ...`, then `Output: risk=high approval=approved status=finalized` (or `returned-to-policy-writer`); low risk prints `No approval needed` and `risk=low approval=auto-approved status=finalized`. Omit `--answer` to type the answer at the prompt.
+
+**Pitfalls.** The approver's answer is data: validate it, record who answered, and never let a model supply it. A sequential workflow fits a fixed order; use conditions or group chat only when the order varies.
+
+**References:** [Human-in-the-loop workflows](https://learn.microsoft.com/agent-framework/workflows/human-in-the-loop) · [Declarative workflows](https://learn.microsoft.com/agent-framework/workflows/declarative)
+
+---
+
+## Stage 13 — Preview tools and hosted-agent operations (lessons 46–49)
+
+These lessons are preflight-first references for preview surfaces. None of them provisions the prerequisites (Microsoft 365 consent, MCP clients, RAI policies, or hosted-agent images) for you.
+
+### 46 — Work IQ tool (preview)
+
+**Question answered:** How does an agent ground answers in a user's Microsoft 365 data?
+
+**Background.** Work IQ is reached over A2A with On-Behalf-Of delegated authentication, so every request runs as the signed-in user with their Microsoft 365 permissions. It needs a `remote-a2a` project connection to `https://workiq.svc.cloud.microsoft/a2a/`, an Entra app with the delegated `WorkIQAgent.Ask` scope and admin consent, and Copilot Credits billing; data can leave the Foundry service boundary. `--apply` only builds and prints the `WorkIQPreviewTool` and toolbox payloads.
+
+```bash
+uv run python 02-generative-ai-and-agents/46_work_iq_tool_preflight.py --apply
+```
+
+**References:** [Work IQ tool](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/work-iq)
+
+---
+
+### 47 — Foundry MCP Server tool catalog (preview)
+
+**Question answered:** What can an MCP client do against Foundry through `https://mcp.ai.azure.com`?
+
+**Background.** A local study card of the hosted tools by category, marked read (needs Reader) or write (needs Contributor). Clients authenticate with the caller's Entra identity through On-Behalf-Of, so the caller's own roles are enforced. The tool list is preview and can change; reconcile with the live server before relying on a name.
+
+```bash
+uv run python 02-generative-ai-and-agents/47_mcp_available_tools_preflight.py
+```
+
+**References:** [Foundry MCP Server tools](https://learn.microsoft.com/azure/foundry/mcp/available-tools)
+
+---
+
+### 48 — Attach a guardrail to a hosted agent
+
+**Question answered:** How do I screen a hosted agent's prompts and responses?
+
+**Background.** Set `rai_config.rai_policy_name` on the hosted-agent version to the **full ARM ID** of an RAI policy. A wrong ID is not caught at deploy time: the agent reports `active` and filters nothing, so the guardrail fails open. Omitting `rai_config` means no guardrail; `rai_config` without a name applies `Microsoft.DefaultV2`.
+
+```bash
+uv run python 02-generative-ai-and-agents/48_hosted_agent_guardrails.py
+uv run python 02-generative-ai-and-agents/48_hosted_agent_guardrails.py --apply   # creates a new version
+```
+
+**What to watch.** The returned `rai_config.rai_policy_name` must equal `RAI_POLICY_ID`; then prove filtering with a policy-violating prompt (`400 content_filter`).
+
+**References:** [Add guardrails to a hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/add-hosted-agent-guardrails)
+
+---
+
+### 49 — Manage hosted-agent sessions
+
+**Question answered:** How do I find and clean up hosted-agent sandboxes?
+
+**Background.** A session is an isolated sandbox whose `$HOME` and files persist for up to 30 days; a conversation ID threads messages, a session ID binds calls to the same sandbox. Under Entra auth each caller sees only their own sessions; cross-user administration needs Foundry User with the session data actions. Deleting a session tears down its sandbox irreversibly.
+
+```bash
+uv run python 02-generative-ai-and-agents/49_manage_hosted_sessions.py --apply            # list
+uv run python 02-generative-ai-and-agents/49_manage_hosted_sessions.py --apply --delete   # delete HOSTED_SESSION_ID
+```
+
+**References:** [Manage hosted-agent sessions](https://learn.microsoft.com/azure/foundry/agents/how-to/manage-hosted-sessions)
+
+---
+
+## Stage 14 — Parallel tool calls (lesson 51)
+
+### 51 — Cut latency by running independent tool calls in parallel
+
+**Question answered:** An agent makes several independent lookups per request and users wait too long. What fixes it?
+
+**Background.** Sequential calls cost the **sum** of their latencies; concurrent calls cost about the **slowest** one. The fix is application logic, not a bigger model, more completion tokens, or agent memory. The Responses API lets the model propose several calls in one response (`parallel_tool_calls=True`, the default); your code must run them concurrently and return every `function_call_output` in one follow-up request with `previous_response_id`. Only parallelize calls that don't need each other's results, and validate each tool name and argument before running anything.
+
+```bash
+uv run python 02-generative-ai-and-agents/51_parallel_tool_calls.py            # local timing demo
+uv run python 02-generative-ai-and-agents/51_parallel_tool_calls.py --apply    # 2 Responses calls on DEFAULT_MODEL
+```
+
+**Code path.** `validate_call()` allow-lists tools and checks arguments with patterns; `run_parallel()` validates every call first, then runs them with `asyncio.gather` under a semaphore and a per-call timeout, keeping input order; `function_call_outputs()` pairs each `call_id` with its result.
+
+**Expected output.** `sequential: 1.5s`, `parallel: 0.6s`, `identical results: True`.
+
+**Pitfalls.** Parallel calls multiply load on backends: bound concurrency and keep timeouts. A failed call should return an error output for that `call_id`, not silently disappear.
+
+**References:** [Function calling](https://learn.microsoft.com/azure/foundry/openai/how-to/function-calling)
+
+---
+
 ## Feature status and hard limits
 
 | Feature | Status | Practical boundary |
@@ -1555,6 +1791,8 @@ uv run python 02-generative-ai-and-agents/39_openai_webhooks_preflight.py --appl
 | A2A v1.0 (outbound + incoming) | GA | Separate protocol from Responses; incoming requires the Responses protocol + Entra ID on callers |
 | A2A v0.3 | Preview | Existing integrations only; default when no version selector is set - pin v1.0 in production |
 | External agent registration | Preview | Foundry stores metadata only; runtime lives outside; needs `Foundry-Features: ExternalAgents=V1Preview` (`allow_preview=True`) |
+| Agent Framework declarative workflows | Local package | Runs in your process; PowerFx needs .NET 8+; `Question` pauses for external input |
+| Parallel tool calls | GA | `parallel_tool_calls` is on by default; your code runs the calls and must bound concurrency |
 
 ---
 

@@ -76,7 +76,6 @@ class Settings:
     # Storage
     storage_account: str
     storage_container: str
-    storage_connection_string: str
     # Observability
     app_insights_connection_string: str
     # Content Safety
@@ -202,7 +201,6 @@ def settings() -> Settings:
         cu_api_version=_opt("CU_API_VERSION", "2025-11-01"),
         storage_account=_opt("STORAGE_ACCOUNT"),
         storage_container=_opt("STORAGE_CONTAINER", "northwind-docs"),
-        storage_connection_string=_opt("STORAGE_CONNECTION_STRING"),
         app_insights_connection_string=_opt("APPLICATIONINSIGHTS_CONNECTION_STRING"),
         content_safety_endpoint=_opt("CONTENT_SAFETY_ENDPOINT"),
         provenance_source_url=_opt("PROVENANCE_SOURCE_URL"),

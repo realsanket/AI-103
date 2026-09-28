@@ -1,0 +1,78 @@
+#
+# Declarative YAML workflow — sequential policy update with a human approval
+# checkpoint (lesson 50).
+#
+# Sequential pattern: PolicyWriter drafts, then RiskReviewer classifies, in a
+# fixed order. Low-risk updates finalize without anyone. High-risk updates hit
+# a `Question` action (the "Ask a question" node in the Foundry visual
+# builder): the run pauses, emits a request for input, and resumes only when
+# a person answers. The answer is stored in Local.approval and the next step
+# runs only when Local.approval = "approved".
+#
+# The two agents are modeled with SetVariable/If so the lesson runs without a
+# model; replace them with InvokeAzureAgent actions to call real agents.
+# Values prefixed with `=` are PowerFx expressions (requires a .NET runtime).
+#
+name: policy-update-approval
+description: Sequential PolicyWriter to RiskReviewer flow with an approval checkpoint for high-risk updates.
+
+inputs:
+  change:
+    type: string
+    description: Requested policy change.
+  coverage_delta:
+    type: number
+    description: Change in coverage amount in USD.
+
+actions:
+  - kind: SetVariable
+    id: policy_writer
+    displayName: PolicyWriter drafts the update
+    variable: Local.draft
+    value: =Concat("Draft - ", Workflow.Inputs.change)
+
+  - kind: If
+    id: risk_reviewer
+    displayName: RiskReviewer classifies risk
+    condition: =Workflow.Inputs.coverage_delta >= 10000
+    then:
+      - kind: SetVariable
+        variable: Local.risk
+        value: high
+    else:
+      - kind: SetVariable
+        variable: Local.risk
+        value: low
+
+  - kind: If
+    id: approval_checkpoint
+    displayName: Pause only for high-risk updates
+    condition: =Local.risk = "high"
+    then:
+      - kind: Question
+        id: ask_approver
+        question: =Concat("Approve this high-risk update? ", Local.draft)
+        variable: Local.approval
+    else:
+      - kind: SetVariable
+        variable: Local.approval
+        value: auto-approved
+
+  - kind: If
+    id: finalize_or_return
+    displayName: Finalize approved updates, return rejected ones
+    condition: =Or(Local.approval = "approved", Local.approval = "auto-approved")
+    then:
+      - kind: SetVariable
+        variable: Local.status
+        value: finalized
+    else:
+      - kind: SetVariable
+        variable: Local.status
+        value: returned-to-policy-writer
+
+  - kind: SendActivity
+    id: send_decision
+    displayName: Report the decision
+    activity:
+      text: =Concat("risk=", Local.risk, " approval=", Local.approval, " status=", Local.status)

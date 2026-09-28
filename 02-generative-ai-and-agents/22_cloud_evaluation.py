@@ -27,6 +27,8 @@ import json
 import os
 from pathlib import Path
 
+from _shared.config import load_env
+
 _REQUIRED_ENV = (
     "AZURE_AI_PROJECT_ENDPOINT",
     "AZURE_AI_MODEL_DEPLOYMENT_NAME",
@@ -138,6 +140,7 @@ def run(dataset: Path) -> None:
 
 
 def main() -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Create a reviewed cloud evaluation run.")
     parser.add_argument("--dataset", type=Path, help="JSONL rows with a query field.")
     parser.add_argument("--apply", action="store_true", help="Perform persistent cloud actions.")

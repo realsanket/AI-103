@@ -21,17 +21,17 @@
 | Q88 | [`07_rag_prompt_agent.py`](../07_rag_prompt_agent.py), [`08_rag_client_run.py`](../08_rag_client_run.py) | L07–08 retrieval-context control | Existing |
 | Q90 | [`09_cu_prebuilt_read.py`](../09_cu_prebuilt_read.py), [`11_cu_invoice.py`](../11_cu_invoice.py) | L09–11 CU invoice pipeline | Existing |
 | Q92 | [`12_cu_custom_analyzer.py`](../12_cu_custom_analyzer.py) | L12 custom CU analyzer | Existing |
-| Q94 | Adjacent only: [`04_search_indexer_setup.py`](../04_search_indexer_setup.py), [`05_search_skillset.py`](../05_search_skillset.py) | L04–05 indexer and skillset | Gap: `normalized_images` OCR-skill exercise |
+| Q94 | [`29_search_ocr_knowledge_store.py`](../29_search_ocr_knowledge_store.py) | L29 indexer `imageAction: generateNormalizedImages` feeds the OCR skill | Existing |
 | Q114 | [`14_cu_markdown_for_rag.py`](../14_cu_markdown_for_rag.py) | L14 `--analyzer prebuilt-documentSearch` RAG Markdown | Existing |
 | Q116 | [`31_openai_embeddings.py`](../../02-generative-ai-and-agents/31_openai_embeddings.py), [`02_search_vector.py`](../02_search_vector.py) | L02 vector search and D2 L31 | Existing |
 | Q118 | [`03_search_hybrid_semantic.py`](../03_search_hybrid_semantic.py) | L03 hybrid/semantic retrieval | Existing |
-| Q120 | [`16_cu_multimodal_rag.py`](../16_cu_multimodal_rag.py) | L16 multimodal RAG | Existing; partial: CU is not configured as a Search skill |
-| Q121 | Adjacent only: [`05_search_skillset.py`](../05_search_skillset.py) | L05 skillset | Gap: OCR skill for scanned images |
+| Q120 | [`30_search_cu_skill_citations.py`](../30_search_cu_skill_citations.py), [`16_cu_multimodal_rag.py`](../16_cu_multimodal_rag.py) | L30 Content Understanding skill with `locationMetadata` polygons and cross-page tables; L16 multimodal RAG | Existing |
+| Q121 | [`29_search_ocr_knowledge_store.py`](../29_search_ocr_knowledge_store.py) | L29 OCR skill reads scanned-image text; Text Merge adds it to the indexed field | Existing |
 | Q122 | Adjacent only: [`13_cu_cross_document_validation.py`](../13_cu_cross_document_validation.py) | L13 per-document extraction plus app-side consistency check | Compatibility: CU Pro mode (`2025-05-01-preview`) retired July 15, 2026 |
-| Q141 | Adjacent only: [`04_search_indexer_setup.py`](../04_search_indexer_setup.py), [`05_search_skillset.py`](../05_search_skillset.py), [`06_search_custom_skill.py`](../06_search_custom_skill.py) | L04–06 Search enrichment | Gap: knowledge-store projections |
+| Q141 | [`29_search_ocr_knowledge_store.py`](../29_search_ocr_knowledge_store.py) | L29 knowledge store: object projection for JSON, table projections for extracted text | Existing |
 | Q144 | [`28_sharepoint_indexer_acls_preflight.py`](../28_sharepoint_indexer_acls_preflight.py) | L28 ACL/security trimming | Existing |
 | Q145 | Adjacent only: [`18_search_monitoring.py`](../18_search_monitoring.py) | L18 monitoring | Gap: query-key rotation runbook |
-| Q146 | [`16_cu_multimodal_rag.py`](../16_cu_multimodal_rag.py) | L16 multimodal RAG | Existing; partial: duplicate of Q120; CU is not configured as a Search skill |
+| Q146 | [`30_search_cu_skill_citations.py`](../30_search_cu_skill_citations.py), [`16_cu_multimodal_rag.py`](../16_cu_multimodal_rag.py) | Duplicate of Q120: L30 Content Understanding skill in the skillset; L16 multimodal RAG | Existing |
 | Q170 | [`11_cu_invoice.py`](../11_cu_invoice.py), [`15_cu_content_agent.py`](../15_cu_content_agent.py) | L11/L15 invoice review | Existing |
 | Q171 | [`05_search_skillset.py`](../05_search_skillset.py) | L05 split-and-embed skillset | Existing |
 | Q172 | [`04_search_indexer_setup.py`](../04_search_indexer_setup.py), [`05_search_skillset.py`](../05_search_skillset.py), [`20_managed_search_agent_tool.py`](../20_managed_search_agent_tool.py) | L04–05/L20 Search RAG | Existing |

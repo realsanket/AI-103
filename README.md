@@ -1,6 +1,6 @@
 # AI-103 runnable study repository
 
-Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md). It has **224 numbered Python lessons** across five exam domains, three supplemental domains, and a production-platform IaC lab. Lessons use Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many make billable remote calls or change persistent cloud state.
+Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md). It has **232 numbered Python lessons** across five exam domains, three supplemental domains, and a production-platform IaC lab. Lessons use Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many make billable remote calls or change persistent cloud state.
 
 Read [`docs/coverage.md`](docs/coverage.md) for an objective-by-objective, evidence-based map. A lesson existing here does not mean its Azure API, region, model, preview feature, or permission has been exercised in your subscription.
 
@@ -91,7 +91,7 @@ Start from [`.env.example`](.env.example). It contains endpoint/name placeholder
 | Document Intelligence v4.0 | `DOCUMENT_INTELLIGENCE_ENDPOINT`, `DI_CUSTOM_NEURAL_MODEL_ID`, `DI_CUSTOM_NEURAL_PREFIX` |
 | Content Safety | `CONTENT_SAFETY_ENDPOINT` |
 | Search | `SEARCH_ENDPOINT`, `SEARCH_INDEX`, `SEARCH_INDEX_VECTOR`, `SEARCH_INDEXER`, `SEARCH_SKILLSET` |
-| Storage | `STORAGE_ACCOUNT`, `STORAGE_CONTAINER`, `STORAGE_CONNECTION_STRING` |
+| Storage | `STORAGE_ACCOUNT`, `STORAGE_CONTAINER` |
 | Monitoring and RBAC | `APPLICATIONINSIGHTS_CONNECTION_STRING`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP` |
 | Domain 1 advanced labs and D2 cloud evaluation | `DEPLOYMENT_NAME`, `DEPLOYMENT_MODEL_NAME`, `DEPLOYMENT_MODEL_VERSION`, `PROVENANCE_SOURCE_URL`, `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_AGENT_NAME`, `AZURE_AI_MODEL_DEPLOYMENT_NAME` |
 | Domain 2 external-tool preflights and D5 managed Search agent | `NORTHWIND_MCP_ENDPOINT`, `NORTHWIND_MCP_CONNECTION`, `SEARCH_CONNECTION_NAME` |
@@ -117,13 +117,13 @@ Set `CU_API_VERSION=2025-11-01` for every CU lesson. The `2025-05-01-preview` AP
 
 | Path | Create/configure | Lessons unlocked |
 |---|---|---|
-| Local orientation | `uv sync`; no Azure resources | D1 lesson 02, D5 lesson 06, and D5 lessons 16–20 preflights execute locally. |
+| Local orientation | `uv sync`; no Azure resources | D1 lessons 02 and 36, D2 lessons 50–51 (L50 needs .NET 8+), D5 lesson 06, D5 lessons 16–30, and D7 lesson 11 preflights execute locally. |
 | First live model call | `az login`, `AZURE_OPENAI_ENDPOINT`, `DEFAULT_MODEL` | D2 lesson 01; D3 lesson 01 and D4 L01–L03 use same OpenAI surface. |
 | Foundry project work | Add `PROJECT_ENDPOINT` and project access | D1 L01/L07/L16; D2 agents; D4 L09/L18; D5 prompt agent. |
 | Foundry tools | Add Language, Speech, Content Safety, and CU endpoints as needed | D1 safety, D3 CU/moderation, D4 Language/Speech. |
 | Full retrieval path | Add Search, Storage, embedding deployment, subscription/resource-group values, and managed-identity roles | D5 Search pipeline and manual RAG. |
 
-Do not set `STORAGE_CONNECTION_STRING` merely because it exists in the template: Search pipeline JSON uses managed identity and a storage resource-ID connection, not a stored storage key.
+Storage access is keyless: Search pipeline JSON uses the search service's managed identity and a storage resource-ID connection, so the template has no storage connection string or account key.
 
 ## Authentication and RBAC
 
@@ -156,13 +156,13 @@ Then follow each domain README:
 1. Domain 1: learn deployment types, quota reads, identity, safety, and
 telemetry before creating deployments or persistent blocklists.
 2. Domain 2: run Responses lessons 01–07, then agents 08–13. Lessons 24–27
-default to local preflight/read-only behavior; use remote flags only after their connection, data, RBAC, lifecycle, and cost checks. Lessons 28–30 validate hosted-agent assets; deployment remains explicit.
+default to local preflight/read-only behavior; use remote flags only after their connection, data, RBAC, lifecycle, and cost checks. Lessons 28–30 validate hosted-agent assets; deployment remains explicit. Lessons 50–51 run locally by default.
 3. Domain 3: run L10, L12–L15 without `--apply`/`--run` first, then
 local-image understanding/captions before image/video generation or CU URL analysis.
 4. Domain 4: work through Language/Translator before Speech. Run
 `20_language_sentiment.py` after L07. L21–L25 default to local preflights; use their remote flags only after their domain README checks.
 5. Domain 5: provision index, skillset, then indexer (`--run`); wait for its
-successful run before vector, hybrid, or manual-RAG queries. Lessons 16–20 default to local preflights; use their documented explicit flags for any remote call.
+successful run before vector, hybrid, or manual-RAG queries. Lessons 12–13 and 16–30 default to local preflights; use their documented explicit flags for any remote call.
 6. Domain 6: run dataset and delivery preflights first. Every cloud action
 requires `--apply`; validate data, baseline, model support, quota/capacity, region, roles, retention, and cost before applying.
 7. Domain 7: run offline preflight, select Bicep or Terraform, then run
@@ -223,16 +223,18 @@ uv run python 09-current-ai-services-other/06_di_vs_cu_decision.py --scenario st
 | D1 L22–L25 | Evaluations, monitoring rules, telemetry feedback, and red-team scans only with explicit `--apply`; can persist state and bill. |
 | D1 L26 | Local tracing/App Insights preflight only; no Azure call or mutation. |
 | D1 L27–L31 | Control-plane reads, local guardrail/policy validation (L28 `--apply` creates a guardrail RAI policy), Log Analytics read, optional evaluation, and optional red-team probe; remote work remains explicit. |
+| D1 L32–L36 | L32 `--apply` submits a synthetic-data generation job; L33 `--apply` creates a cloud evaluation and run; L34 reads a run; L35 `--apply` calls judge models (optionally logging to the project) and exits 1 when the gate fails; L36 is local only. |
 | D2 L01–L22 | Model/tool calls; agent versions, vector stores/files, memory stores/items, workflow assets, Functions, and telemetry can persist or bill. |
 | D2 L23–L27 | Tracing/observability and external-tool preflights. Toolbox publish/invoke and MCP/Search agent probes are explicit and can persist or bill. |
 | D2 L28–L30 | Local hosted-agent contract/A2A/CI-CD checks; deployment remains a separate explicit operation. |
 | D2 L31–L39 | Direct embeddings/JSON/caching/function/reasoning/web/structured-output calls and local webhook preflight; remote model/tool calls require explicit flags. |
-| D3 | L01–L06 and L13–L14 contain remote-call paths; L02, L04–L06 can overwrite generated files after successful responses. L07–L09, L15, and L16 are local preflights unless `--apply` (L16 `--generate` also bills one image); L10–L11 are local preflights unless `--run`; L12 is local only. These opt-in paths are not evidence of a successful live call. Sora 2, provenance, and CU availability remain service/region/version dependent. |
+| D2 L40–L51 | A2A, external-agent, preview tool, and hosted-agent lessons default to preflight; `--apply` can create a connection (L40), patch an agent (L41), register or delete an external agent (L42), create a hosted-agent version (L48), or delete a session (L49 `--apply --delete`). L43–L45 and L50 run Agent Framework workflows locally (PowerFx needs .NET 8+; L44 writes `.checkpoints/`). L51 times local tool calls; `--apply` makes two billable Responses calls. |
+| D3 | L01–L06 and L13–L14 contain remote-call paths; L02, L04–L06 can overwrite generated files after successful responses. L07–L09 and L15–L17 are local preflights unless `--apply` (L16 `--generate` also bills one image; L17 creates a persistent analyzer and removes it with `--delete`); L10–L11 are local preflights unless `--run`; L12 is local only. These opt-in paths are not evidence of a successful live call. Sora 2, provenance, and CU availability remain service/region/version dependent. |
 | D4 L01–L20 | Remote-call paths; batch STT uses Blob and Speech processing. L18 creates then deletes an agent version and is protocol-only, not end-to-end voice playback. |
 | D4 L21–L25 | L21/L22/L23/L24 default to no-cloud-call preflights; `--run` lists Speech MCP tools (L21), sends reviewed text (L22), or streams Voice Live audio (L24). L23 `--apply` submits, inspects, or cancels a billable Document Translation batch with persistent Blob output. L25 reads local configuration only. These paths are not live-tested here. |
-| D5 | L00–L05, L07–L11, and L14–L15 contain documented cloud-call or persistent-resource paths; L06 is local; L12–L13 create CU analyzers only with `--apply` and clean up with `--delete`. Indexer runs invoke embeddings. L16–L20 default to local preflights: L16 `--apply` submits CU input; L17 `--apply` mutates Search (`--run` starts indexing); L18/L19 `--run` are read-only; L20 requires `--enable` plus `--apply` and/or `--run`. These paths are not evidence of a successful live operation. |
+| D5 | L00–L05, L07–L11, and L14–L15 contain documented cloud-call or persistent-resource paths; L06 is local; L12–L13 create CU analyzers only with `--apply` and clean up with `--delete`. Indexer runs invoke embeddings. L16–L20 default to local preflights: L16 `--apply` submits CU input; L17 `--apply` mutates Search (`--run` starts indexing); L18/L19 `--run` are read-only; L20 requires `--enable` plus `--apply` and/or `--run`. L21–L30 also default to local preflights: L21–L24 `--apply` create preview knowledge sources and a knowledge base; L25–L26 `--apply` send retrieve requests; L27–L28 are local only; L29–L30 `--apply` create an index, skillset, and indexer that runs at once (billable image extraction and OCR, or Content Understanding per page) and `--delete` removes them, while knowledge-store output stays in Storage. These paths are not evidence of a successful live operation. |
 | D6 | L00–L03 and L13 are local only. L04 creates teacher-generated local candidates only with `--apply`; L05 uploads data and submits a training job only with `--apply`; L06 reads a job only with `--apply`; L07 creates/updates a deployment only with `--apply`; L08, L11, and L12 make billable inference calls only with `--apply`; L09 uploads input and creates a Batch job only with `--apply`; L10 reads management-plane quota/deployments only with `--apply`. These paths are not evidence of a successful live operation. |
-| D7 | Offline preflight reads local IaC only. Bicep defaults to Azure `what-if`; Terraform defaults to `plan`. Each engine mutates Azure only with explicit `--apply`. The separate policy deployment can deny unapproved connections after nonproduction review. No live deployment, private connectivity, CMK, CI/CD, failover, or recovery success is claimed. |
+| D7 | Offline preflight reads local IaC only. Bicep defaults to Azure `what-if`; Terraform defaults to `plan`. Each engine mutates Azure only with explicit `--apply`. L11 checks the connection and selected-network templates offline; `--what-if` previews and `--apply` deploys one of them. The separate policy deployment can deny unapproved connections after nonproduction review. No live deployment, private connectivity, CMK, CI/CD, failover, or recovery success is claimed. |
 | D8 | All 28 labs default to local preflight or typed request construction. Explicit `--apply` paths can create/manage Foundry IQ connections, Toolbox/Skill versions, A2A cards, routines, hosted agents, gateway routing, optimizer jobs, probes, or a read-only Log Analytics query. These operations can persist cloud state or bill except the telemetry read; no successful live operation is evidenced. |
 | D9 | All seven labs default to local preflight or a local decision. `--apply` submits Document Intelligence analysis or starts one custom neural build. These operations can bill or persist a model; no successful live operation is evidenced. |
 
@@ -251,6 +253,8 @@ python -m json.tool 05-information-extraction/skillset_configs/indexer.json >/de
 python 07-production-platform-other/scripts/preflight.py --engine bicep
 python 07-production-platform-other/scripts/preflight.py --engine terraform
 az bicep build --file 07-production-platform-other/bicep/main.bicep --stdout >/dev/null
+az bicep build --file 07-production-platform-other/bicep/connections.bicep --stdout >/dev/null
+az bicep build --file 07-production-platform-other/bicep/selected-networks.bicep --stdout >/dev/null
 terraform -chdir=07-production-platform-other/terraform validate
 ```
 

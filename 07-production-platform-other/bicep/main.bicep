@@ -166,12 +166,14 @@ resource foundry 'Microsoft.CognitiveServices/accounts@2026-03-01' = {
         useMicrosoftManagedNetwork: false
       }
     ]
+    // keyVersion is omitted so the account follows key rotation automatically.
+    // identityClientId selects the user-assigned identity that unwraps the key.
     encryption: {
       keySource: 'Microsoft.KeyVault'
       keyVaultProperties: {
         keyName: key.name
-        keyVersion: key.properties.keyUriWithVersion
         keyVaultUri: keyVault.properties.vaultUri
+        identityClientId: identity.properties.clientId
       }
     }
   }

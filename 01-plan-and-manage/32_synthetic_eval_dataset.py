@@ -77,6 +77,8 @@ import os
 import time
 from pathlib import Path
 
+from _shared.config import load_env
+
 _DEFAULT_TASK = "simple_qna"
 _DEFAULT_MAX_SAMPLES = 15
 _DEFAULT_OUTPUT_NAME = "synthetic-eval-set"
@@ -287,6 +289,7 @@ def apply(args: argparse.Namespace) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(description="Generate a synthetic evaluation dataset (preview).")
     parser.add_argument(
         "--task",

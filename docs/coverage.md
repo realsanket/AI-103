@@ -27,8 +27,8 @@ matrix.
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
-| Choose appropriate model for each task, including LLMs, small language models, multimodal models, and Foundry Tools | D1 `01_model_catalog_list.py` lists project deployments; `02_deployment_types.py` compares deployment types; D2 `02_model_behavior.py`, `03_reasoning.py`; D3 `01_multimodal_understanding.py` | **Partial** — no dedicated SLM or code-model selection exercise. |
-| Choose appropriate Foundry services for generative tasks, grounding, vector search, agent workflows, or multimodal processing | D1 `02_deployment_types.py`, `04_model_router.py`; D2 tools/workflows; D3 multimodal; D5 Search/CU | **Cross-domain / Partial** — selection is study guidance and examples, not a service recommender. |
+| Choose appropriate model for each task, including LLMs, small language models, multimodal models, and Foundry Tools | D1 `01_model_catalog_list.py` lists project deployments; `02_deployment_types.py` compares deployment types; `36_solution_planning_choices.py` maps requirements to LLM, SLM, reasoning, multimodal, embedding, image-generation, or Foundry Tool choices; D2 `02_model_behavior.py`, `03_reasoning.py`; D3 `01_multimodal_understanding.py` | **Partial / Local** — L36 is local decision logic; no SLM or code model is deployed or called. |
+| Choose appropriate Foundry services for generative tasks, grounding, vector search, agent workflows, or multimodal processing | D1 `02_deployment_types.py`, `04_model_router.py`, `36_solution_planning_choices.py` (Foundry resource versus single-service resource, ARM `PUT` body); D2 tools/workflows; D3 multimodal; D5 Search/CU | **Cross-domain / Partial / Local** — selection is study guidance and local examples, not a service recommender. |
 | Choose appropriate method for retrieval and indexing | D5 `00_search_index_setup.py`, `04_search_indexer_setup.py`, `05_search_skillset.py`, `01_search_basic_query.py`–`03_search_hybrid_semantic.py` | **Runnable** |
 | Choose appropriate memory, tool, and knowledge integration services for agent solutions | D2 `06_file_search_tool.py`, `11_agent_function_tools.py`, `14_foundry_memory.py` | **Runnable** — memory is preview. |
 
@@ -36,19 +36,19 @@ matrix.
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
-| Design Azure infrastructure for AI apps and agent-based solutions | D7 `07-production-platform-other`: current Bicep and Terraform regional-cell assets, VNet/private DNS/private endpoints, managed identity, Key Vault CMK, diagnostics, locks, policy, and explicit plan/apply wrappers | **Preflight / Opt-in** — assets are locally tested; Azure deployment and region capability remain subscription-dependent. |
+| Design Azure infrastructure for AI apps and agent-based solutions | D7 `07-production-platform-other`: current Bicep and Terraform regional-cell assets, VNet/private DNS/private endpoints, managed identity, Key Vault CMK, diagnostics, locks, policy, and explicit plan/apply wrappers; L11 `connections.bicep` (Key Vault and keyless model-resource connections) and `selected-networks.bicep` (VNet rules plus service endpoint) | **Preflight / Opt-in** — assets are locally tested (`bicep build`, `terraform validate`); Azure deployment and region capability remain subscription-dependent. |
 | Choose appropriate deployment options | D1 `02_deployment_types.py` | **Local** — prints documented comparison; does not query availability. |
 | Configure model and agent deployments | D1 `03_deploy_model.py` (SKU, capacity, version-upgrade policy); D2 `08_prompt_agent_create.py` | **Preflight / Opt-in** — model lesson prints the ARM body by default and writes the deployment only with `--apply`; agent lesson creates a version. |
-| Integrate Foundry projects with CI/CD pipelines | D7 contained GitHub OIDC/self-hosted-private-runner workflow plus explicit Bicep `what-if`/Terraform `plan` and `--apply` gate | **Local / Preflight / Opt-in** — workflow is intentionally not active and requires OIDC, runner, state backend, and environment review. |
+| Integrate Foundry projects with CI/CD pipelines | D7 contained GitHub OIDC/self-hosted-private-runner workflow plus explicit Bicep `what-if`/Terraform `plan` and `--apply` gate; D1 `30_evaluation_cicd_preflight.py` (agent-evaluation GitHub Action workflow) and `35_rag_quality_gate.py` (non-zero exit blocks a merge) | **Local / Preflight / Opt-in** — workflows are intentionally not active and require OIDC, runner, state backend, and environment review; L35 calls judge models only with `--apply`. |
 
 ### Manage, monitor, and secure AI systems
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
 | Manage quotas, scaling, rate limits, and cost footprints for model and agent workloads | D1 `05_quotas_and_tpm.py`, `06_rate_limit_backoff.py`, deployment-type reference | **Partial** — quota inspection and retry only; no autoscaling or billing analysis. |
-| Monitor model performance, drift, safety events, and grounding quality | D1 `19_groundedness_detection.py`, `21_foundry_evaluation.py`, `22_continuous_evaluation.py`, `25_foundry_tracing_setup.py` | **Partial** — evaluation/continuous-rule/tracing paths exist; drift policy, alerts, and configured live service remain subscription-dependent. |
+| Monitor model performance, drift, safety events, and grounding quality | D1 `19_groundedness_detection.py`, `21_foundry_evaluation.py`, `22_continuous_evaluation.py`, `25_foundry_tracing_setup.py`, `35_rag_quality_gate.py` | **Partial** — evaluation/continuous-rule/tracing paths exist and L35 gates groundedness and relevance pass rates with `--apply`; drift policy, alerts, and configured live service remain subscription-dependent. |
 | Monitor data ingestion quality, search index health, and relevance performance | D5 `04_search_indexer_setup.py` starts an indexer; D5 `03_search_hybrid_semantic.py` prints query results | **Partial** — no indexer-status, ingestion-quality, or relevance-evaluation monitor. |
-| Configure security, including managed identity, private networking, keyless credentials, and role policies | D1 `07_managed_identity_agent.py`, `08_rbac_role_policies.py`; D7 private regional-cell IaC, user-assigned identity, disabled local auth/public access, private DNS/endpoints, CMK Key Vault role, and reviewed Policy asset | **Preflight / Opt-in / Partial** — local assets do not prove subscription RBAC, private DNS resolution, CMK support, or a successful deployment. |
+| Configure security, including managed identity, private networking, keyless credentials, and role policies | D1 `07_managed_identity_agent.py`, `08_rbac_role_policies.py`; D7 private regional-cell IaC, user-assigned identity, disabled local auth/public access, private DNS/endpoints, CMK Key Vault role, and reviewed Policy asset; D7 L11 managed-identity Key Vault connection, VNet rules with service endpoints, and CMK CLI sequence | **Preflight / Opt-in / Partial** — local assets do not prove subscription RBAC, private DNS resolution, CMK support, or a successful deployment. |
 
 ### Implement responsible AI across generative AI and agentic systems
 
@@ -56,7 +56,7 @@ matrix.
 |---|---|---|
 | Configure safety filters, guardrails, risk detection, and content moderation | D1 `09_content_safety_filters.py`–`15_blocklists.py`, `18_protected_material.py`–`20_provenance_detection.py`, `28_guardrail_policy_preflight.py` | **Runnable / Partial** — advanced features are preview and require service availability; L15 persists only with `--apply`. L28 builds a guardrail with controls at all four intervention points (tool call/response are preview) and creates it only with `--apply`. |
 | Apply responsible AI instrumentation, including evaluators, safety evaluations, and explanation tooling | D1 `21_foundry_evaluation.py`, `22_continuous_evaluation.py`, `24_red_teaming.py` | **Runnable / Partial** — cloud state/billing require `--apply`; rubric/evaluator availability is region dependent. |
-| Implement auditing through trace logging, provenance metadata, and approval workflows | D1 `26_agent_tracing.py`, `20_provenance_detection.py`, `23_human_feedback.py`, `25_foundry_tracing_setup.py` | **Runnable / Partial** — telemetry/provenance paths exist; approval workflow remains application architecture. |
+| Implement auditing through trace logging, provenance metadata, and approval workflows | D1 `26_agent_tracing.py`, `20_provenance_detection.py`, `23_human_feedback.py`, `25_foundry_tracing_setup.py`; D2 `50_af_approval_workflow.py` | **Runnable / Local / Partial** — telemetry/provenance paths exist; D2 L50 runs a local declarative workflow that pauses for a human approval answer. No hosted approval flow or audit store is live-tested. |
 | Govern agent behavior with oversight modes, constraints, and tool-access controls | D1 `16_agent_basics.py`; D2 `09_prompt_agent_invoke.py`, `11_agent_function_tools.py`, `16_workflow_conditional.py` | **Partial** — instructions, argument validation, and routing; no explicit oversight-mode service configuration. |
 
 ## 2. Implement generative AI and agentic solutions (30–35%)
@@ -67,8 +67,8 @@ matrix.
 |---|---|---|
 | Deploy and consume LLMs, small models, code models, and multimodal models | D1 `03_deploy_model.py`; D2 `01_first_api_call.py`, `03_reasoning.py`; D3 `01_multimodal_understanding.py` | **Partial** — consumes LLM/reasoning/multimodal paths; no dedicated small- or code-model lesson. |
 | Implement RAG in an application | D2 `06_file_search_tool.py`; D5 `07_rag_prompt_agent.py`, `08_rag_client_run.py` | **Runnable** — D5 is app-owned manual RAG; D2 `27_agent_azure_ai_search_preflight.py` is separate **Preflight / Opt-in**, not live-tested managed Search integration. |
-| Design workflows, tool-augmented flows, and multistep reasoning pipelines | D2 `04_web_search_tool.py`, `05_code_interpreter.py`, `11_agent_function_tools.py`, `15_workflow_intake.py`, `16_workflow_conditional.py` | **Runnable / Partial** — tool paths execute; workflow surface is preview and does not prove production orchestration. |
-| Evaluate models and apps, including detecting fabrications, relevance, quality, and safety | D1 `17_evaluator_groundedness.py`; D2 `21_evaluator_task_adherence.py`; D2 `22_cloud_evaluation.py` | **Partial** — L21 is one local in-memory evaluator trace. L22 is **Preflight / Opt-in** for durable cloud evaluation, not a completed cloud run; no complete fabrication/relevance/safety suite. |
+| Design workflows, tool-augmented flows, and multistep reasoning pipelines | D2 `04_web_search_tool.py`, `05_code_interpreter.py`, `11_agent_function_tools.py`, `15_workflow_intake.py`, `16_workflow_conditional.py`, `43_af_declarative_workflow.py`, `50_af_approval_workflow.py`, `51_parallel_tool_calls.py` | **Runnable / Local / Partial** — tool paths execute; L43/L50 run declarative workflows locally and L51 times parallel versus sequential tool execution locally (its model path is `--apply`). The Foundry workflow surface is preview and does not prove production orchestration. |
+| Evaluate models and apps, including detecting fabrications, relevance, quality, and safety | D1 `17_evaluator_groundedness.py`, `35_rag_quality_gate.py`; D2 `21_evaluator_task_adherence.py`; D2 `22_cloud_evaluation.py` | **Partial / Opt-in** — L21 is one local in-memory evaluator trace. L22 is **Preflight / Opt-in** for durable cloud evaluation, not a completed cloud run. D1 L35 runs groundedness, relevance, retrieval, and response-completeness evaluators only with `--apply`; no evaluation run is evidenced and safety evaluators live in D1 L21–L24. |
 | Integrate generative workflows into applications by using Foundry SDKs and connectors | `_shared/openai_client.py`, `_shared/foundry_client.py`; D2 lessons 01–18 | **Runnable** |
 | Configure an application to connect to a Foundry project | `_shared/config.py`, `_shared/foundry_client.py` | **Runnable** |
 
@@ -80,7 +80,7 @@ matrix.
 | Build agents that integrate retrieval, function-calling, and conversation memory | D2 `06_file_search_tool.py`, `11_agent_function_tools.py`, `14_foundry_memory.py` | **Runnable** — memory is preview and asynchronous. |
 | Integrate agent tools, including APIs, knowledge stores, search, content understanding, and custom functions | D2 `10_agent_web_search.py`, `11_agent_function_tools.py`, `12_agent_openapi_tools.py`; D2 `25_mcp_tool_preflight.py`–`27_agent_azure_ai_search_preflight.py`; D5 `15_cu_content_agent.py` | **Partial** — L25–L27 default to **Preflight**; their `--apply`/`--invoke` paths are **Opt-in** and not live-tested. Toolbox publication and local Agent Framework consumption are implemented but require a configured version; MCP server deployment and managed Search-agent integration are not proven by default. |
 | Implement orchestrated multi-agent solutions | D2 `18_multi_agent_coord.py` | **Runnable** |
-| Build autonomous or semiautonomous workflows with safeguards and approval flow controls | D2 `15_workflow_intake.py`, `16_workflow_conditional.py`, `25_mcp_tool_preflight.py` | **Partial** — conditional preview workflow; L25 has approval code only in **Opt-in** remote path. No human approval flow is live-tested. |
+| Build autonomous or semiautonomous workflows with safeguards and approval flow controls | D2 `15_workflow_intake.py`, `16_workflow_conditional.py`, `25_mcp_tool_preflight.py`, `50_af_approval_workflow.py` | **Partial / Local** — conditional preview workflow; L25 has approval code only in **Opt-in** remote path; L50 pauses a local declarative workflow at a `Question` checkpoint and resumes with the approver's answer. No hosted human approval flow is live-tested. |
 | Integrate monitoring into deployed agents, evaluate agent behavior, and perform error analysis | D1 `21_foundry_evaluation.py`–`26_agent_tracing.py`; D2 `21_evaluator_task_adherence.py`, `23_langchain_tracing.py`, `22_cloud_evaluation.py`, `24_production_observability_preflight.py`; D8 `28_cross_domain_observability.py` | **Partial** — local/opt-in evaluation and tracing paths exist, and D8 adds a read-only non-content health query. No deployed-agent monitoring or cloud evaluation run is live-tested. |
 
 ### Optimize and operationalize generative AI systems
@@ -89,7 +89,7 @@ matrix.
 |---|---|---|
 | Tune generation behavior, such as prompt engineering and adjusting model parameters | D2 `02_model_behavior.py`, `07_structured_output.py` | **Runnable** |
 | Implement model reflection, chain-of-thought evaluations, and self-critique loops | D1 `17_evaluator_groundedness.py`; D2 `21_evaluator_task_adherence.py`, `22_cloud_evaluation.py` | **Partial** — self-critique/local evaluator example; no chain-of-thought storage. L22's durable evaluator is **Preflight / Opt-in**, not a completed run. |
-| Set up observability by implementing tracing, token analytics, safety signals, and latency breakdowns | D1 `22_continuous_evaluation.py`, `23_human_feedback.py`, `25_foundry_tracing_setup.py`, `26_agent_tracing.py`; D2 `23_langchain_tracing.py`, `24_production_observability_preflight.py`; D8 `28_cross_domain_observability.py` | **Partial** — tracing and a read-only non-content health query are implemented, but no live portal telemetry, alerts, or production retention setup is tested. |
+| Set up observability by implementing tracing, token analytics, safety signals, and latency breakdowns | D1 `22_continuous_evaluation.py`, `23_human_feedback.py`, `25_foundry_tracing_setup.py`, `26_agent_tracing.py`, `35_rag_quality_gate.py` (completion-token budget report); D2 `23_langchain_tracing.py`, `24_production_observability_preflight.py`; D8 `28_cross_domain_observability.py` | **Partial** — tracing, local token analytics over recorded usage, and a read-only non-content health query are implemented, but no live portal telemetry, alerts, or production retention setup is tested. |
 | Orchestrate multiple models, flows, or hybrid LLM and rules engines | D2 `18_multi_agent_coord.py`, `20_langgraph_agent.py`; D2 `28_hosted_agent_responses.py`–`30_hosted_agent_cicd.py` | **Runnable / Partial** — L18/L20 provide application-local orchestration. L28–L30 are **Local / Preflight** hosted-agent contract, A2A-boundary, and CI/CD reference assets; hosted deployment is not live-tested, while D8 L03 covers the current opt-in A2A card path. |
 
 ## 3. Implement computer vision solutions (10–15%)
@@ -116,8 +116,8 @@ execution. A **Runnable** lesson can require configured Azure access; an
 | Configure apps to produce concise or detailed captions for single or multiple images | D3 `02_alt_text_captions.py` | **Runnable** |
 | Implement a solution that enables question-answering grounded in visual evidence | D3 `01_multimodal_understanding.py` | **Partial** — image summary prompt, not a dedicated visual-Q&A interaction. |
 | Configure generation of alt-text and extended image descriptions aligned to accessibility guidelines | D3 `02_alt_text_captions.py` | **Runnable** |
-| Implement visual understanding by configuring Azure Content Understanding in Foundry Tools to extract visual characteristics | D3 `13_content_understanding_image.py`, `12_cu_blob_preflight.py`, `15_cu_visual_handoff.py` | **Runnable / Local / Preflight / Opt-in** — L13 has CU image-analysis code; L12 is local SAS/configuration inspection; L15 bounds a CU result only with `--apply`. CU request paths are not live-tested. |
-| Implement video analysis workflows to process and interpret video segments | D3 `14_video_analysis.py`, `15_cu_visual_handoff.py` | **Runnable / Opt-in** — L14 prints returned segment ranges/summaries; L15 can normalize bounded video segments with `--apply`. No successful CU operation is evidenced. |
+| Implement visual understanding by configuring Azure Content Understanding in Foundry Tools to extract visual characteristics | D3 `13_content_understanding_image.py`, `12_cu_blob_preflight.py`, `15_cu_visual_handoff.py`, `17_cu_custom_video_analyzer.py` | **Runnable / Local / Preflight / Opt-in** — L13 has CU image-analysis code; L12 is local SAS/configuration inspection; L15 bounds a CU result only with `--apply`; L17 validates a custom video field schema locally and creates the analyzer only with `--apply`. CU request paths are not live-tested. |
+| Implement video analysis workflows to process and interpret video segments | D3 `14_video_analysis.py`, `15_cu_visual_handoff.py`, `17_cu_custom_video_analyzer.py` | **Runnable / Opt-in** — L14 prints returned segment ranges/summaries; L15 can normalize bounded video segments with `--apply`; L17 segments a video and generates per-segment fields only with `--apply`. No successful CU operation is evidenced. |
 | Configure single-task and pro-mode Content Understanding pipelines | D5 CU lessons 09–13 | **Runnable / Partial** — lessons 09–12 are single-task GA analyzers. Pro mode's only API (`2025-05-01-preview`) was retired on July 15, 2026; lesson 13 shows the current replacement (one analyze per document plus app-side comparison) and preflights locally by default. |
 | Implement solutions that identify objects, components, or regions within images or video | D3 `13_content_understanding_image.py`, `14_video_analysis.py`, `15_cu_visual_handoff.py` | **Partial** — output is Markdown, summary, or bounded time segments; no object/component/region extraction contract. |
 
@@ -157,20 +157,20 @@ None is evidence of a successful remote operation.
 
 ## 5. Implement information extraction solutions (10–15%)
 
-Domain 5 has **21** numbered lessons (`00`–`20`). L16–L20 default to
-**Preflight** and make no cloud call. Their explicit remote paths are
-**Opt-in** and have no successful live-operation evidence. L00–L05 and
-L07–L15 contain remote code paths; L06 is **Local**. This matrix does not
-claim any remote path was run successfully.
+Domain 5 has **31** numbered lessons (`00`–`30`). L12–L13 and L16–L30
+default to **Preflight** and make no cloud call. Their explicit remote paths
+are **Opt-in** and have no successful live-operation evidence. L00–L05,
+L07–L11, and L14–L15 contain remote code paths; L06 is **Local**. This matrix
+does not claim any remote path was run successfully.
 
 ### Build retrieval and grounding pipelines
 
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
-| Ingest and index content, such as documents, images, audio, and video | D5 `00_search_index_setup.py`, `04_search_indexer_setup.py`, `05_search_skillset.py` | **Partial** — Blob document pipeline; images/audio/video are not indexed. D3/CU analyzes image/video without indexing them. |
+| Ingest and index content, such as documents, images, audio, and video | D5 `00_search_index_setup.py`, `04_search_indexer_setup.py`, `05_search_skillset.py`, `29_search_ocr_knowledge_store.py`, `30_search_cu_skill_citations.py` | **Partial / Preflight / Opt-in** — Blob document pipeline; L29 indexes text read from images (OCR) and L30 indexes Content Understanding chunks and images, both only with `--apply`. Audio and video are not indexed; D3/CU analyzes video without indexing it. |
 | Configure semantic search, hybrid search, and vector search for grounding | D5 `02_search_vector.py`, `03_search_hybrid_semantic.py` | **Runnable** |
-| Implement enrichment by using custom or built-in skills for text, images, and layout | D5 `05_search_skillset.py`, `06_search_custom_skill.py`, `17_search_custom_skill_deploy.py` | **Runnable / Local / Preflight / Opt-in / Partial** — L05 has split/embedding code; L06 is local Web API contract; L17 only deploys/wires derived custom skillset after `--apply` (and starts it only with `--run`). No image/layout Search enrichment or live deployment is evidenced. |
-| Configure RAG ingestion flow, including documents and using OCR | D5 Search pipeline plus `09_cu_prebuilt_read.py`, `10_cu_prebuilt_layout.py`, `16_cu_multimodal_rag.py` | **Partial / Preflight / Opt-in** — Search splits extracted Blob text; CU OCR/layout is separate. L16 converts one CU result to bounded local records only with `--apply`, then does not index them. |
+| Implement enrichment by using custom or built-in skills for text, images, and layout | D5 `05_search_skillset.py`, `06_search_custom_skill.py`, `17_search_custom_skill_deploy.py`, `29_search_ocr_knowledge_store.py`, `30_search_cu_skill_citations.py` | **Runnable / Local / Preflight / Opt-in / Partial** — L05 has split/embedding code; L06 is local Web API contract; L17 only deploys/wires derived custom skillset after `--apply` (and starts it only with `--run`); L29 (OCR, Text Merge, Shaper, knowledge-store projections) and L30 (Content Understanding layout and image skill) validate locally and deploy only with `--apply`. No live deployment is evidenced. |
+| Configure RAG ingestion flow, including documents and using OCR | D5 Search pipeline plus `09_cu_prebuilt_read.py`, `10_cu_prebuilt_layout.py`, `16_cu_multimodal_rag.py`, `29_search_ocr_knowledge_store.py`, `30_search_cu_skill_citations.py` | **Partial / Preflight / Opt-in** — Search splits extracted Blob text; L29 adds OCR of normalized images to the indexer pipeline and L30 chunks with page and polygon metadata, both only with `--apply`. L16 converts one CU result to bounded local records only with `--apply`, then does not index them. |
 | Connect retrieval pipelines directly to workflows and agent tools | D5 `07_rag_prompt_agent.py`, `08_rag_client_run.py`, `20_managed_search_agent_tool.py` | **Partial / Preflight / Opt-in** — L07/L08 are manual app-owned retrieval. L20 defaults to local preflight; `--enable` plus `--apply`/`--run` creates or invokes a managed Search agent, with no live-success evidence. No retrieval workflow is implemented. |
 
 ### Extract content from documents
@@ -178,7 +178,7 @@ claim any remote path was run successfully.
 | April 2026 bullet | Evidence | Status |
 |---|---|---|
 | Extract information by using multimodal pipelines that combine OCR, layout analysis, and field extraction | D5 `09_cu_prebuilt_read.py`, `10_cu_prebuilt_layout.py`, `11_cu_invoice.py`, `12_cu_custom_analyzer.py`, `16_cu_multimodal_rag.py` | **Runnable / Preflight / Opt-in / Partial** — each is a separate CU path. L16 selects a media analyzer and emits bounded records only with `--apply`; no single composed OCR/layout/field pipeline or live result is evidenced. |
-| Produce clean, grounded representations to use with agents and RAG by using Content Understanding | D5 `14_cu_markdown_for_rag.py`, `15_cu_content_agent.py`, `16_cu_multimodal_rag.py` | **Partial / Preflight / Opt-in** — L14 inspects markdown, L15 sends invoice fields to a model, and L16 emits bounded records after explicit CU submission; none indexes Markdown/records. |
+| Produce clean, grounded representations to use with agents and RAG by using Content Understanding | D5 `14_cu_markdown_for_rag.py`, `15_cu_content_agent.py`, `16_cu_multimodal_rag.py`, `30_search_cu_skill_citations.py` | **Partial / Preflight / Opt-in** — L14 inspects markdown, L15 sends invoice fields to a model, and L16 emits bounded records after explicit CU submission; L30 indexes Content Understanding Markdown chunks with page-level citations only with `--apply`. |
 | Implement analyzers for generating structured or markdown outputs for downstream reasoning by using Content Understanding | D5 `10_cu_prebuilt_layout.py`, `12_cu_custom_analyzer.py` (confidence/grounding, `prebuilt-documentFieldSchema` proposal), `13_cu_cross_document_validation.py`, `14_cu_markdown_for_rag.py` (`prebuilt-layout` or `prebuilt-documentSearch`) | **Runnable / Opt-in** — lessons 12–13 preflight locally and create analyzers only with `--apply`. |
 | Monitor data ingestion quality, index health, and relevance performance | D5 `18_search_monitoring.py`, `03_search_hybrid_semantic.py` | **Preflight / Opt-in / Partial** — L18 defaults to local configuration checks and `--run` reads one redacted indexer-status/document-count snapshot. It has no alerts, relevance evaluation, or live-success evidence. |
 
@@ -186,16 +186,16 @@ claim any remote path was run successfully.
 
 | Domain | Numbered lessons present | Notes |
 |---|---:|---|
-| 1 — Plan and manage | 35 | `01`–`34` plus `04b`; advanced evaluation, tracing, control-plane, CI/CD, guardrail, and red-team lessons remain preflight/opt-in where documented. |
-| 2 — Generative AI and agents | 49 | `01`–`49`; external tools are L25–L27, hosted-agent contracts L28–L30, direct advanced OpenAI patterns L31–L39, A2A/external agents L40–L42, Agent Framework workflows L43–L45, and preview tool/hosted-agent operations L46–L49. |
-| 3 — Computer vision | 16 | `01`–`16`; advanced paths remain preflight/local by default except explicit remote flags. |
+| 1 — Plan and manage | 37 | `01`–`36` plus `04b`; advanced evaluation, tracing, control-plane, CI/CD, guardrail, red-team, and RAG quality-gate lessons remain preflight/opt-in where documented; L36 is local planning logic. |
+| 2 — Generative AI and agents | 51 | `01`–`51`; external tools are L25–L27, hosted-agent contracts L28–L30, direct advanced OpenAI patterns L31–L39, A2A/external agents L40–L42, Agent Framework workflows L43–L45, preview tool/hosted-agent operations L46–L49, a local approval workflow L50, and parallel tool calls L51. |
+| 3 — Computer vision | 17 | `01`–`17`; advanced paths remain preflight/local by default except explicit remote flags. |
 | 4 — Text and speech | 30 | `01`–`30`; Language, Speech, Translator, Voice, Realtime, and GPT-Live paths retain separate endpoint/auth contracts. |
-| 5 — Information extraction | 29 | `00`–`28`; `00_search_index_setup.py` is included. L12–L13 and L16–L28 default to local preflight; remote work is explicit **Opt-in**. L21–L27 cover agentic retrieval (knowledge sources, knowledge base, retrieve). |
+| 5 — Information extraction | 31 | `00`–`30`; `00_search_index_setup.py` is included. L12–L13 and L16–L30 default to local preflight; remote work is explicit **Opt-in**. L21–L27 cover agentic retrieval (knowledge sources, knowledge base, retrieve); L29–L30 cover OCR, knowledge-store, and Content Understanding skill enrichment. |
 | 6 — Model customization and delivery | 20 | Supplemental curriculum; local validation/preflight first, every cloud request remains explicit. |
-| 7 — Production platform | 10 | Cross-domain infrastructure preflights; apply remains explicit and no live deployment is claimed. |
+| 7 — Production platform | 11 | Cross-domain infrastructure preflights; L11 adds connection and selected-network templates. Apply remains explicit and no live deployment is claimed. |
 | 8 — Advanced agents and current Foundry operations | 28 | `01`–`28`; remote mutations are explicit, L22–L27 are local typed/safety preflights, and L28 is a local/opt-in read-only telemetry view. |
 | 9 — Current AI services | 7 | `01`–`07`; Document Intelligence calls/builds remain opt-in and evidence-bounded. |
-| **Total** | **224** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
+| **Total** | **232** | Numbered Python lessons only; excludes shared modules, Function assets, tests, and JSON/YAML. |
 
 Gaps and partial labels are intentional. They prevent a local study repository
 from claiming live implementation of hosted deployment, A2A, MCP, Toolbox,
@@ -228,8 +228,9 @@ deployment succeeded.
 |---|---|---|
 | Bicep and Terraform Foundry regional cell | D7 `bicep/main.bicep`, `terraform/` | **Preflight / Opt-in** — alternatives create private, keyless `AIServices` account/project cells only after explicit apply. |
 | VNet, private endpoints, and private DNS | D7 regional-cell templates and offline tests | **Preflight / Opt-in** — assets include account, Key Vault, and Blob private paths; no subscription DNS/reachability proof. |
-| CMK, Key Vault RBAC, Policy, diagnostics, and locks | D7 templates and `policy/deny-unapproved-foundry-connections.json` | **Preflight / Opt-in** — CMK availability, roles, policy category selection, and diagnostic category availability remain tenant and region dependent. |
+| CMK, Key Vault RBAC, Policy, diagnostics, and locks | D7 templates and `policy/deny-unapproved-foundry-connections.json` | **Preflight / Opt-in** — CMK follows key rotation (no pinned `keyVersion`) and names the user-assigned identity with `identityClientId`; CMK availability, roles, policy category selection, and diagnostic category availability remain tenant and region dependent. |
 | CI/CD, HA, and DR | D7 contained OIDC/self-hosted runner workflow and README runbook | **Local / Preflight** — no active workflow, traffic failover, agent-state migration, or live recovery drill is claimed. |
+| Connections, selected networks, and CMK by CLI | D7 `11_connections_network_rules_preflight.py`, `bicep/connections.bicep`, `bicep/selected-networks.bicep` | **Preflight / Opt-in** — default checks both templates and prints CLI sequences; `--what-if` previews and `--apply` deploys one template. No connection, network rule, or CMK change is claimed. |
 
 ## Supplemental domain 8: advanced agents and current Foundry operations
 

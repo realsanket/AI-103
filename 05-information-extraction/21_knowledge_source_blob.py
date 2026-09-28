@@ -32,7 +32,7 @@ on the AOAI/Foundry resource.
 
 Prerequisites / env vars:
   SEARCH_ENDPOINT           — https://<service>.search.windows.net
-  SEARCH_KNOWLEDGE_SOURCE   — knowledge source name (default northwind-blob-ks)
+  SEARCH_KS_BLOB            — knowledge source name (default northwind-blob-ks; L24 references it)
   SEARCH_BLOB_CONNECTION    — blob connection string; use ResourceId=... for MI
   SEARCH_BLOB_CONTAINER     — source blob container name
   AZURE_OPENAI_ENDPOINT     — AOAI/Foundry resource endpoint
@@ -49,7 +49,7 @@ from _shared.config import env as _env, settings
 def configuration() -> dict[str, str]:
     s = settings()
     cfg = {
-        "name": _env("SEARCH_KNOWLEDGE_SOURCE", "northwind-blob-ks"),
+        "name": _env("SEARCH_KS_BLOB", "northwind-blob-ks"),
         "connection": _env("SEARCH_BLOB_CONNECTION"),
         "container": _env("SEARCH_BLOB_CONTAINER", s.storage_container),
         "aoai_endpoint": s.azure_openai_endpoint,

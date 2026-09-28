@@ -37,25 +37,25 @@ Prerequisites / env vars:
   SEARCH_KNOWLEDGE_BASE     — KB name (default northwind-kb)
   SEARCH_KS_BLOB            — blob KS name (from L21; default northwind-blob-ks)
   SEARCH_KS_INDEX           — search-index KS name (from L22; default northwind-index-ks)
-  SEARCH_KS_WEB             — web KS name (from L23; default northwind-web-ks); leave empty to skip
+  SEARCH_KS_WEB             — web KS name from L23; opt-in. Unset means no web source,
+                              because web queries go to Bing outside the Microsoft DPA
   AZURE_OPENAI_ENDPOINT     — AOAI/Foundry resource endpoint
   DEFAULT_MODEL             — chat deployment for query planning + answer synthesis
 """
 import argparse
 import json
-import os
 
 from _search_rest import _PREVIEW_API_VERSION, put_named
-from _shared.config import settings
+from _shared.config import env, settings
 
 
 def configuration() -> dict[str, str]:
     s = settings()
     return {
-        "name": os.environ.get("SEARCH_KNOWLEDGE_BASE", "northwind-kb"),
-        "ks_blob": os.environ.get("SEARCH_KS_BLOB", "northwind-blob-ks"),
-        "ks_index": os.environ.get("SEARCH_KS_INDEX", "northwind-index-ks"),
-        "ks_web": os.environ.get("SEARCH_KS_WEB", "northwind-web-ks"),
+        "name": env("SEARCH_KNOWLEDGE_BASE", "northwind-kb"),
+        "ks_blob": env("SEARCH_KS_BLOB", "northwind-blob-ks"),
+        "ks_index": env("SEARCH_KS_INDEX", "northwind-index-ks"),
+        "ks_web": env("SEARCH_KS_WEB"),
         "aoai_endpoint": s.azure_openai_endpoint,
         "chat": s.default_model,
     }
@@ -66,15 +66,14 @@ def build_body(cfg: dict[str, str]) -> dict:
         {"name": cfg["ks_blob"]},
         {"name": cfg["ks_index"]},
     ]
+    instructions = "Use the blob and search-index knowledge sources for internal Northwind policies."
     if cfg["ks_web"]:
         sources.append({"name": cfg["ks_web"]})
+        instructions += " Use the web knowledge source only when the user asks about current external information."
     return {
         "name": cfg["name"],
-        "description": "Northwind agentic retrieval knowledge base (blob + index + web).",
-        "retrievalInstructions": (
-            "Use the blob and search-index knowledge sources for internal Northwind policies. "
-            "Use the web knowledge source only when the user asks about current external information."
-        ),
+        "description": "Northwind agentic retrieval knowledge base (blob + index, optional web).",
+        "retrievalInstructions": instructions,
         "answerInstructions": "Answer in two concise sentences and cite [ref_id:<n>] for every claim.",
         "outputMode": "answerSynthesis",
         "knowledgeSources": sources,

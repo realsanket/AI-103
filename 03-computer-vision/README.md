@@ -101,7 +101,7 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | Image generation/editing | 04, 05, 06 | 05–06 need `product_photo.png`; 06 also needs `mask.png` |
 | Video generation | 07, 08 (preflight), 09 (preflight) | 07 needs Sora preview access + region support; 08–09 use `--apply` for billable jobs |
 | Visual safety and provenance | 10 (preflight), 11 (preflight) | 10 needs `--run` for cloud call; 11 needs `--run` + local OCR file |
-| Content Understanding | 12 (preflight), 13, 14, 15 | Run 12 first to validate Blob/SAS config; 13–15 need `SAMPLE_IMAGE_URL`/`SAMPLE_VIDEO_URL` |
+| Content Understanding | 12 (preflight), 13, 14, 15, 17 (preflight) | Run 12 first to validate Blob/SAS config; 13–15 and 17 `--apply` need `SAMPLE_IMAGE_URL`/`SAMPLE_VIDEO_URL` |
 
 ### Costs and side effects
 
@@ -123,6 +123,7 @@ All lessons use `DefaultAzureCredential`. Run `az login` on a workstation; use m
 | 14 | CU async analyzer operation (requires `SAMPLE_VIDEO_URL`) |
 | 15 | **Read-only** until `--apply` (then: CU async analyzer operation) |
 | 16 | Prints the `az` deployment command by default; `--apply` creates/updates the image deployment; `--generate` bills one image and saves a PNG. |
+| 17 | Validates and prints the analyzer JSON by default; `--apply` creates a persistent analyzer and runs a billable video analysis; `--delete` removes the analyzer. |
 
 ---
 
@@ -183,6 +184,7 @@ After completing this domain, use the [Domain 3 question review](questions/READM
 | 14 | `14_video_analysis.py` | CU `prebuilt-videoSearch` on `SAMPLE_VIDEO_URL` | CU async operation |
 | 15 | `15_cu_visual_handoff.py` | Bounded CU handoff; `--apply` submits and normalizes result | **Read-only** until `--apply` |
 | 16 | [Image model deployment](16_image_model_deployment.py) | Deploy `gpt-image-2` with the Azure CLI; verify with one image | `--apply` writes a deployment; `--generate` billed per image |
+| 17 | [Custom video analyzer](17_cu_custom_video_analyzer.py) | Segment a video and generate `colorScheme`/`sceneType` fields per segment | **Read-only** until `--apply`; `--delete` cleans up |
 
 ---
 
@@ -619,6 +621,43 @@ uv run python 03-computer-vision/16_image_model_deployment.py --generate
 
 ---
 
+## Stage 7 — Custom video analyzer (lesson 17)
+
+### 17 — Segment a video and generate fields per segment
+
+**Question answered:** How do I get my own structured fields, such as a scene's color scheme, for every segment of a video?
+
+**Background.** Lesson 14 used the prebuilt `prebuilt-videoSearch`. A custom analyzer starts from the base `prebuilt-video` and adds a `fieldSchema`; at run time the generative model fills every field for every segment. Pick the field type and method from what the value is:
+
+| Field | Type + method | Why |
+|---|---|---|
+| `colorScheme` | `string` + `generate` | Free text the model writes; nothing to copy verbatim |
+| `sceneType` | `string` + `classify` with an `enum` | One label from a fixed list |
+| structured detail | `object` / `array` | Named subfields in JSON |
+
+Video fields use `generate` or `classify`; `extract` is for documents. `config.enableSegment: true` plus exactly **one** `contentCategories` entry tells the model where to cut; `enableSegment: false` treats the whole video as one segment.
+
+**Before code.** Run lesson 12 for the Blob SAS checks. Set `SAMPLE_VIDEO_URL` in your shell to a short video you have rights to (runtime-only; never commit it). Creating needs Cognitive Services Content Understanding Contributor; deleting needs Owner.
+
+```bash
+uv run python 03-computer-vision/17_cu_custom_video_analyzer.py            # validate + print the analyzer JSON
+uv run python 03-computer-vision/17_cu_custom_video_analyzer.py --apply    # create analyzer, analyze SAMPLE_VIDEO_URL
+uv run python 03-computer-vision/17_cu_custom_video_analyzer.py --delete   # clean up the analyzer
+```
+
+**Code path.**
+1. `validate_definition()` enforces one content category when segmenting, `generate`/`classify` methods, and an `enum` for every `classify` field.
+2. `--apply`: `create_analyzer("northwind-marketing-video", definition)` (persistent) → `analyze(..., poll_timeout=1200, poll_interval=10)`.
+3. `segment_rows()` prints each segment's `startTimeMs`/`endTimeMs` with its field values.
+
+**What to watch.** One JSON line per segment. Video is sampled at about one frame per second at 512×512 and only speech is transcribed, so fast events, small text, and music are easy to miss.
+
+**Exam cues.** A description the model writes → `string` + `generate`. A fixed label set → `classify` with `enum`. Custom video analyzers extend `prebuilt-video`, not `prebuilt-videoSearch`.
+
+**References:** [Video overview](https://learn.microsoft.com/azure/ai-services/content-understanding/video/overview) · [Analyzer reference](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/analyzer-reference) · [Create a custom analyzer](https://learn.microsoft.com/azure/ai-services/content-understanding/tutorial/create-custom-analyzer)
+
+---
+
 ## Feature status and hard limits
 
 | Feature | Status | Practical boundary |
@@ -635,6 +674,7 @@ uv run python 03-computer-vision/16_image_model_deployment.py --generate
 | Prompt Shields | GA | Defense-in-depth signal; not a guarantee text is benign |
 | Content Understanding `prebuilt-imageSearch` | GA | Source must be HTTPS URL reachable by CU; not local file |
 | Content Understanding `prebuilt-videoSearch` | GA | Segment results are partial; sampling may miss rapid events |
+| Content Understanding custom video analyzer | GA (`2025-11-01`) | Base `prebuilt-video`; fields use `generate` or `classify`; one content category when segmenting |
 
 ---
 

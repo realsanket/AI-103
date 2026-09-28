@@ -17,7 +17,6 @@
 | Q150 | [`07_language_ner.py`](../07_language_ner.py) | L07 Named Entity Recognition | Existing |
 | Q151 | Adjacent only: [`07_language_ner.py`](../07_language_ner.py) | L07 NER | Gap: entity-linking-specific exercise |
 | Q160 | — | Language container operations | Compatibility: no current lab |
-| Q161 | — | Multi-service provisioning | Gap: resource-choice exercise |
 | Q163 | — | On-prem Language container | Compatibility: no new legacy lab |
 
 See the full map, including NER and compatibility items, in [`../../docs/question-coverage.md`](../../docs/question-coverage.md#04---text-and-speech).

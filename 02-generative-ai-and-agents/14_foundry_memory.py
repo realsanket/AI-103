@@ -22,6 +22,7 @@ Flows:
     Part 4: Direct API — begin_update_memories (explicit fact injection) + search_memories
             (retrieve stored memories by semantic query).
     Cleanup: delete scope for test user; delete agent version. Store persists (delete manually).
+             `--keep` skips cleanup so you can inspect the portal; delete them afterwards.
 
 What to watch in the output:
   Conversation 2 — model may or may not echo preference; async extraction is non-deterministic.
@@ -37,6 +38,7 @@ Prerequisites / env vars:
   --skip-wait       — skip 65-second debounce wait (recall turn may miss the preference)
   --store-name      — override memory store name (default: ai-103-memory-lesson)
   --user-id         — x-memory-user-id header value and API scope (default: user_lesson_14)
+  --keep            — skip cleanup of the user scope and agent version (inspect, then delete)
 """
 import argparse
 import json
@@ -337,7 +339,7 @@ def _run_direct_api(project, store_name: str, user_id: str) -> None:
     except Exception as e:
         msg = str(e)
         if "401" in msg or "Authentication" in msg:
-            print(f"[update] FAIL — 401 from memory service backend.")
+            print("[update] FAIL — 401 from memory service backend.")
             print("  begin_update_memories runs server-side: the project's managed identity")
             print("  calls the model on your behalf. Fix:")
             print("  → Enable system-assigned managed identity on the Foundry project.")
@@ -397,29 +399,29 @@ def _run_direct_api(project, store_name: str, user_id: str) -> None:
 # Cleanup
 # ---------------------------------------------------------------------------
 
-def _cleanup(project, agent_version: str) -> None:
+def _cleanup(project, agent_version: str | None, store_name: str, user_id: str) -> None:
     # Delete the test user's scope (removes their memory data from the store)
     try:
-        project.beta.memory_stores.delete_scope(
-            name=_DEFAULT_STORE,
-            scope=_DEFAULT_USER,
-        )
-        print("[cleanup] Deleted scope for test user")
+        project.beta.memory_stores.delete_scope(name=store_name, scope=user_id)
+        print(f"[cleanup] Deleted scope '{user_id}' in store '{store_name}'")
     except Exception as e:
         print(f"[cleanup] Scope delete skipped: {e}")
 
     # Delete the ephemeral agent version
-    try:
-        project.agents.delete_version(
-            agent_name=_AGENT_NAME,
-            agent_version=agent_version,
-        )
-        print(f"[cleanup] Deleted agent version {agent_version}")
-    except Exception as e:
-        print(f"[cleanup] Agent delete skipped: {e}")
+    if agent_version:
+        try:
+            project.agents.delete_version(
+                agent_name=_AGENT_NAME,
+                agent_version=agent_version,
+            )
+            print(f"[cleanup] Deleted agent version {agent_version}")
+        except Exception as e:
+            print(f"[cleanup] Agent delete skipped: {e}")
+    else:
+        print("[cleanup] Agent was not created — nothing to delete.")
 
     print("[note] Memory store itself persists — delete manually to stop billing:")
-    print(f"       project.beta.memory_stores.delete('{_DEFAULT_STORE}')")
+    print(f"       project.beta.memory_stores.delete('{store_name}')")
 
 
 # ---------------------------------------------------------------------------
@@ -436,6 +438,8 @@ def main() -> None:
                         help="Pause between parts so you can inspect the portal at each step")
     parser.add_argument("--store-name", default=_DEFAULT_STORE)
     parser.add_argument("--user-id", default=_DEFAULT_USER)
+    parser.add_argument("--keep", action="store_true",
+                        help="Skip cleanup so you can inspect the agent and memories in the portal")
     add_lesson_overrides(parser)   # --project-endpoint, --chat-model, --embedding-model
     args = parser.parse_args()
 
@@ -478,12 +482,14 @@ def main() -> None:
         _pause("Part 4 done — check portal for coffee preferences", args.pause)
 
     finally:
-        print("\n=== Cleanup (disabled — re-enable after portal inspection) ===")
-        # if agent_version:
-        #     _cleanup(project, agent_version)
-        # else:
-        #     print("[cleanup] Agent was not created — nothing to delete.")
-        pass
+        print("\n=== Cleanup ===")
+        if args.keep:
+            print("[cleanup] --keep set. After inspecting the portal, delete what this run created:")
+            print(f"          project.beta.memory_stores.delete_scope(name='{args.store_name}', scope='{args.user_id}')")
+            if agent_version:
+                print(f"          project.agents.delete_version(agent_name='{_AGENT_NAME}', agent_version='{agent_version}')")
+        else:
+            _cleanup(project, agent_version, args.store_name, args.user_id)
 
 
 if __name__ == "__main__":
