@@ -1,5 +1,5 @@
 # Run: uv run python 07-production-platform-other/04_cicd_preflight.py
-# Practice-question coverage: Q89.
+# Practice-question coverage: Q49, Q89.
 """Locally validate CI/CD reference workflow; no automated apply.
 
 Reads `github/workflows/production-platform.yml` and confirms it uses

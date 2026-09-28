@@ -1,4 +1,5 @@
 # Run: uv run python 02-generative-ai-and-agents/09_prompt_agent_invoke.py
+# Practice-question coverage: Q175.
 
 """Invoke the IT HelpDesk Prompt Agent and execute its function-tool requests.
 

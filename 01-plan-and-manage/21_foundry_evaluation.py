@@ -1,5 +1,5 @@
 # Run: uv run python 01-plan-and-manage/21_foundry_evaluation.py
-# Practice-question coverage: Q26, Q34, Q66, Q69, Q80, Q100, Q101, Q103, Q104, Q107, Q134, Q168.
+# Practice-question coverage: Q26, Q34, Q66, Q69, Q80, Q100, Q101, Q103, Q104, Q107, Q168.
 # Run (apply): uv run python 01-plan-and-manage/21_foundry_evaluation.py --apply --dataset 01-plan-and-manage/data/foundry_evaluation_sample.jsonl
 """Foundry evaluation — repeatable, portal-visible quality evidence for an agent.
 

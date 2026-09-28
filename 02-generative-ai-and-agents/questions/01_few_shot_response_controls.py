@@ -1,8 +1,8 @@
 # Run: uv run python 02-generative-ai-and-agents/questions/01_few_shot_response_controls.py
-# Practice-question coverage: Q16, Q25, Q82, Q93, Q97, Q108, Q110.
+# Practice-question coverage: Q16, Q93, Q97, Q108, Q110.
 """Question supplement: few-shot prompting and deterministic response controls.
 
-Maps PDF questions 16, 25, 82, 93, 97, 108, and 110. It builds request
+Maps PDF questions 16, 93, 97, 108, and 110. It builds request
 fragments only; callers still use `_shared/openai_client.py` to invoke a
 deployment and must opt in to a billable call themselves.
 """

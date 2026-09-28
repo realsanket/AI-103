@@ -1,5 +1,4 @@
 # Run: uv run python 01-plan-and-manage/13_pii_filter.py
-# Practice-question coverage: Q127.
 """PII filter (preview) — detect personal data in model OUTPUT.
 
 Foundry guardrail control scans completions for personally identifiable

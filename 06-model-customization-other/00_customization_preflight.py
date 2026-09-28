@@ -1,5 +1,4 @@
 # Run: uv run python 06-model-customization-other/00_customization_preflight.py
-# Practice-question coverage: Q107.
 """Local readiness check for Microsoft Foundry customization labs.
 
 Confirms the env vars every lesson in this domain reads. Runs no cloud call.

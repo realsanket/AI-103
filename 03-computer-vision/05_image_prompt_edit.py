@@ -1,4 +1,5 @@
 # Run: uv run python 03-computer-vision/05_image_prompt_edit.py
+# Practice-question coverage: Q60.
 """Prompt-driven full-frame image edit via `client.images.edit` — no mask required.
 
 `images.edit` takes a source image and a natural-language prompt describing the

@@ -73,13 +73,23 @@ class QuestionExerciseTests(unittest.TestCase):
         coverage = Path("docs/question-coverage.md").read_text(encoding="utf-8")
         rows = re.findall(r"^\| (\d+) \| (.*?) \| (.*?) \| ((?:Existing|New).*?) \|$", coverage, flags=re.MULTILINE)
         self.assertTrue(rows)
+        claims: dict[Path, set[int]] = {}
         for question, file_cell, _note, _status in rows:
+            self.assertNotIn("Adjacent only", file_cell, f"Q{question} is current coverage, not adjacent")
             links = re.findall(r"\]\(([^)]+\.py)\)", file_cell)
             self.assertTrue(links, f"Q{question} has current coverage but no lesson-file link")
             for link in links:
                 source = (Path("docs") / link).resolve()
-                marker = source.read_text(encoding="utf-8").splitlines()[1]
-                self.assertIn(f"Q{question}", marker, f"{source} does not declare Q{question}")
+                claims.setdefault(source, set()).add(int(question))
+                self.assertIn(int(question), _marker_questions(source), f"{source} does not declare Q{question}")
+
+        # Every marker claim must be backed by that question's map row.
+        for source in sorted(Path(".").resolve().glob("[0-9][0-9]-*/**/*.py")):
+            if "__pycache__" in source.parts:
+                continue
+            declared = _marker_questions(source)
+            if declared:
+                self.assertEqual(declared, claims.get(source, set()), f"{source} marker disagrees with the map")
 
         review_files = sorted(Path(".").glob("[0-9][0-9]-*/questions/README.md"))
         self.assertEqual(len(review_files), 9)
@@ -89,6 +99,28 @@ class QuestionExerciseTests(unittest.TestCase):
             for question in re.findall(r"^\| Q(\d+) \|", file.read_text(encoding="utf-8"), flags=re.MULTILINE)
         ]
         self.assertEqual(sorted(review_questions), list(range(1, 176)))
+
+    def test_domain_reviews_repeat_the_central_map(self) -> None:
+        def cells(file_cell: str, note: str, status: str) -> tuple:
+            return re.findall(r"\[`([^`]+)`\]", file_cell), file_cell.startswith("Adjacent only"), note, status
+
+        coverage = Path("docs/question-coverage.md").read_text(encoding="utf-8")
+        central = {
+            int(question): cells(*rest)
+            for question, *rest in re.findall(r"^\| (\d+) \| (.*?) \| (.*?) \| (.*?) \|$", coverage, flags=re.MULTILINE)
+        }
+        for review in sorted(Path(".").glob("[0-9][0-9]-*/questions/README.md")):
+            for question, *rest in re.findall(
+                r"^\| Q(\d+) \| (.*?) \| (.*?) \| (.*?) \|$", review.read_text(encoding="utf-8"), flags=re.MULTILINE
+            ):
+                self.assertEqual(cells(*rest), central[int(question)], f"{review} Q{question} differs from the map")
+
+
+def _marker_questions(source: Path) -> set[int]:
+    lines = source.read_text(encoding="utf-8").splitlines()
+    if len(lines) < 2 or not lines[1].startswith("# Practice-question coverage:"):
+        return set()
+    return {int(number) for number in re.findall(r"Q(\d+)", lines[1])}
 
 
 if __name__ == "__main__":

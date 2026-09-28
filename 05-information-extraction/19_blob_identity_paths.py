@@ -1,5 +1,5 @@
 # Run: uv run python 05-information-extraction/19_blob_identity_paths.py [--run]
-# Practice-question coverage: Q48, Q75.
+# Practice-question coverage: Q48.
 """Verify the operator/runtime Azure Blob data-plane access via DefaultAzureCredential.
 
 This lesson proves that the current identity (az login on workstation, or managed

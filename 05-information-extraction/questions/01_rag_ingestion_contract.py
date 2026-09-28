@@ -1,8 +1,8 @@
 # Run: uv run python 05-information-extraction/questions/01_rag_ingestion_contract.py
-# Practice-question coverage: Q21, Q87, Q94, Q121.
+# Practice-question coverage: Q21.
 """Question supplement: preserve RAG chunk provenance during document ingestion.
 
-Maps PDF questions 21, 87, 94, and 121. This application-level contract keeps
+Maps PDF question 21. This application-level contract keeps
 page, source, structure, and ACL metadata attached to every chunk. It is not a
 replacement for the Search index, data source, skillset, and indexer assets;
 those four assets must still be changed and validated as one unit.

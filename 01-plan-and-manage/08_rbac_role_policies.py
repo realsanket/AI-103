@@ -1,5 +1,5 @@
 # Run: uv run python 01-plan-and-manage/08_rbac_role_policies.py
-# Practice-question coverage: Q48, Q59, Q63, Q71, Q75.
+# Practice-question coverage: Q48, Q59, Q71, Q75, Q113.
 """Grant and review least-privilege role assignments for Foundry.
 
 Beginner note:

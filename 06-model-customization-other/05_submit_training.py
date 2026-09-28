@@ -1,4 +1,5 @@
 # Run: uv run python 06-model-customization-other/05_submit_training.py --kind sft --train train.jsonl --model <base> --apply
+# Practice-question coverage: Q107.
 """Upload reviewed data and submit SFT, DPO, or RFT only with --apply.
 
 One entrypoint for all three customization methods. Reuses the dataset

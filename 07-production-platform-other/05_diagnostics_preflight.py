@@ -1,4 +1,5 @@
 # Run: uv run python 07-production-platform-other/05_diagnostics_preflight.py
+# Practice-question coverage: Q23.
 """Locally validate diagnostic configuration in Bicep and Terraform; no automated apply.
 
 Confirms both `bicep/main.bicep` and `terraform/main.tf` configure the

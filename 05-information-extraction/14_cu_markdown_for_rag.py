@@ -1,5 +1,5 @@
 # Run: uv run python 05-information-extraction/14_cu_markdown_for_rag.py
-# Practice-question coverage: Q84.
+# Practice-question coverage: Q21, Q84.
 """CU prebuilt-layout → Markdown → inspect chunk boundaries for RAG pipelines.
 
 Structure-aware chunking: Content Understanding extracts document structure as

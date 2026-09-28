@@ -1,4 +1,5 @@
 # Run: uv run python 03-computer-vision/14_video_analysis.py
+# Practice-question coverage: Q105.
 """Content Understanding video analysis via `prebuilt-videoSearch` — requires `SAMPLE_VIDEO_URL`.
 
 Beginner note:
