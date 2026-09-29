@@ -12,7 +12,8 @@ turn 1), turn 3 confirms retention. Uses AzureChatOpenAI + a simple in-memory
 `ChatMessageHistory` — production would use Redis, Cosmos, or Foundry-managed
 memory (see lesson 14).
 
-Alternative: use Foundry `previous_response_id` directly (lesson 13).
+Alternative: link turns with `previous_response_id` (Domain 1 lesson 16) or a
+server-side conversation (lesson 13).
 LangChain adds middleware/tool wrapping but same underlying state model.
 
 Code path:

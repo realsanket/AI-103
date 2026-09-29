@@ -6,12 +6,12 @@ it to Foundry's managed agent hosting. Requires an azd project with
 `azure.yaml` declaring the agent service. Default preflight validates the
 project root assets; `--apply` runs `azd deploy` in the agent root.
 
-Hosted agents differ from prompt agents (lessons 08-09): you own the
+Hosted agents differ from prompt agents (Domain 2 lessons 08-09): you own the
 runtime code. Foundry manages hosting, scaling, endpoint routing, and
 identity. Code → container → Foundry hosting = three-step mental model.
 
-After deploy, lesson 08's `configure-hosted-agent-env-variables` sets
-runtime env vars; lesson 09's telemetry lesson wires App Insights.
+After deploy, lesson 08 sets the agent's runtime environment variables;
+Domain 1 lesson 25 connects Application Insights for tracing.
 NEVER bake secrets into code — use env vars from portal or Azure Key Vault.
 
 Code path:
@@ -20,8 +20,8 @@ Code path:
   from agent-root. Reports deploy stream.
 
 What to watch. Preflight: asset check. --apply: azd output including
-`Endpoint: https://<resource>.services.ai.azure.com/...`. Copy that URL
-into PROJECT_ENDPOINT for lesson 09.
+`Endpoint: https://<resource>.services.ai.azure.com/...`. Lesson 08 then
+targets the same project (PROJECT_ENDPOINT) and agent name.
 
 Prerequisites / env vars:
   --agent-root PATH   — azd project root with azure.yaml (default: .)

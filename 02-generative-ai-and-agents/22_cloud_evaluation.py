@@ -1,7 +1,7 @@
 # Run: uv run python 02-generative-ai-and-agents/22_cloud_evaluation.py --dataset cases.jsonl
 """Preflight, then optionally create a durable cloud evaluation run.
 
-Unlike L19, this uploads JSONL and persists an evaluation definition and run.
+Unlike L21, this uploads JSONL and persists an evaluation definition and run.
 Rows must contain one non-empty ``query`` string: each row is one independent
 turn. This sample does not reconstruct a multi-turn conversation; evaluate
 multi-turn agents with a reviewed trajectory schema that preserves every

@@ -3,6 +3,8 @@
 > Run any lesson: `uv run python 05-information-extraction/<file>.py` · Prereqs: `.env` filled, `az login` completed. See root [README.md](../README.md).
 > **Scope warning:** these are runnable learning samples, not production pipelines. A successful call proves only the stated code path — not extraction quality, ACL enforcement, retrieval accuracy, or production readiness.
 
+New to Foundry? Follow [the learning path](../docs/learning-path.md): it puts every lesson from all nine domains in one learning order. This README keeps the exam-domain order and holds each lesson's details.
+
 ---
 
 ## What this domain teaches

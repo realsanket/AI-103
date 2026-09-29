@@ -2,6 +2,8 @@
 
 Hands-on companion for the April 16, 2026 [AI-103 skills measured](AI-103.md). It has **232 numbered Python lessons** across five exam domains, three supplemental domains, and a production-platform IaC lab. Lessons use Microsoft Foundry, Azure AI services, Azure AI Search, and Azure Storage; many make billable remote calls or change persistent cloud state.
 
+To learn Microsoft Foundry step by step, follow [`docs/learning-path.md`](docs/learning-path.md). The folders below follow the exam domains; the learning path puts every lesson in one order, from the first model call to production, and covers every exam domain on the way.
+
 Read [`docs/coverage.md`](docs/coverage.md) for an objective-by-objective, evidence-based map. A lesson existing here does not mean its Azure API, region, model, preview feature, or permission has been exercised in your subscription.
 
 Use [`docs/question-coverage.md`](docs/question-coverage.md) to study the supplied practice-question set after each domain. The map links every question to existing runnable code, a local question supplement, or an explicitly labeled compatibility/gap note.
@@ -10,13 +12,13 @@ Use [`docs/question-coverage.md`](docs/question-coverage.md) to study the suppli
 
 | Domain | Exam weight | Lessons | Start here |
 |---|---:|---:|---|
-| [01 Plan and manage](01-plan-and-manage/README.md) | 25–30% | 31 | `01_model_catalog_list.py`, `02_deployment_types.py` |
-| [02 Generative AI and agents](02-generative-ai-and-agents/README.md) | 30–35% | 39 | `01_first_api_call.py`, `25_mcp_tool_preflight.py`, `22_cloud_evaluation.py` |
-| [03 Computer vision](03-computer-vision/README.md) | 10–15% | 16 | `01_multimodal_understanding.py`, then the domain lesson map |
-| [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 27 | `05_language_pii.py`, `20_language_sentiment.py`, `21_speech_mcp_preflight.py`, `25_text_speech_governance_preflight.py` |
-| [05 Information extraction](05-information-extraction/README.md) | 10–15% | 21 | `00_search_index_setup.py`, `03_search_hybrid_semantic.py`, `18_search_monitoring.py` |
+| [01 Plan and manage](01-plan-and-manage/README.md) | 25–30% | 37 | `01_model_catalog_list.py`, `02_deployment_types.py` |
+| [02 Generative AI and agents](02-generative-ai-and-agents/README.md) | 30–35% | 51 | `01_first_api_call.py`, `25_mcp_tool_preflight.py`, `22_cloud_evaluation.py` |
+| [03 Computer vision](03-computer-vision/README.md) | 10–15% | 17 | `01_multimodal_understanding.py`, then the domain lesson map |
+| [04 Text and speech](04-text-and-speech/README.md) | 10–15% | 30 | `05_language_pii.py`, `20_language_sentiment.py`, `21_speech_mcp_preflight.py`, `25_text_speech_governance_preflight.py` |
+| [05 Information extraction](05-information-extraction/README.md) | 10–15% | 31 | `00_search_index_setup.py`, `03_search_hybrid_semantic.py`, `18_search_monitoring.py` |
 | [06 Model customization and delivery](06-model-customization-other/README.md) | Supplemental | 20 | `00_customization_preflight.py`, `05_submit_training.py`, `10_quota_ptu_preflight.py` |
-| [07 Production platform](07-production-platform-other/README.md) | Cross-domain | 10 | `01_bicep_preflight.py`, then local platform preflights |
+| [07 Production platform](07-production-platform-other/README.md) | Cross-domain | 11 | `01_bicep_preflight.py`, then local platform preflights |
 | [08 Advanced agents and current Foundry operations](08-advanced-agents-other/README.md) | Supplemental | 28 | `01_foundry_iq_connection_preflight.py`, `20_toolbox_lifecycle_governance.py`, `28_cross_domain_observability.py` |
 | [09 Current Azure AI Document Intelligence](09-current-ai-services-other/README.md) | Supplemental | 7 | `01_read_ocr.py`, `02_layout_markdown_tables.py`, `05_custom_neural_preflight.py` |
 
@@ -151,7 +153,8 @@ uv run python 01-plan-and-manage/01_model_catalog_list.py
 uv run python 02-generative-ai-and-agents/01_first_api_call.py
 ```
 
-Then follow each domain README:
+Then follow [the learning path](docs/learning-path.md) to learn Foundry in order, or work through
+one domain at a time. Either way, these domain rules apply:
 
 1. Domain 1: learn deployment types, quota reads, identity, safety, and
 telemetry before creating deployments or persistent blocklists.
@@ -245,7 +248,8 @@ Preview examples include Foundry Memory, workflows, agent evaluators, Sora 2, Co
 No external link checker is required. Validate local Python/JSON after editing:
 
 ```bash
-python -m compileall -q 01-plan-and-manage 02-generative-ai-and-agents 03-computer-vision 04-text-and-speech 05-information-extraction 06-model-customization-other 07-production-platform-other 08-advanced-agents-other 09-current-ai-services-other _shared
+python -m compileall -q 01-plan-and-manage 02-generative-ai-and-agents 03-computer-vision 04-text-and-speech 05-information-extraction 06-model-customization-other 07-production-platform-other 08-advanced-agents-other 09-current-ai-services-other _shared scripts
+python scripts/learning_path.py --check
 python -m json.tool 05-information-extraction/skillset_configs/index.json >/dev/null
 python -m json.tool 05-information-extraction/skillset_configs/data_source.json >/dev/null
 python -m json.tool 05-information-extraction/skillset_configs/skillset.json >/dev/null

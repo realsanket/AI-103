@@ -6,6 +6,8 @@
 >
 > Code proves one narrow path per lesson. It is not a production deployment, authorization design, data-retention policy, or representative evaluation result.
 
+New to Foundry? Follow [the learning path](../docs/learning-path.md): it puts every lesson from all nine domains in one learning order. This README keeps the exam-domain order and holds each lesson's details.
+
 ## What this domain teaches
 
 ```text
@@ -273,7 +275,7 @@ After completing this domain, use the [Domain 2 question review](questions/READM
 | 33 | [Prompt caching](33_openai_prompt_caching.py) | Prove cache hit via two calls; report cached_tokens | `--apply` sends 2 requests |
 | 34 | [LangChain memory](34_langchain_memory.py) | Multi-turn conversation with ChatMessageHistory | `--apply` sends 3 requests |
 | 35 | [Function calling](35_openai_function_calling.py) | Two-step direct Responses API function call loop | `--apply` sends 2 requests |
-| 36 | [Reasoning models](36_openai_reasoning_models.py) | o-series thinking tokens: call o1/o3, report reasoning_tokens count | `--apply --model <o-deployment>` required |
+| 36 | [Reasoning models](36_openai_reasoning_models.py) | Reasoning effort and thinking tokens: call `REASONING_MODEL`, report `reasoning_tokens` | `--apply` sends one request; `--effort` low/medium/high |
 | 37 | [Web search tool](37_openai_web_search.py) | Built-in web_search_preview tool; print grounded answer + citations | `--apply` sends 1 request with Bing lookup |
 | 38 | [Structured outputs](38_openai_structured_outputs.py) | Pydantic beta.chat.completions.parse — typed Python object from model | `--apply` sends 1 request |
 | 39 | [Webhooks preflight](39_openai_webhooks_preflight.py) | Register webhook endpoint; print payload; `--apply` POSTs to REST API | **Read-only** until `--apply` |
@@ -323,7 +325,7 @@ uv run python 02-generative-ai-and-agents/01_first_api_call.py
 
 **Question answered:** How does the `temperature` parameter change output across the same prompt?
 
-**Background.** Temperature controls sampling entropy: 0.0 collapses the distribution toward the most likely token; 2.0 spreads it widely. This lesson runs the same prompt at 0.0, 1.0, and 2.0 to make the difference visible. Temperature applies to non-reasoning chat models such as the GPT-4.1 family; reasoning models (o-series, GPT-5 family) are steered with `reasoning.effort` instead. `model=` takes a deployment name, so the lesson uses `DEFAULT_MODEL` or `--model`.
+**Background.** Temperature controls sampling entropy: 0.0 collapses the distribution toward the most likely token; 2.0 spreads it widely. This lesson runs the same prompt at 0.0, 1.0, and 2.0 to make the difference visible. Temperature applies to non-reasoning chat models such as the GPT-4.1 family; reasoning models (GPT-5 family) are steered with `reasoning.effort` instead. `model=` takes a deployment name, so the lesson uses `DEFAULT_MODEL` or `--model`.
 
 ```bash
 uv run python 02-generative-ai-and-agents/02_model_behavior.py
@@ -1436,20 +1438,20 @@ uv run python 02-generative-ai-and-agents/35_openai_function_calling.py --apply
 
 Reasoning models and live web search are the two Responses API capabilities most absent from traditional chat completions training. Lesson 36 proves thinking tokens are real and billable; lesson 37 proves grounding in live Bing results without a Bing API key.
 
-### 36 — Reasoning models (o-series)
+### 36 — Reasoning effort and thinking tokens
 
 **Question answered:** How many thinking tokens did the model spend reasoning through this problem?
 
-**Background.** o1, o3, and o3-mini generate an internal chain of thought before answering. Thinking tokens appear in `usage.output_tokens_details.reasoning_tokens` — they are billed at output token rates but not shown in `output_text`. `reasoning_effort` (low/medium/high) controls the thinking budget. Higher effort improves accuracy on complex problems at higher cost. This is NOT the same as prompting the model to "think step by step" — reasoning happens inside the model before output begins.
+**Background.** Reasoning models (GPT-5 family, for example `gpt-5.6-terra` in `REASONING_MODEL`; the older o-series is deprecated) work through an internal chain of thought before answering. Thinking tokens appear in `usage.output_tokens_details.reasoning_tokens`. They are billed at output token rates but not shown in `output_text`. `reasoning={"effort": ...}` (low/medium/high) controls the thinking budget: higher effort improves accuracy on complex problems at higher cost and latency. This is not the same as prompting the model to "think step by step"; the reasoning happens inside the model before output begins.
 
 ```bash
 uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py
-uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py --apply --model o3-mini
-uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py --apply --model o3-mini --effort high
+uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py --apply
+uv run python 02-generative-ai-and-agents/36_openai_reasoning_models.py --apply --effort high
 ```
 
 **Code path.**
-1. `openai_client().responses.create(model=O_MODEL, input=prompt, reasoning={"effort": effort})`.
+1. `openai_client().responses.create(model=REASONING_MODEL, input=prompt, reasoning={"effort": effort})` (`--model` overrides the deployment).
 2. `usage.output_tokens_details.reasoning_tokens` → thinking token count.
 3. `output_text` → final answer only (thinking chain not exposed).
 

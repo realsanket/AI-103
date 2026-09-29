@@ -6,6 +6,8 @@
 >
 > Code proves one narrow request path per lesson. It is not a production deployment, rights clearance, accessibility conformance, or policy approval.
 
+New to Foundry? Follow [the learning path](../docs/learning-path.md): it puts every lesson from all nine domains in one learning order. This README keeps the exam-domain order and holds each lesson's details.
+
 ## What this domain teaches
 
 ```text

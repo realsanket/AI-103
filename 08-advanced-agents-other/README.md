@@ -4,6 +4,8 @@
 >
 > Every default command is a local preflight and makes no cloud call. Every remote write requires `--apply`. This directory uses the current agent object model (stable endpoint + unique agent identity) — do NOT create Agent Application resources or use application endpoints.
 
+New to Foundry? Follow [the learning path](../docs/learning-path.md): it puts every lesson from all nine domains in one learning order. This README keeps the exam-domain order and holds each lesson's details.
+
 ## What this domain teaches
 
 Advanced Foundry agents are not one API — they are a set of independent capabilities layered on the current agent model:

@@ -9,7 +9,7 @@ and open-source. Default preflight explains structure; `--apply` calls
 `Microsoft.CognitiveServices/accounts` to enumerate models visible in the
 subscription region, then filters by kind flag.
 
-Useful before lesson 05 (custom-model deployment) or 07 (deploy checkpoint)
+Useful before lesson 05 (submit training) or 07 (deploy checkpoint)
 to confirm model IDs + supported SKUs + regions for your subscription.
 
 Code path:

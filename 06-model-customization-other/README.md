@@ -4,6 +4,8 @@
 >
 > Every cloud operation is opt-in via `--apply`. Default commands validate local input or print a preflight. A successful request proves only that request under its current identity, region, quota, and preview status. It does not prove model quality, safety, data governance, capacity, availability, or production readiness.
 
+New to Foundry? Follow [the learning path](../docs/learning-path.md): it puts every lesson from all nine domains in one learning order. This README keeps the exam-domain order and holds each lesson's details.
+
 ## What this domain teaches
 
 A customization + delivery decision is a chain of independent gates, not one API call:

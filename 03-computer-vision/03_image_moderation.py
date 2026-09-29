@@ -12,7 +12,7 @@ Beginner note:
      the response shows what got flagged.
 
   This lesson uses an ephemeral agent (instructions in the code — no portal
-  setup, no broken agent references). Same pattern as Domain 1 L11.
+  setup, no broken agent references). Same pattern as Domain 1 L16.
 
 Prereqs:
   - CONTENT_SAFETY_ENDPOINT in .env (for flow 1).

@@ -7,11 +7,11 @@ Beginner note:
   With APPLICATIONINSIGHTS_CONNECTION_STRING set in .env, every model call
   and tool call ships as a span to Application Insights → Transaction Search.
   Without it, the agent still runs — the tracer just isn't attached and a
-  warning prints. Matches the same fallback shape as Domain 1's L12 tracing.
+  warning prints. Matches the same fallback shape as Domain 1's L26 tracing.
 
   Content recording is intentionally disabled: it otherwise captures user
   messages, tool arguments, and model outputs. Enable it only in development
-  after privacy and compliance approval. L30 covers production data lifecycle,
+  after privacy and compliance approval. L24 covers production data lifecycle,
   access, network, region, and cost preflight.
 """
 from langchain.agents import create_agent

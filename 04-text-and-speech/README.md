@@ -3,6 +3,8 @@
 > Run any lesson: `uv run python 04-text-and-speech/<file>.py` · Prereqs: `.env` filled, `az login` completed. See root [README.md](../README.md).
 > **Scope warning:** these are API exercisers, not production pipelines. Outputs are evidence to validate, not decisions to act on.
 
+New to Foundry? Follow [the learning path](../docs/learning-path.md): it puts every lesson from all nine domains in one learning order. This README keeps the exam-domain order and holds each lesson's details.
+
 ---
 
 ## What this domain teaches

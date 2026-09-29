@@ -14,7 +14,7 @@ Modes:
     tool calls, latency, token counts — without changing application code.
     Portal: project → Settings → Tracing → Connect resource.
 
-  Client-side tracing (code instrumentation, lesson 18)
+  Client-side tracing (code instrumentation, lesson 26)
     Set AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true.
     Call AIProjectInstrumentor().instrument() before making model calls.
     Add manual spans for custom logic your app owns.

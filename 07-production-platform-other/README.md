@@ -4,6 +4,8 @@
 >
 > Every lab defaults to a local read-only preflight and ends with `No cloud calls made.` Lessons 01, 02, 03, and 11 accept an `--apply` that mutates Azure; lessons 07–10 use `--apply` or `--run` only for read-only checks. CI/CD, diagnostics, and HA/DR are reviewed-only guidance validators — they never touch Azure.
 
+New to Foundry? Follow [the learning path](../docs/learning-path.md): it puts every lesson from all nine domains in one learning order. This README keeps the exam-domain order and holds each lesson's details.
+
 ## What this domain teaches
 
 A production Foundry deployment is a platform artifact chain, not a runtime script:

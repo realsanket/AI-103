@@ -4,6 +4,8 @@
 >
 > Every default command is a local preflight. `--apply` submits exactly ONE remote analysis or custom-model build. A successful preflight does not establish authentication, RBAC, network reachability, model availability, or successful Azure execution.
 
+New to Foundry? Follow [the learning path](../docs/learning-path.md): it puts every lesson from all nine domains in one learning order. This README keeps the exam-domain order and holds each lesson's details.
+
 ## What this domain teaches
 
 Document Intelligence (DI) sits alongside Content Understanding (CU) as the current Foundry document toolkit:

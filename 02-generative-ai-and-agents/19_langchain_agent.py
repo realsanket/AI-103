@@ -11,8 +11,8 @@ Beginner note:
 
   Use this pattern when you already have LangChain chains/tools you want
   to reuse. For a graph-shaped agent with conditional edges and stateful
-  routing, see L22 (LangGraph). Evaluate a complete agent conversation locally
-  in L19, then use an approved dataset for a persistent cloud run in L29.
+  routing, see L20 (LangGraph). Evaluate a complete agent conversation locally
+  in L21, then use an approved dataset for a persistent cloud run in L22.
 
 What to watch:
   The final assistant message answers both sub-questions (order + inventory)

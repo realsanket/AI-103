@@ -66,7 +66,7 @@ def apply(model: str, effort: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Call o-series reasoning model, show thinking tokens.")
+    parser = argparse.ArgumentParser(description="Call a reasoning model and show thinking tokens.")
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--model", default=settings().reasoning_model, help="Reasoning deployment (REASONING_MODEL).")
     parser.add_argument("--effort", default="medium", choices=["low", "medium", "high"])

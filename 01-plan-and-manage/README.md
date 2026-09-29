@@ -4,6 +4,8 @@
 >
 > This domain explains service behavior; a script is evidence only for its documented path. Preview availability, quota, model support, and permissions remain subscription and region specific.
 
+New to Foundry? Follow [the learning path](../docs/learning-path.md): it puts every lesson from all nine domains in one learning order. This README keeps the exam-domain order and holds each lesson's details.
+
 ## What this domain teaches
 
 A production AI feature is more than a model call:
